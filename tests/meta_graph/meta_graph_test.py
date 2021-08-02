@@ -43,8 +43,17 @@ def test3():
     print(json.dumps(graph.to_json(), indent=4))
 
 
+def test4():
+    node1 = Node('test', preds=['a', 'b'])
+    config1 = json.dumps(node1.to_json())
+    node2 = Node.from_json(config1)
+    config2 = json.dumps(node2.to_json())
+    assert config1 == config2, 'json导入导出一致性测试失败'
+    print('json导入导出一致性测试成功')
+
+
 if __name__ == '__main__':
     test1()
     test2()
     test3()
-    print(MetaNode.__init__.__doc__)
+    test4()

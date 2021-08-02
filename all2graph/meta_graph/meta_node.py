@@ -1,3 +1,4 @@
+import json
 from abc import ABC, abstractmethod
 from typing import List
 from all2graph.macro import TYPE, NAME, PREDS, SUCCS
@@ -27,13 +28,14 @@ class MetaNode(ABC):
         }
 
     @classmethod
+    def from_json(cls, obj):
+        if isinstance(obj, str):
+            obj = json.loads(obj)
+        del obj[TYPE]
+        return cls(**obj)
+
+    @classmethod
     @abstractmethod
-    def from_array(cls, x, *args, **kwargs):
-        """
-        根据向量生成元节点
-        :param x: 向量
-        :param args: 构造函数的参数
-        :param kwargs: 构造函数的参数
-        :return:
-        """
+    def from_array(cls, *args, **kwargs):
+        """根据向量生成元节点"""
         raise NotImplementedError
