@@ -1,52 +1,53 @@
-from abc import ABC, abstractmethod
-import getpass
-import time
-from typing import List
+import json
+from typing import Dict, Type, Tuple
 
 import networkx as nx
 
-from all2graph.macro import TYPE
-from all2graph.version import __version__
+from ..macro import TYPE, NODES, EDGES, SEP
+from ..meta_struct import MetaStruct
+from .meta_edge import MetaEdge
 from .meta_node import MetaNode
 
 
-class MetaGraph(ABC):
+class MetaGraph(MetaStruct):
+    # todo 节点和边都改为用字典存储
     """图的基类，定义基本成员变量和基本方法"""
-    def __init__(self, nodes: List[MetaNode]):
+    def __init__(self, nodes: Dict[str, MetaNode], edges: Dict[Tuple[str, str], MetaEdge]):
         """
 
-        :param nodes: 节点列表
+        :param nodes:
+        :param edges:
         """
-        self.version = __version__
-        self.created_time = time.asctime()
-        self.updated_time = self.created_time
-        self.creator = getpass.getuser()
+        super().__init__()
+        self.nodes = nodes
+        self.edges = edges
+        # 检查是否存在孤立点
+        self.to_networkx()
 
-        # 检查是否存在命名冲突
-        assert len(nodes) == len(set(node.name for node in nodes)), '存在节点命名冲突'
-        self.nodes = list(nodes)
-        # 检查是否存在没有属性的节点
-        graph = self.to_networkx()
-        assert graph.number_of_nodes() == len(nodes), '请检查每个节点的每一个前置节点和后置节点，是否都在nodes中'
-
-    @abstractmethod
     def to_json(self) -> dict:
-        """将对象转化成一个可以被json序列化的对象"""
-        return {
-            TYPE: self.__class__.__name__,
-            'created_time': self.created_time,
-            'updated_time': self.updated_time,
-            'creator': self.creator,
-            'nodes': [node.to_json() for node in self.nodes]
-        }
+        output = super().to_json()
+        output.update({
+            NODES: {k: v.to_json() for k, v in self.nodes.items()},
+            EDGES: {SEP.join(k): v.to_json() for k, v in self.edges.items()}
+        })
+        return output
+
+    @classmethod
+    def from_json(cls, obj, cls_dict: Dict[str, Type[MetaNode]]):
+        if isinstance(obj, str):
+            obj = json.loads(obj)
+        else:
+            obj = dict(obj)
+        obj[NODES] = {k: cls_dict[v[TYPE]].from_json(v) for k, v in obj[NODES].items()}
+        obj[EDGES] = {tuple(k.split(SEP)): cls_dict[v[TYPE]].from_json(v) for k, v in obj[EDGES].items()}
+        return super().from_json(obj)
 
     def to_networkx(self) -> nx.DiGraph:
         """将对象转化成一个networkx有向图"""
         graph = nx.DiGraph()
-        for node in self.nodes:
-            graph.add_node(node.name, **node.to_json())
-            for pred in node.preds:
-                graph.add_edge(pred, node.name)
-            for succ in node.succs:
-                graph.add_edge(node.name, succ)
+        for name, node in self.nodes.items():
+            graph.add_node(name, **node.to_json())
+        for (pred, succ), edge in self.edges.items():
+            graph.add_edge(pred, succ, **edge.to_json())
+        assert nx.number_of_isolates(graph) == 0, "图存在孤立点"
         return graph
