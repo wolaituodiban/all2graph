@@ -3,6 +3,12 @@ import numpy as np
 from all2graph.stats import ECDF
 
 
+def test_one_sample():
+    array = [2, 2]
+    ecdf = ECDF.from_data(array)
+    assert ecdf.mean_var == (2, 0)
+
+
 def test_ecdf():
     arrays = []
     ecdfs = []
@@ -11,7 +17,7 @@ def test_ecdf():
             array = np.random.random(i)
         else:
             array = np.random.randint(0, 10, i)
-        ecdf = ECDF.from_array(array)
+        ecdf = ECDF.from_data(array)
         assert np.abs(array.mean() - ecdf.mean) < 1e-5, 'test_mean failed, {} vs. {}'.format(array.mean(), ecdf.mean)
         mean, var = ecdf.mean_var
         assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)
@@ -30,8 +36,9 @@ def test_ecdf():
     assert ecdf.num_samples == 4949
     assert ecdf.num_steps == 60
     print(json.dumps(ecdf.to_json(), indent=2))
-    print('test_ecdf success')
 
 
 if __name__ == '__main__':
+    test_one_sample()
     test_ecdf()
+    print('test_ecdf success')

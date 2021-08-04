@@ -11,13 +11,13 @@ class Node(MetaNode):
         return super().from_json(obj)
 
     @classmethod
-    def from_array(cls, x, *args, **kwargs):
+    def from_data(cls, x, *args, **kwargs):
         pass
 
 
 class Graph(MetaGraph):
     @classmethod
-    def from_array(cls, **kwargs):
+    def from_data(cls, **kwargs):
         pass
 
 
@@ -62,4 +62,4 @@ def test2():
 if __name__ == '__main__':
     test1()
     test2()
-
+    print('测试MetaGraph成功')

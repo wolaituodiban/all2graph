@@ -1,30 +1,30 @@
 import numpy as np
 import pandas as pd
 
-from ..meta_struct import MetaStruct
+from .distribution import Distribution
 
 
-class ECDF(MetaStruct):
+class ECDF(Distribution):
     """经验累计分布函数"""
-    def __init__(self, x, y, num_samples: int):
+    def __init__(self, x, y, num_samples: int, **kwargs):
         """
 
         :param x: 随机变量的取值
         :param y: 取值对应的累积概率值
         :num_samples: 原始数据的数据量
         """
-        super().__init__()
+        super().__init__(num_samples=num_samples, **kwargs)
         x = np.array(x)
         y = np.array(y)
         assert len(x.shape) == len(y.shape) == 1, '必须是一维随机变量'
-        assert x.shape[0] == y.shape[0] > 1, '随机变量的取值范围必须超过1个'
+        assert x.shape[0] == y.shape[0] > 0, '随机变量的取值范围必须超过1个'
         assert y[-1] == 1, '累计概率值的最后一个值必须是1, 但是得到{}'.format(y[-1])
         assert np.min(y) > 0, '累计概率值必须大于0'
-        assert np.min(np.diff(x)) > 0, '随机变量的取值必须是单调的'
-        assert np.min(np.diff(y)) > 0, '累计概率值必须是单调的'
+        if x.shape[0] > 1:
+            assert np.min(np.diff(x)) > 0, '随机变量的取值必须是单调的'
+            assert np.min(np.diff(y)) > 0, '累计概率值必须是单调的'
         self.x = x
         self.y = y
-        self.num_samples = num_samples
 
     @property
     def num_steps(self):
@@ -44,17 +44,12 @@ class ECDF(MetaStruct):
         output = super().to_json()
         output.update({
             'x': self.x.tolist(),
-            'y': self.y.tolist(),
-            'num_samples': self.num_samples
+            'y': self.y.tolist()
         })
         return output
 
     @classmethod
-    def from_json(cls, obj):
-        return super().from_json(obj)
-
-    @classmethod
-    def from_array(cls, array):
+    def from_data(cls, array):
         array = pd.Series(array)
         value_counts = array.value_counts()
         value_counts = value_counts.reset_index()

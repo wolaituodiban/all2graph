@@ -16,12 +16,12 @@ def test_number():
 
         if (array == 'haha').mean() > 0.2:
             try:
-                Number.from_array(array, 0.2)
+                Number.from_data(array, 0.2)
                 raise AssertionError('最大允许数值转换错误比例测试失败')
             except AssertionError:
                 pass
         elif pd.to_numeric(array, errors='coerce').notna().sum() > 1:
-            num = Number.from_array(array, 0.2)
+            num = Number.from_data(array, 0.2)
             assert np.abs(num.miss_rate - (array == 'haha').mean()) < 1e-5, '{} vs. {}'.format(
                 num.miss_rate, (array == 'haha').mean()
             )
@@ -44,3 +44,4 @@ def test_number():
 
 if __name__ == '__main__':
     test_number()
+    print('测试Number成功')

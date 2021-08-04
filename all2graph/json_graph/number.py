@@ -7,7 +7,7 @@ from ..stats import ECDF
 class Number(ECDF, MetaNode):
     TOTAL_NUM_SAMPLES = 'total_num_samples'
     """数值型节点"""
-    def __init__(self, x, y, num_samples, total_num_samples):
+    def __init__(self, x, y, num_samples, total_num_samples, **kwargs):
         """
 
         :param x: 随机变量的取值
@@ -15,7 +15,7 @@ class Number(ECDF, MetaNode):
         :num_samples: 非空原始数据的数据量
         :param total_num_samples: 总原始数据的数据量
         """
-        super().__init__(x=x, y=y, num_samples=num_samples)
+        super().__init__(x=x, y=y, num_samples=num_samples, **kwargs)
         self.total_num_samples = total_num_samples
 
     @property
@@ -29,7 +29,7 @@ class Number(ECDF, MetaNode):
         return output
 
     @classmethod
-    def from_array(cls, array, max_error_rate):
+    def from_data(cls, array, max_error_rate):
         """
         从序列中构造数值型节点
         :param array: 序列
@@ -40,7 +40,7 @@ class Number(ECDF, MetaNode):
         array = pd.to_numeric(array, errors='coerce')
         assert array.isna().mean() - miss_rate <= max_error_rate, '无法转换的数据比例超过{}'.format(max_error_rate)
 
-        ecdf = ECDF.from_array(array[array.notna()])
+        ecdf = ECDF.from_data(array[array.notna()])
         return cls(x=ecdf.x, y=ecdf.y, num_samples=ecdf.num_samples, total_num_samples=array.shape[0])
 
     @classmethod
