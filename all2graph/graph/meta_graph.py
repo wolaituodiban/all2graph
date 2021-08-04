@@ -5,8 +5,13 @@ import networkx as nx
 
 from ..macro import TYPE, NODES, EDGES, SEP
 from ..meta_struct import MetaStruct
-from .meta_edge import MetaEdge
-from .meta_node import MetaNode
+from ..edge import MetaEdge, ALL_EDGE_CLASSES
+from ..node import MetaNode, ALL_NODE_CLASSES
+
+
+ALL_NODE_EDGE_CLASSES = {}
+ALL_NODE_EDGE_CLASSES.update(ALL_NODE_CLASSES)
+ALL_NODE_EDGE_CLASSES.update(ALL_EDGE_CLASSES)
 
 
 class MetaGraph(MetaStruct):
@@ -33,13 +38,27 @@ class MetaGraph(MetaStruct):
         return output
 
     @classmethod
-    def from_json(cls, obj, cls_dict: Dict[str, Type[MetaNode]]):
+    def from_json(cls, obj, classes: Dict[str, Type[MetaNode]] = None):
+        """
+
+        :param obj: json对象
+        :param classes: 所有json中包含的的点和边的类，如果为空，那么取默认
+        :return:
+        """
         if isinstance(obj, str):
             obj = json.loads(obj)
         else:
             obj = dict(obj)
-        obj[NODES] = {k: cls_dict[v[TYPE]].from_json(v) for k, v in obj[NODES].items()}
-        obj[EDGES] = {tuple(k.split(SEP)): cls_dict[v[TYPE]].from_json(v) for k, v in obj[EDGES].items()}
+
+        if classes is None:
+            classes = ALL_NODE_EDGE_CLASSES
+        else:
+            all_node_edge_classes = dict(ALL_NODE_EDGE_CLASSES)
+            all_node_edge_classes.update(classes)
+            classes = all_node_edge_classes
+
+        obj[NODES] = {k: classes[v[TYPE]].from_json(v) for k, v in obj[NODES].items()}
+        obj[EDGES] = {tuple(k.split(SEP)): classes[v[TYPE]].from_json(v) for k, v in obj[EDGES].items()}
         return super().from_json(obj)
 
     def to_networkx(self) -> nx.DiGraph:

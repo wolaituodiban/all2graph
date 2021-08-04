@@ -1,7 +1,7 @@
 import json
 import numpy as np
 import pandas as pd
-from all2graph.json_graph import Number
+from all2graph.node import Number
 
 
 def test_number():

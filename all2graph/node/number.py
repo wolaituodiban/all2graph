@@ -1,6 +1,6 @@
 import pandas as pd
 
-from ..meta_graph import MetaNode
+from .meta_node import MetaNode
 from ..stats import ECDF
 
 

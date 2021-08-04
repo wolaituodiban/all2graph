@@ -1,5 +1,7 @@
 import json
-from all2graph.meta_graph import MetaEdge, MetaNode, MetaGraph
+from all2graph.graph import MetaGraph
+from all2graph.node import MetaNode
+from all2graph.edge import MetaEdge
 
 
 class Node(MetaNode):
@@ -14,11 +16,21 @@ class Node(MetaNode):
     def from_data(cls, x, *args, **kwargs):
         pass
 
+    @classmethod
+    def merge(cls, **kwargs):
+        """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
+        raise NotImplementedError
+
 
 class Graph(MetaGraph):
     @classmethod
     def from_data(cls, **kwargs):
         pass
+
+    @classmethod
+    def merge(cls, **kwargs):
+        """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
+        raise NotImplementedError
 
 
 def test1():
@@ -52,7 +64,7 @@ def test2():
         }
     )
     json_obj = graph.to_json()
-    graph = Graph.from_json(json_obj, {'Node': Node, "MetaEdge": MetaEdge})
+    graph = Graph.from_json(json_obj, {'Node': Node})
     json_obj2 = graph.to_json()
     assert json_obj2 == json_obj, 'json导入导出一致性测试失败'
     print(json.dumps(json_obj2, indent=2))

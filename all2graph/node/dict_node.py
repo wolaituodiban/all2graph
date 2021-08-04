@@ -1,4 +1,4 @@
-from ..meta_graph import MetaNode
+from .meta_node import MetaNode
 
 
 class DictNode(MetaNode):

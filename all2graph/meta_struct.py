@@ -37,3 +37,9 @@ class MetaStruct(ABC):
     def from_data(cls, **kwargs):
         """根据向量生成元节点"""
         raise NotImplementedError
+
+    @classmethod
+    @abstractmethod
+    def merge(cls, **kwargs):
+        """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
+        raise NotImplementedError
