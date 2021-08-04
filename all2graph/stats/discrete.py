@@ -28,4 +28,4 @@ class Discrete(Distribution):
             frequency[None] = frequency[np.nan]
             del frequency[np.nan]
 
-        return cls(frequency=frequency, num_samples=value_counts.sum())
+        return cls(frequency=frequency, num_samples=num_samples)

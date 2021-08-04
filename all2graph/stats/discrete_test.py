@@ -10,6 +10,7 @@ def test_descrete():
     assert abs(discrete['b'] - 1/6) < 1e-5
     assert abs(discrete['c'] - 1/6) < 1e-5
     assert abs(discrete[None] - 1/3) < 1e-5
+    assert discrete.num_samples == 6
 
     json_obj = discrete.to_json()
     discrete = Discrete.from_json(json_obj)
