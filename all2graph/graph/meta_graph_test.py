@@ -18,7 +18,6 @@ class Node(MetaNode):
 
     @classmethod
     def merge(cls, **kwargs):
-        """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
         raise NotImplementedError
 
 
@@ -29,7 +28,6 @@ class Graph(MetaGraph):
 
     @classmethod
     def merge(cls, **kwargs):
-        """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
         raise NotImplementedError
 
 

@@ -29,16 +29,18 @@ class Number(ECDF, MetaNode):
         return output
 
     @classmethod
-    def from_data(cls, array, max_error_rate):
+    def from_data(cls, data, max_error_rate=None):
         """
         从序列中构造数值型节点
-        :param array: 序列
+        :param data: 序列
         :param max_error_rate: 最大允许的不能转换成数值的比例
         :return:
         """
-        miss_rate = pd.isna(array).mean()
-        array = pd.to_numeric(array, errors='coerce')
-        assert array.isna().mean() - miss_rate <= max_error_rate, '无法转换的数据比例超过{}'.format(max_error_rate)
+        array = pd.to_numeric(data, errors='coerce')
+
+        if max_error_rate is not None:
+            miss_rate = pd.isna(data).mean()
+            assert array.isna().mean() - miss_rate <= max_error_rate, '无法转换的数据比例超过{}'.format(max_error_rate)
 
         ecdf = ECDF.from_data(array[array.notna()])
         return cls(x=ecdf.x, y=ecdf.y, num_samples=ecdf.num_samples, total_num_samples=array.shape[0])
