@@ -49,6 +49,10 @@ class ECDF(Distribution):
         return output
 
     @classmethod
+    def from_json(cls, obj):
+        return super().from_json(obj)
+
+    @classmethod
     def from_data(cls, array):
         array = pd.Series(array)
         value_counts = array.value_counts()
@@ -72,6 +76,11 @@ class ECDF(Distribution):
         value_counts = value_counts.reset_index()
         value_counts = value_counts.sort_values('index')
         value_counts['y'] = value_counts[0].cumsum()
-        assert value_counts['y'].iloc[-1] == num_samples
+        # 检测并修正最后一个计数为样本数
+        assert abs(value_counts.loc[value_counts.index[-1], 'y'] - num_samples) < 1e-5, '{} v.s {}'.format(
+            value_counts.loc[value_counts.index[-1], 'y'], num_samples
+        )
+        value_counts.loc[value_counts.index[-1], 'y'] = num_samples
+
         value_counts['y'] /= num_samples
         return cls(value_counts['index'].values,  value_counts['y'].values, num_samples)

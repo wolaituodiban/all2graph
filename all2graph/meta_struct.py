@@ -11,8 +11,12 @@ class MetaStruct(ABC):
     """基类结构"""
     def __init__(self, created_time=None, creator=None, **kwargs):
         self.version = __version__
-        self.created_time = created_time or ddt.now(tz=timezone.utc).isoformat()
+        self.created_time = created_time or ddt.now().isoformat()
         self.creator = creator or getpass.getuser()
+
+    @abstractmethod
+    def __eq__(self, other):
+        return type(self) == type(other)
 
     @abstractmethod
     def to_json(self) -> dict:
@@ -28,8 +32,8 @@ class MetaStruct(ABC):
     @abstractmethod
     def from_json(cls, obj):
         if isinstance(obj, str):
-            json.loads(obj)
-        assert obj[TYPE] == cls.__name__, '类型错误'
+            obj = json.loads(obj)
+        assert obj[TYPE] == cls.__name__, '类型错误，期望{}，但是{}'.format(cls.__name__, obj[TYPE])
         return cls(**{k: v for k, v in obj.items() if k not in (TYPE, VERSION)})
 
     @classmethod

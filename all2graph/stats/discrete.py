@@ -1,3 +1,4 @@
+import json
 import pandas as pd
 from typing import Dict
 from .distribution import Distribution
@@ -5,6 +6,7 @@ from .distribution import Distribution
 
 class Discrete(Distribution):
     """离散分布"""
+    PROB = 'prob'
     def __init__(self, prob: Dict[str, float], num_samples, **kwargs):
         super().__init__(num_samples=num_samples, **kwargs)
         assert abs(sum(prob.values()) - 1) < 1e-5, '概率之和{}不为1'.format(sum(prob.values()))
@@ -12,8 +14,21 @@ class Discrete(Distribution):
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output['prob'] = self.prob
+        output[self.PROB] = self.prob
         return output
+
+    @classmethod
+    def from_json(cls, obj):
+        if isinstance(obj, str):
+            obj = json.loads(obj)
+        else:
+            obj = dict(obj)
+        if 'null' in obj[cls.PROB]:
+            assert None not in obj[cls.PROB]
+            obj[cls.PROB][None] = obj[cls.PROB]['null']
+            del obj[cls.PROB]['null']
+        return super().from_json(obj)
+
 
     @classmethod
     def from_data(cls, array):

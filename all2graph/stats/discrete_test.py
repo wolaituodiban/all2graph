@@ -1,3 +1,4 @@
+import json
 import numpy as np
 from all2graph.stats import Discrete
 from all2graph.macro import CREATED_TIME
@@ -14,8 +15,8 @@ def test_descrete():
     assert discrete.num_samples == 6
 
     json_obj = discrete.to_json()
-    discrete = Discrete.from_json(json_obj)
-    assert json_obj == discrete.to_json()
+    discrete = Discrete.from_json(json.dumps(json_obj))
+    assert json_obj == discrete.to_json(), '{}\n{}'.format(json_obj, discrete.to_json())
     print(json_obj)
 
 

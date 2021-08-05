@@ -12,7 +12,3 @@ class Distribution(MetaStruct):
         output = super().to_json()
         output['num_samples'] = self.num_samples
         return output
-
-    @classmethod
-    def from_json(cls, obj):
-        return super().from_json(obj)
