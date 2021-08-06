@@ -2,15 +2,25 @@ import json
 import pandas as pd
 from typing import Dict
 from .distribution import Distribution
+from ..macro import EPSILON
 
 
 class Discrete(Distribution):
-    """离散分布"""
     PROB = 'prob'
+    """离散分布"""
     def __init__(self, prob: Dict[str, float], num_samples, **kwargs):
         super().__init__(num_samples=num_samples, **kwargs)
-        assert abs(sum(prob.values()) - 1) < 1e-5, '概率之和{}不为1'.format(sum(prob.values()))
+        assert abs(sum(prob.values()) - 1) < EPSILON, '概率之和{}不为1'.format(sum(prob.values()))
         self.prob = prob
+
+    def __eq__(self, other):
+        if super().__eq__(other) and len(self.prob) == len(other.prob) == len(set(self.prob).union(other.prob)):
+            for k in self.prob:
+                if abs(self.prob[k] - other.prob[k]) > EPSILON:
+                    return False
+            return True
+        else:
+            return False
 
     def to_json(self) -> dict:
         output = super().to_json()

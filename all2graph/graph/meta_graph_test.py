@@ -8,6 +8,9 @@ class Node(MetaNode):
     def to_json(self) -> dict:
         return super().to_json()
 
+    def __eq__(self, other):
+        return super().__eq__(other)
+
     @classmethod
     def from_json(cls, obj):
         return super().from_json(obj)
@@ -21,6 +24,11 @@ class Node(MetaNode):
         raise NotImplementedError
 
 
+class Edge(MetaEdge):
+    def __eq__(self, other):
+        return super().__eq__(other)
+
+
 class Graph(MetaGraph):
     @classmethod
     def from_data(cls, **kwargs):
@@ -32,7 +40,7 @@ class Graph(MetaGraph):
 
 
 def test1():
-    edge = MetaEdge([1, 2], [0.5, 1], 2)
+    edge = Edge([1, 2], [0.5, 1], 2)
     try:
         Graph(
             nodes={
@@ -61,11 +69,9 @@ def test2():
             ('a', 'c'): MetaEdge([1, 3], [0.24, 1], 5)
         }
     )
-    json_obj = graph.to_json()
-    graph = Graph.from_json(json_obj, {'Node': Node})
-    json_obj2 = graph.to_json()
-    assert json_obj2 == json_obj, 'json导入导出一致性测试失败'
-    print(json.dumps(json_obj2, indent=2))
+    graph2 = Graph.from_json(json.dumps(graph.to_json()), {'Node': Node, 'Edge': Edge})
+    assert graph == graph2, 'json导入导出一致性测试失败'
+    print(json.dumps(graph.to_json(), indent=2))
     print('json导入导出一致性测试成功')
 
 

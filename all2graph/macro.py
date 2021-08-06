@@ -5,3 +5,4 @@ CREATOR = 'creator'
 NODES = 'nodes'
 EDGES = 'edges'
 SEP = ','
+EPSILON = 1e-6

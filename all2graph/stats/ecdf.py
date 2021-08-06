@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 
 from .distribution import Distribution
+from ..macro import EPSILON
 
 
 class ECDF(Distribution):
@@ -25,6 +26,12 @@ class ECDF(Distribution):
             assert np.min(np.diff(y)) > 0, '累计概率值必须是单调的'
         self.x = x
         self.y = y
+
+    def __eq__(self, other) -> bool:
+        if super().__eq__(other) and self.x.shape[0] == other.x.shape[0] and self.y.shape[0] == other.y.shape[0]:
+            return np.abs(self.x - other.x).max() <= EPSILON and np.abs(self.y - other.y).max() <= EPSILON
+        else:
+            return False
 
     @property
     def num_steps(self):

@@ -9,6 +9,12 @@ def test_one_sample():
     assert ecdf.mean_var == (2, 0)
 
 
+def test_not_eq():
+    ecdf1 = ECDF.from_data([1, 2])
+    ecdf2 = ECDF.from_data([2, 3])
+    assert ecdf1 != ecdf2
+
+
 def test_ecdf():
     arrays = []
     ecdfs = []
@@ -22,9 +28,8 @@ def test_ecdf():
         mean, var = ecdf.mean_var
         assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)
         assert np.abs(array.var() - var) < 1e-5, 'test_var failed, {} vs. {}'.format(array.std(), var)
-        json_obj = ecdf.to_json()
-        ecdf = ECDF.from_json(json_obj)
-        assert ecdf.to_json() == json_obj, '{} vs. {}'.format(ecdf.to_json(), json_obj)
+        ecdf2 = ECDF.from_json(json.dumps(ecdf.to_json()))
+        assert ecdf == ecdf2, '{} vs. {}'.format(ecdf.to_json(), ecdf2.to_json())
         arrays.append(array)
         ecdfs.append(ecdf)
 
@@ -40,5 +45,6 @@ def test_ecdf():
 
 if __name__ == '__main__':
     test_one_sample()
+    test_not_eq()
     test_ecdf()
     print('test_ecdf success')

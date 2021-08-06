@@ -4,6 +4,14 @@ import pandas as pd
 from all2graph.node import Number
 
 
+def test_not_eq():
+    a1 = [1, 1, 2, 2]
+    a2 = [1, 1, 2, 2, None]
+    num1 = Number.from_data(a1)
+    num2 = Number.from_data(a2)
+    assert num1 != num2 and (num1.x == num2.x).all() and (num1.y == num2.y).all()
+
+
 def test_number():
     for i in range(2, 100):
         if i % 50 == 0:
@@ -36,12 +44,12 @@ def test_number():
             )
 
             json_obj = num.to_json()
-            num = Number.from_json(json_obj)
-            assert num.to_json() == json_obj, '{} vs. {}'.format(num.to_json(), json_obj)
-    print(json.dumps(num.to_json(), indent=2))
+            num2 = Number.from_json(json.dumps(json_obj))
+            assert num == num2, '{} vs. {}'.format(num.to_json(), num2.to_json())
     print('test_number success')
 
 
 if __name__ == '__main__':
+    test_not_eq()
     test_number()
     print('测试Number成功')

@@ -18,6 +18,9 @@ class Number(ECDF, MetaNode):
         super().__init__(x=x, y=y, num_samples=num_samples, **kwargs)
         self.total_num_samples = total_num_samples
 
+    def __eq__(self, other):
+        return super().__eq__(other) and self.total_num_samples == other.total_num_samples
+
     @property
     def miss_rate(self):
         return 1 - self.num_samples / self.total_num_samples
@@ -42,7 +45,7 @@ class Number(ECDF, MetaNode):
             miss_rate = pd.isna(data).mean()
             assert array.isna().mean() - miss_rate <= max_error_rate, '无法转换的数据比例超过{}'.format(max_error_rate)
 
-        ecdf = ECDF.from_data(array[array.notna()])
+        ecdf = ECDF.from_data(array[pd.notna(array)])
         return cls(x=ecdf.x, y=ecdf.y, num_samples=ecdf.num_samples, total_num_samples=array.shape[0])
 
     @classmethod

@@ -15,7 +15,7 @@ class MetaStruct(ABC):
         self.creator = creator or getpass.getuser()
 
     @abstractmethod
-    def __eq__(self, other):
+    def __eq__(self, other) -> bool:
         return type(self) == type(other)
 
     @abstractmethod
@@ -33,7 +33,7 @@ class MetaStruct(ABC):
     def from_json(cls, obj):
         if isinstance(obj, str):
             obj = json.loads(obj)
-        assert obj[TYPE] == cls.__name__, '类型错误，期望{}，但是{}'.format(cls.__name__, obj[TYPE])
+        # assert obj[TYPE] == cls.__name__, '类型错误，期望{}，但是{}'.format(cls.__name__, obj[TYPE])
         return cls(**{k: v for k, v in obj.items() if k not in (TYPE, VERSION)})
 
     @classmethod

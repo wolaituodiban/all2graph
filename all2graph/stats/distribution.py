@@ -7,6 +7,9 @@ class Distribution(MetaStruct):
         super().__init__(**kwargs)
         self.num_samples = num_samples
 
+    def __eq__(self, other):
+        return super().__eq__(other) and self.num_samples == other.num_samples
+
     @abstractmethod
     def to_json(self) -> dict:
         output = super().to_json()

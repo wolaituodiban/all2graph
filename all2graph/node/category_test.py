@@ -22,6 +22,32 @@ def test_from_data():
     print('测试from_date成功')
 
 
+def test_not_eq():
+    df1 = pd.DataFrame(
+        [
+            [1, None],
+            [1, None],
+            [1, None],
+            [2, None]
+        ],
+        columns=['id', 'value']
+    )
+    cat1 = Category.from_data(df1, id_col='id', value_col='value')
+
+    df2 = pd.DataFrame(
+        [
+            [1, None],
+            [1, None],
+            [2, None],
+            [2, None]
+        ],
+        columns=['id', 'value']
+    )
+    cat2 = Category.from_data(df2, id_col='id', value_col='value')
+    assert cat1 != cat2
+    print('test_not_eq成功')
+
+
 def test_none():
     df = pd.DataFrame(
         [
@@ -46,9 +72,9 @@ def test_merge():
 
         df = pd.DataFrame({'index': index, 'value': value})
         cat = Category.from_data(df, id_col='index', value_col='value')
-
-        assert cat.to_json() == Category.from_json(json.dumps(cat.to_json())).to_json(), '{}\n{}'.format(
-            cat.to_json(), Category.from_json(json.dumps(cat.to_json())).to_json()
+        cat2 = Category.from_json(json.dumps(cat.to_json()))
+        assert cat == cat2, '{}\n{}'.format(
+            cat.to_json(), cat2.to_json()
         )
 
         dfs.append(df)
@@ -57,11 +83,12 @@ def test_merge():
     df = pd.concat(dfs)
     cat1 = Category.from_data(df, id_col='index', value_col='value')
     cat2 = Category.merge(cats)
-    assert cat1.to_json() == cat2.to_json(), '{}\n{}'.format(cat1.to_json(), cat2.to_json())
+    assert cat1 == cat2, '{}\n{}'.format(cat1.to_json(), cat2.to_json())
 
 
 if __name__ == '__main__':
     test_from_data()
+    test_not_eq()
     test_none()
     test_merge()
     print('测试Category成功')

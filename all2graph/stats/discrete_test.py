@@ -1,7 +1,6 @@
 import json
 import numpy as np
 from all2graph.stats import Discrete
-from all2graph.macro import CREATED_TIME
 
 
 def test_descrete():
@@ -14,10 +13,15 @@ def test_descrete():
     assert abs(discrete.prob[None] - 1/3) < 1e-5
     assert discrete.num_samples == 6
 
-    json_obj = discrete.to_json()
-    discrete = Discrete.from_json(json.dumps(json_obj))
-    assert json_obj == discrete.to_json(), '{}\n{}'.format(json_obj, discrete.to_json())
-    print(json_obj)
+    discrete2 = Discrete.from_json(json.dumps(discrete.to_json()))
+    assert discrete == discrete2, '{}\n{}'.format(discrete.to_json(), discrete2.to_json())
+    print(discrete.to_json())
+
+
+def test_not_eq():
+    dis1 = Discrete.from_data(['a', 'a', 'b'])
+    dis2 = Discrete.from_data(['a', 'b', 'b'])
+    assert dis1 != dis2
 
 
 def test_merge():
@@ -31,11 +35,7 @@ def test_merge():
 
     discrete1 = Discrete.merge(discretes)
     discrete2 = Discrete.from_data(np.concatenate(arrays))
-    assert {
-        k: v for k, v in discrete1.to_json().items() if k != CREATED_TIME
-    } == {
-        k: v for k, v in discrete2.to_json().items() if k != CREATED_TIME
-    }, '{}\n{}'.format(discrete1.to_json(), discrete2.to_json())
+    assert discrete1 == discrete2, '{}\n{}'.format(discrete1.to_json(), discrete2.to_json())
     print(discrete1.to_json())
 
 

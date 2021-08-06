@@ -29,6 +29,9 @@ class MetaGraph(MetaStruct):
         # 检查是否存在孤立点
         self.to_networkx()
 
+    def __eq__(self, other):
+        return super().__eq__(other) and self.nodes == other.nodes and self.edges == other.edges
+
     def to_json(self) -> dict:
         output = super().to_json()
         output.update({

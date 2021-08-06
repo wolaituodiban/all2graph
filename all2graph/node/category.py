@@ -24,6 +24,9 @@ class Category(MetaNode):
     def __getitem__(self, item):
         return self.freqs[item]
 
+    def __eq__(self, other):
+        return super().__eq__(other) and self.freqs == other.freqs
+
     @property
     def num_samples(self):
         return self.freqs[list(self.freqs)[0]].num_samples
