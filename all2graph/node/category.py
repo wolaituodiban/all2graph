@@ -53,7 +53,7 @@ class Category(MetaNode):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, df: pd.DataFrame, id_col, value_col):
+    def from_data(cls, df: pd.DataFrame, id_col='id', value_col='value', **kwargs):
         """
         :params df: 数据
         :params id_col: 用来确定唯一样本的id的列名
@@ -75,11 +75,11 @@ class Category(MetaNode):
         if len(na_freqs) > 0:
             freqs[None] = ECDF.merge(na_freqs)
         else:
-            freqs[None] = ECDF(x=[0], y=[1], num_samples=num_samples)
-        return cls(freqs)
+            freqs[None] = ECDF.from_data([0] * num_samples, **kwargs)
+        return super().from_data(df, freqs=freqs, **kwargs)
 
     @classmethod
-    def merge(cls, cats):
+    def merge(cls, cats, **kwargs):
         freqs = {}
         num_samples = 0
         for cat in cats:
@@ -93,5 +93,5 @@ class Category(MetaNode):
         # 将所有值的频率分布补0，直到样本数一致
         for value, freq in freqs.items():
             if freq.num_samples < num_samples:
-                freqs[value] = ECDF.merge([freq, ECDF(x=[0], y=[1], num_samples=num_samples-freq.num_samples)])
-        return cls(freqs=freqs)
+                freqs[value] = ECDF.merge([freq, ECDF.from_data([0] * (num_samples-freq.num_samples), **kwargs)])
+        return super().merge(cats, freqs=freqs, **kwargs)

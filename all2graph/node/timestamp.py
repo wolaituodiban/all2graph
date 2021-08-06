@@ -22,7 +22,7 @@ class TimeStamp(MetaNode):
         :params kwargs: MetaNode的参数
         """
         super().__init__(**kwargs)
-        assert ALL_TIME_FEATURES.issubset(feats), '衍生变量的范围必须在{}之内'.format(ALL_TIME_FEATURES)
+        assert ALL_TIME_FEATURES.issuperset(feats), '衍生变量的范围必须在{}之内'.format(ALL_TIME_FEATURES)
         assert all(isinstance(feat, Number) for feat in feats.values()), 'feats必须是Number'
         assert len(set(feat.total_num_samples for feat in feats.values())) == 1, '所有feats的total_num_samples必须相同'
         self.feats = feats
@@ -49,11 +49,11 @@ class TimeStamp(MetaNode):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, node_time, sample_datetime, max_error_rate=None):
+    def from_data(cls, node_time, sample_time=None, max_error_rate=None, **kwargs):
         node_datetime = pd.to_datetime(node_time, errors='coerce', utc=True)
         if max_error_rate is not None:
             assert node_datetime.isna().mean() - pd.isna(node_time).mean() <= max_error_rate, '无法转换的数据比例超过'
-        sample_datetime = pd.to_datetime(node_time, utc=True)
+        sample_datetime = pd.to_datetime(sample_time, utc=True)
         feats = {
             # 精确到纳秒
             SECOND_DIFF: Number.from_data((sample_datetime - node_datetime) / pd.Timedelta(1))
@@ -61,16 +61,16 @@ class TimeStamp(MetaNode):
         for time_unit in ALL_TIME_UNITS:
             num = Number.from_data(getattr(node_datetime, time_unit))
             if num.mean_var[1] > 0:
-                feats[num] = num
-        return cls(feats=feats)
+                feats[time_unit] = num
+        return super().from_data(node_time, feats=feats, **kwargs)
 
     @classmethod
-    def merge(cls, timestamps):
+    def merge(cls, timestamps, **kwargs):
         feats = {}
         total_num_samples = 0
         for timestamp in timestamps:
             total_num_samples += timestamp.total_num_samples
-            for value, feat in timestamp.freqs.items():
+            for value, feat in timestamp.feats.items():
                 if value not in feats:
                     feats[value] = [feat]
                 else:
@@ -80,4 +80,4 @@ class TimeStamp(MetaNode):
         for value, feat in feats.items():
             if feat.total_num_samples < total_num_samples:
                 feat.total_num_samples = total_num_samples
-        return cls(feats=feats)
+        return super().from_data(timestamps, feats=feats, **kwargs)

@@ -39,18 +39,17 @@ class Discrete(Distribution):
             del obj[cls.PROB]['null']
         return super().from_json(obj)
 
-
     @classmethod
-    def from_data(cls, array):
+    def from_data(cls, array, **kwargs):
         value_counts = pd.value_counts(array)
         num_samples = len(array)
         value_counts[None] = num_samples - value_counts.sum()
         value_counts /= num_samples
         prob = value_counts.to_dict()
-        return cls(prob=prob, num_samples=num_samples)
+        return super().from_data(array, prob=prob, num_samples=num_samples, **kwargs)
 
     @classmethod
-    def merge(cls, discretes):
+    def merge(cls, discretes, **kwargs):
         value_counts = {}
         num_samples = 0
         for discrete in discretes:
@@ -61,4 +60,4 @@ class Discrete(Distribution):
                 else:
                     value_counts[k] = v * discrete.num_samples
         prob = {k: v / num_samples for k, v in value_counts.items()}
-        return cls(prob=prob, num_samples=num_samples)
+        return super().merge(discretes, prob=prob, num_samples=num_samples, **kwargs)

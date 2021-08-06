@@ -32,22 +32,23 @@ class Number(ECDF, MetaNode):
         return output
 
     @classmethod
-    def from_data(cls, data, max_error_rate=None):
+    def from_data(cls, array, max_error_rate=None, **kwargs):
         """
         从序列中构造数值型节点
-        :param data: 序列
+        :param array: 序列
         :param max_error_rate: 最大允许的不能转换成数值的比例
         :return:
         """
-        array = pd.to_numeric(data, errors='coerce')
+        num_array = pd.to_numeric(array, errors='coerce')
 
         if max_error_rate is not None:
-            miss_rate = pd.isna(data).mean()
-            assert array.isna().mean() - miss_rate <= max_error_rate, '无法转换的数据比例超过{}'.format(max_error_rate)
+            miss_rate = pd.isna(array).mean()
+            assert num_array.isna().mean() - miss_rate <= max_error_rate, '无法转换的数据比例超过{}'.format(max_error_rate)
 
-        ecdf = ECDF.from_data(array[pd.notna(array)])
-        return cls(x=ecdf.x, y=ecdf.y, num_samples=ecdf.num_samples, total_num_samples=array.shape[0])
+        notna_array = num_array[pd.notna(num_array)]
+        return super().from_data(notna_array, total_num_samples=num_array.shape[0], **kwargs)
 
     @classmethod
-    def merge(cls, ecdfs):
-        raise NotImplementedError
+    def merge(cls, nums, **kwargs):
+        total_num_samples = sum(num.total_num_samples for num in nums)
+        return super().merge(nums, total_num_samples=total_num_samples, **kwargs)

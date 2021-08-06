@@ -60,7 +60,7 @@ class ECDF(Distribution):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, array):
+    def from_data(cls, array, **kwargs):
         array = pd.Series(array)
         value_counts = array.value_counts()
         value_counts = value_counts.reset_index()
@@ -68,10 +68,12 @@ class ECDF(Distribution):
         value_counts['y'] = value_counts[0].cumsum()
         assert array.shape[0] == value_counts['y'].iloc[-1]
         value_counts['y'] /= array.shape[0]
-        return cls(value_counts['index'].values,  value_counts['y'].values, array.shape[0])
+        x = value_counts['index'].values
+        y = value_counts['y'].values
+        return super().from_data(array, x=x, y=y, num_samples=array.shape[0], **kwargs)
 
     @classmethod
-    def merge(cls, ecdfs):
+    def merge(cls, ecdfs, **kwargs):
         """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
         num_samples = ecdfs[0].num_samples
         value_counts = pd.Series(np.diff(ecdfs[0].y, prepend=0) * ecdfs[0].num_samples, index=ecdfs[0].x)
@@ -90,4 +92,6 @@ class ECDF(Distribution):
         value_counts.loc[value_counts.index[-1], 'y'] = num_samples
 
         value_counts['y'] /= num_samples
-        return cls(value_counts['index'].values,  value_counts['y'].values, num_samples)
+        x = value_counts['index'].values
+        y = value_counts['y'].values
+        return super().merge(ecdfs, x=x, y=y, num_samples=num_samples, **kwargs)

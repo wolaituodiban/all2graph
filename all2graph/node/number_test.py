@@ -9,7 +9,9 @@ def test_not_eq():
     a2 = [1, 1, 2, 2, None]
     num1 = Number.from_data(a1)
     num2 = Number.from_data(a2)
-    assert num1 != num2 and (num1.x == num2.x).all() and (num1.y == num2.y).all()
+    assert num1 != num2 and (num1.x == num2.x).all() and (num1.y == num2.y).all(), '{}\n{}'.format(
+        num1.to_json(), num2.to_json()
+    )
 
 
 def test_number():
@@ -49,7 +51,32 @@ def test_number():
     print('test_number success')
 
 
+def test_merge():
+    arrays = []
+    nums = []
+    for i in range(2, 100):
+        if i % 50 == 0:
+            array = np.random.random(i)
+        else:
+            array = np.random.randint(0, 10, i)
+
+        array = pd.Series(array)
+        array.iloc[np.random.binomial(2, 0.2, i).astype(bool)] = 'haha'
+        num = Number.from_data(array)
+
+        arrays.append(array)
+        nums.append(num)
+
+    num1 = Number.from_data(pd.concat(arrays))
+    num2 = Number.merge(nums)
+
+    assert num1 == num2, '{} vs. {}'.format(num1.to_json(), num2.to_json())
+    print(json.dumps(num2.to_json(), indent=4))
+    print('测试merge成功')
+
+
 if __name__ == '__main__':
     test_not_eq()
     test_number()
+    test_merge()
     print('测试Number成功')
