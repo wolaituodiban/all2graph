@@ -1,6 +1,6 @@
 import getpass
 import json
-from datetime import datetime as ddt, timezone
+from datetime import datetime as ddt
 from abc import ABC, abstractmethod
 
 from .macro import TYPE, VERSION, CREATED_TIME, CREATOR
