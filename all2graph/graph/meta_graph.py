@@ -15,7 +15,6 @@ ALL_NODE_EDGE_CLASSES.update(ALL_EDGE_CLASSES)
 
 
 class MetaGraph(MetaStruct):
-    # todo 节点和边都改为用字典存储
     """图的基类，定义基本成员变量和基本方法"""
     def __init__(self, nodes: Dict[str, MetaNode], edges: Dict[Tuple[str, str], MetaEdge], **kwargs):
         """

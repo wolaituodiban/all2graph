@@ -2,6 +2,7 @@ import getpass
 import json
 from datetime import datetime as ddt
 from abc import ABC, abstractmethod
+from typing import Union
 
 from .macro import TYPE, VERSION, CREATED_TIME, CREATOR
 from .version import __version__
@@ -30,7 +31,7 @@ class MetaStruct(ABC):
 
     @classmethod
     @abstractmethod
-    def from_json(cls, obj):
+    def from_json(cls, obj: Union[str, dict]):
         if isinstance(obj, str):
             obj = json.loads(obj)
         # assert obj[TYPE] == cls.__name__, '类型错误，期望{}，但是{}'.format(cls.__name__, obj[TYPE])
