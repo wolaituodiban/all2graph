@@ -27,7 +27,15 @@ class Category(MetaNode):
         return super().__eq__(other) and self.freqs == other.freqs
 
     @property
-    def num_samples(self):
+    def miss_rate(self) -> float:
+        return self[None].mean * self.num_samples / self.num_nodes
+
+    @property
+    def num_nodes(self) -> int:
+        return sum(freq.mean for freq in self.freqs.values()) * self.num_samples
+
+    @property
+    def num_samples(self) -> int:
         return self.freqs[list(self.freqs)[0]].num_samples
 
     def to_discrete(self) -> Discrete:

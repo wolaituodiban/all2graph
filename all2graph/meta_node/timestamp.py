@@ -31,6 +31,17 @@ class TimeStamp(MetaNode):
     def total_num_samples(self):
         return self.feats[SECOND_DIFF].total_num_samples
 
+    @property
+    def num_nodes(self) -> int:
+        return self.total_num_samples
+
+    @property
+    def miss_rate(self) -> float:
+        return self[SECOND_DIFF].miss_rate
+
+    def __getitem__(self, item) -> Number:
+        return self.feats[item]
+
     def __eq__(self, other):
         return super().__eq__(other) and self.feats == other.feats
 

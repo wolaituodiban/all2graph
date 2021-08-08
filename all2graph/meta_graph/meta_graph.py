@@ -63,6 +63,10 @@ class MetaGraph(MetaStruct):
         obj[EDGES] = {tuple(k.split(SEP)): classes[v[TYPE]].from_json(v) for k, v in obj[EDGES].items()}
         return super().from_json(obj)
 
+    @classmethod
+    def merge(cls, graphs, **kwargs):
+        raise NotImplementedError
+
     def to_networkx(self) -> nx.DiGraph:
         """将对象转化成一个networkx有向图"""
         graph = nx.DiGraph()
