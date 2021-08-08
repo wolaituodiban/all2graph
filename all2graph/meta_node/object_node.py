@@ -1,7 +1,7 @@
 from .meta_node import MetaNode
 
 
-class DictNode(MetaNode):
+class ObjectNode(MetaNode):
     def to_json(self) -> dict:
         return super().to_json()
 

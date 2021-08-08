@@ -2,7 +2,7 @@ import json
 from typing import Dict, Type
 
 from ..macro import TYPE
-from ..node import MetaNode, ALL_NODE_CLASSES
+from ..meta_node import MetaNode, ALL_NODE_CLASSES
 from ..stats import ECDF
 
 

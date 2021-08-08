@@ -5,8 +5,8 @@ import networkx as nx
 
 from ..macro import TYPE, NODES, EDGES, SEP
 from ..meta_struct import MetaStruct
-from ..edge import MetaEdge, ALL_EDGE_CLASSES
-from ..node import MetaNode, ALL_NODE_CLASSES
+from ..meta_edge import MetaEdge, ALL_EDGE_CLASSES
+from ..meta_node import MetaNode, ALL_NODE_CLASSES
 
 
 ALL_NODE_EDGE_CLASSES = {}

@@ -6,7 +6,6 @@ from ..macro import EPSILON
 
 
 class Discrete(Distribution):
-    PROB = 'prob'
     """离散分布"""
     def __init__(self, prob: Dict[str, float], num_samples, **kwargs):
         super().__init__(num_samples=num_samples, **kwargs)
@@ -24,7 +23,7 @@ class Discrete(Distribution):
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output[self.PROB] = self.prob
+        output['prob'] = self.prob
         return output
 
     @classmethod
@@ -33,10 +32,10 @@ class Discrete(Distribution):
             obj = json.loads(obj)
         else:
             obj = dict(obj)
-        if 'null' in obj[cls.PROB]:
-            assert None not in obj[cls.PROB]
-            obj[cls.PROB][None] = obj[cls.PROB]['null']
-            del obj[cls.PROB]['null']
+        if 'null' in obj['prob']:
+            assert None not in obj['prob']
+            obj['prob'][None] = obj['prob']['null']
+            del obj['prob']['null']
         return super().from_json(obj)
 
     @classmethod

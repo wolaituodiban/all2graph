@@ -35,7 +35,7 @@ class MetaStruct(ABC):
 
     def __setattr__(self, key, value):
         if key != '_initialized':
-            assert self._initialized, '你不能在基类构造函数调用前，为对象增加新的属性'
+            assert self._initialized, '不要擅自调用构造函数，请使用from_json或者from_data或者merge生成新的对象'
         super().__setattr__(key, value)
 
     @property

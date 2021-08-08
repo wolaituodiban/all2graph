@@ -47,7 +47,7 @@ class ECDF(Distribution):
         mean = np.dot(self.x, delta_prob)
         return mean, np.dot((self.x - mean) ** 2, delta_prob)
 
-    def to_json(self):
+    def to_json(self) -> dict:
         output = super().to_json()
         output.update({
             'x': self.x.tolist(),

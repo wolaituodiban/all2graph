@@ -1,7 +1,7 @@
 from .meta_node import MetaNode
 
 
-class ListNode(MetaNode):
+class ArrayNode(MetaNode):
     def to_json(self) -> dict:
         return super().to_json()
 

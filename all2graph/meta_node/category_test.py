@@ -3,7 +3,7 @@ import json
 import numpy as np
 import pandas as pd
 
-from all2graph.node import Category
+from all2graph.meta_node import Category
 
 
 def test_from_data():
@@ -17,7 +17,7 @@ def test_from_data():
         columns=['id', 'value']
     )
     cat = Category.from_data(df, id_col='id', value_col='value')
-    assert cat['a'].mean_var == (0.5, 0.25), '{}'.format(cat['a'].mean_var)
+    assert cat['a'].mean_var == (0.5, 0.25), '{}:{}'.format(cat['a'].to_json(), cat['a'].mean_var)
     assert cat['b'].mean_var == (1.5, 0.25), '{}'.format(cat['b'].mean_var)
     print('测试from_date成功')
 
@@ -25,10 +25,10 @@ def test_from_data():
 def test_not_eq():
     df1 = pd.DataFrame(
         [
-            [1, None],
-            [1, None],
-            [1, None],
-            [2, None]
+            [1, 'a'],
+            [1, 'a'],
+            [1, 'a'],
+            [2, 'a']
         ],
         columns=['id', 'value']
     )
@@ -36,31 +36,16 @@ def test_not_eq():
 
     df2 = pd.DataFrame(
         [
-            [1, None],
-            [1, None],
-            [2, None],
-            [2, None]
+            [1, 'a'],
+            [1, 'a'],
+            [2, 'a'],
+            [2, 'a']
         ],
         columns=['id', 'value']
     )
     cat2 = Category.from_data(df2, id_col='id', value_col='value')
     assert cat1 != cat2
     print('test_not_eq成功')
-
-
-def test_none():
-    df = pd.DataFrame(
-        [
-            [1, None],
-            [1, None],
-            [1, None],
-            [2, None]
-        ],
-        columns=['id', 'value']
-    )
-    cat = Category.from_data(df, id_col='id', value_col='value')
-    print(cat.to_json())
-    print('测试test_none成功')
 
 
 def test_merge():
@@ -89,6 +74,5 @@ def test_merge():
 if __name__ == '__main__':
     test_from_data()
     test_not_eq()
-    test_none()
     test_merge()
     print('测试Category成功')

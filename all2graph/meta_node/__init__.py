@@ -1,6 +1,5 @@
 from .category import Category
 from .meta_node import MetaNode
-from .number import Number
 from .timestamp import TimeStamp
 
 
