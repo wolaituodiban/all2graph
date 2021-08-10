@@ -20,7 +20,7 @@ def test_json_value():
     sample_times3 = sample_times1 + sample_times2
 
     jv3 = JsonValue.from_data(len(sample_ids3), sample_ids3, values3, sample_times=sample_times3)
-    jv4 = JsonValue.merge([jv1, jv2])
+    jv4 = JsonValue.reduce([jv1, jv2])
 
     assert jv3.node_freq == jv4.node_freq, '{}\n{}'.format(jv3.node_freq.to_json(), jv4.node_freq.to_json())
     for k in jv3.value_dist:

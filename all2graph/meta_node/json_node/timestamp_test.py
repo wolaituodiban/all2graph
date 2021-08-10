@@ -15,7 +15,7 @@ def test_timestamp():
     assert t1 == t3, '{}\n{}'.format(t1.to_json(), t3.to_json())
     a3 = a1 + a2
     t4 = TimeStamp.from_data(len(a3), sample_ids=list(range(len(a3))), values=a3, sample_times=sample_time)
-    t5 = TimeStamp.merge([t1, t2])
+    t5 = TimeStamp.reduce([t1, t2])
     assert t4 == t5
     print(json.dumps(t5.to_json(), indent=4))
 

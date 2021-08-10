@@ -48,7 +48,7 @@ class Discrete(Distribution):
         return super().from_data(prob=prob, num_samples=num_samples, **kwargs)
 
     @classmethod
-    def merge(cls, discretes, **kwargs):
+    def reduce(cls, discretes, **kwargs):
         value_counts = {}
         num_samples = 0
         for discrete in discretes:
@@ -59,4 +59,4 @@ class Discrete(Distribution):
                 else:
                     value_counts[k] = v * discrete.num_samples
         prob = {k: v / num_samples for k, v in value_counts.items()}
-        return super().merge(discretes, prob=prob, num_samples=num_samples, **kwargs)
+        return super().reduce(discretes, prob=prob, num_samples=num_samples, **kwargs)

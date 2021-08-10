@@ -67,7 +67,7 @@ def test_merge():
 
     df = pd.concat(dfs)
     cat1 = StringNode.from_data(df.shape[0], df['index'], df['value'])
-    cat2 = StringNode.merge(cats)
+    cat2 = StringNode.reduce(cats)
     assert cat1 == cat2, '{}\n{}'.format(cat1.to_json(), cat2.to_json())
 
 

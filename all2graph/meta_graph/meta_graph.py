@@ -64,7 +64,7 @@ class MetaGraph(MetaStruct):
         return super().from_json(obj)
 
     @classmethod
-    def merge(cls, graphs, **kwargs):
+    def reduce(cls, graphs, **kwargs):
         raise NotImplementedError
 
     def to_networkx(self) -> nx.DiGraph:

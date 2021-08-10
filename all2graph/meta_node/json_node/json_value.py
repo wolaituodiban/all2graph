@@ -181,7 +181,7 @@ class JsonValue(MetaNode):
         return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
 
     @classmethod
-    def merge(cls, structs: List[MetaNode], **kwargs):
+    def reduce(cls, structs: List[MetaNode], **kwargs):
         num_samples = 0
         value_dist = {}
         for struct in structs:
@@ -192,15 +192,15 @@ class JsonValue(MetaNode):
                 else:
                     value_dist[k].append(v)
 
-        value_dist = {k: ALL_TYPES_OF_VALUE[k].merge(v) for k, v in value_dist.items()}
+        value_dist = {k: ALL_TYPES_OF_VALUE[k].reduce(v) for k, v in value_dist.items()}
 
         for k in value_dist:
             if value_dist[k].num_samples < num_samples:
-                value_dist[k].node_freq = ECDF.merge(
+                value_dist[k].node_freq = ECDF.reduce(
                     [
                         value_dist[k].node_freq,
                         ECDF.from_data([0] * (num_samples-value_dist[k].node_freq.num_samples), **kwargs)]
                 )
 
         kwargs[cls.VALUE_DIST] = value_dist
-        return super().merge(structs, **kwargs)
+        return super().reduce(structs, **kwargs)

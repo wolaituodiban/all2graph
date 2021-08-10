@@ -30,7 +30,7 @@ class TimeStamp(StringNode):
         if sample_times is not None:
             sample_datetime = pd.to_datetime(sample_times, utc=True)
             # 精确到纳秒
-            value_dist[SECOND_DIFF] = ECDF.from_data((sample_datetime - node_datetime) / pd.Timedelta(1))
+            value_dist[SECOND_DIFF] = ECDF.from_data((sample_datetime - node_datetime) / pd.Timedelta(1) / 1e9)
         for time_unit in ALL_TIME_UNITS:
             num = ECDF.from_data(getattr(node_datetime, time_unit))
             if num.mean_var[1] > 0:

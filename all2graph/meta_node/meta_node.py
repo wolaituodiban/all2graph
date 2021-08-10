@@ -71,11 +71,11 @@ class MetaNode(MetaStruct):
         return super().from_data(**kwargs)
 
     @classmethod
-    def merge(cls, structs, **kwargs):
+    def reduce(cls, structs, **kwargs):
         """
         合并多个经验累计分布函数，返回一个贾总的经验累计分布函数
         会自动解析update_records，并生成一个合并后的update_records
         """
         node_freqs = [struct.node_freq for struct in structs]
-        kwargs[cls.NODE_FREQ] = ECDF.merge(node_freqs)
-        return super().merge(structs, **kwargs)
+        kwargs[cls.NODE_FREQ] = ECDF.reduce(node_freqs)
+        return super().reduce(structs, **kwargs)

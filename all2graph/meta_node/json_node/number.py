@@ -25,12 +25,12 @@ class Number(MetaNode):
         return super().from_data(num_samples, sample_ids, values, **kwargs)
 
     @classmethod
-    def merge(cls, structs, **kwargs):
+    def reduce(cls, structs, **kwargs):
         node_freqs = []
         value_dists = []
         for struct in structs:
             node_freqs.append(struct.node_freq)
             value_dists.append(struct.value_dist)
-        kwargs[cls.NODE_FREQ] = ECDF.merge(node_freqs)
-        kwargs[cls.VALUE_DIST] = ECDF.merge(value_dists)
-        return super().merge(structs, **kwargs)
+        kwargs[cls.NODE_FREQ] = ECDF.reduce(node_freqs)
+        kwargs[cls.VALUE_DIST] = ECDF.reduce(value_dists)
+        return super().reduce(structs, **kwargs)

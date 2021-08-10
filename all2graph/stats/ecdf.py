@@ -70,7 +70,7 @@ class ECDF(Distribution):
         return super().from_data(x=counts_cumsum.index, y=counts_cumsum.values, num_samples=num_samples, **kwargs)
 
     @classmethod
-    def merge(cls, ecdfs, **kwargs):
+    def reduce(cls, ecdfs, **kwargs):
         """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
         num_samples = ecdfs[0].num_samples
         value_counts = pd.Series(np.diff(ecdfs[0].y, prepend=0) * ecdfs[0].num_samples, index=ecdfs[0].x)
@@ -91,4 +91,4 @@ class ECDF(Distribution):
         value_counts['y'] /= num_samples
         x = value_counts['index'].values
         y = value_counts['y'].values
-        return super().merge(ecdfs, x=x, y=y, num_samples=num_samples, **kwargs)
+        return super().reduce(ecdfs, x=x, y=y, num_samples=num_samples, **kwargs)

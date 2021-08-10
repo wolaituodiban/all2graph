@@ -81,9 +81,9 @@ class MetaStruct(ABC):
 
     @classmethod
     @abstractmethod
-    def merge(cls, structs, **kwargs):
+    def reduce(cls, structs, **kwargs):
         """
-        合并多个经验累计分布函数，返回一个贾总的经验累计分布函数
+        合并多个结构，返回一个加总的结构
         会自动解析update_records，并生成一个合并后的update_records
         """
         update_records = []

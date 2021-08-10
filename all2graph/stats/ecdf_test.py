@@ -34,7 +34,7 @@ def test_ecdf():
         ecdfs.append(ecdf)
 
     array = np.concatenate(arrays)
-    ecdf = ECDF.merge(ecdfs)
+    ecdf = ECDF.reduce(ecdfs)
     mean, var = ecdf.mean_var
     assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)
     assert np.abs(array.var() - var) < 1e-5, 'test_var failed, {} vs. {}'.format(array.std(), var)

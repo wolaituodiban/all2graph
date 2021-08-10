@@ -33,7 +33,7 @@ def test_merge():
         arrays.append(array)
         discretes.append(discrete)
 
-    discrete1 = Discrete.merge(discretes)
+    discrete1 = Discrete.reduce(discretes)
     discrete2 = Discrete.from_data(np.concatenate(arrays))
     assert discrete1 == discrete2, '{}\n{}'.format(discrete1.to_json(), discrete2.to_json())
     print(discrete1.to_json())

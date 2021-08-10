@@ -60,7 +60,7 @@ class StringNode(MetaNode):
         return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
 
     @classmethod
-    def merge(cls, cats, **kwargs):
+    def reduce(cls, cats, **kwargs):
         valud_dists = {}
         num_samples = 0
         for cat in cats:
@@ -70,10 +70,10 @@ class StringNode(MetaNode):
                     valud_dists[value] = [freq]
                 else:
                     valud_dists[value].append(freq)
-        valud_dists = {k: ECDF.merge(v) for k, v in valud_dists.items()}
+        valud_dists = {k: ECDF.reduce(v) for k, v in valud_dists.items()}
         # 将所有值的频率分布补0，直到样本数一致
         for value, freq in valud_dists.items():
             if freq.num_samples < num_samples:
-                valud_dists[value] = ECDF.merge([freq, ECDF.from_data([0] * (num_samples-freq.num_samples), **kwargs)])
+                valud_dists[value] = ECDF.reduce([freq, ECDF.from_data([0] * (num_samples - freq.num_samples), **kwargs)])
         kwargs[cls.VALUE_DIST] = valud_dists
-        return super().merge(cats, **kwargs)
+        return super().reduce(cats, **kwargs)

@@ -17,7 +17,7 @@ class BoolNode(MetaNode):
         return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
 
     @classmethod
-    def merge(cls, structs, **kwargs):
+    def reduce(cls, structs, **kwargs):
         num_samples = 0
         value_dist = 0
         for struct in structs:
@@ -25,4 +25,4 @@ class BoolNode(MetaNode):
             value_dist = num_samples/new_num_samples*value_dist + struct.num_samples/new_num_samples*struct.value_dist
             num_samples = new_num_samples
         kwargs[cls.VALUE_DIST] = value_dist
-        return super().merge(structs, **kwargs)
+        return super().reduce(structs, **kwargs)
