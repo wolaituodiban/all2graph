@@ -4,7 +4,7 @@ from all2graph.meta_node import TimeStamp
 
 def test_timestamp():
     a1 = ['2020-01-02', '2020-05-01 12:33:11']
-    a2 = ['2020-01-02', '2020-05-01 12:33:11.11']
+    a2 = ['2020-01-02', '2020-05-03 12:01:23.11']
     sample_time = '2021-05-01'
 
     t1 = TimeStamp.from_data(len(a1), sample_ids=list(range(len(a1))), values=a1, sample_times=sample_time)

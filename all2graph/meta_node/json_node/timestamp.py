@@ -4,8 +4,8 @@ from typing import Dict
 import pandas as pd
 
 from .string_node import StringNode
-from ..macro import SECOND_DIFF
-from ..stats import ECDF
+from all2graph.macro import SECOND_DIFF
+from all2graph.stats import ECDF
 
 
 ALL_TIME_UNITS = {'year', 'month', 'day', 'weekday', 'hour', 'minute', 'second'}
@@ -26,7 +26,7 @@ class TimeStamp(StringNode):
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, sample_times=None, **kwargs):
         value_dist = {}
-        node_datetime = pd.to_datetime(values, utc=True)
+        node_datetime = pd.to_datetime(list(values), utc=True)
         if sample_times is not None:
             sample_datetime = pd.to_datetime(sample_times, utc=True)
             # 精确到纳秒

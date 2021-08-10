@@ -1,6 +1,6 @@
 import json
-from .meta_node import MetaNode
-from ..stats import ECDF
+from all2graph.meta_node.meta_node import MetaNode
+from all2graph.stats import ECDF
 
 
 class Number(MetaNode):
@@ -16,8 +16,8 @@ class Number(MetaNode):
             obj = json.loads(obj)
         else:
             obj = dict(obj)
-        obj[cls.NODE_FREQ] = ECDF.from_json(obj[cls.NODE_FREQ])
         obj[cls.VALUE_DIST] = ECDF.from_json(obj[cls.VALUE_DIST])
+        return super().from_json(obj)
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, **kwargs):
@@ -33,4 +33,4 @@ class Number(MetaNode):
             value_dists.append(struct.value_dist)
         kwargs[cls.NODE_FREQ] = ECDF.merge(node_freqs)
         kwargs[cls.VALUE_DIST] = ECDF.merge(value_dists)
-        return super().merge(**kwargs)
+        return super().merge(structs, **kwargs)

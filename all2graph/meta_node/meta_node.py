@@ -1,5 +1,4 @@
 import json
-from abc import abstractmethod
 from typing import Union
 
 import pandas as pd
@@ -48,6 +47,7 @@ class MetaNode(MetaStruct):
         """将对象装化成可以被json序列化的对象"""
         output = super().to_json()
         output[self.NODE_FREQ] = self.node_freq.to_json()
+        output[self.VALUE_DIST] = self.value_dist
         return output
 
     @classmethod

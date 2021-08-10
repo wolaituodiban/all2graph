@@ -3,8 +3,8 @@ from typing import Dict
 
 import pandas as pd
 
-from .meta_node import MetaNode
-from ..stats import Discrete, ECDF
+from all2graph.meta_node.meta_node import MetaNode
+from all2graph.stats import Discrete, ECDF
 
 
 class StringNode(MetaNode):
@@ -50,11 +50,11 @@ class StringNode(MetaNode):
         value_col = 'value'
         df = pd.DataFrame({id_col: sample_ids, value_col: values})
         count_df = df.reset_index().groupby([id_col, value_col]).count()
-        num_samples = count_df.index.get_level_values(0).unique().shape[0]
+        num_nodes = count_df.index.get_level_values(0).unique().shape[0]
         for value, count in count_df.groupby(level=value_col):
             freq = count.values[:, 0].tolist()
-            if len(freq) < num_samples:
-                freq += [0] * (num_samples - len(freq))
+            if len(freq) < num_nodes:
+                freq += [0] * (num_nodes - len(freq))
             value_dists[value] = ECDF.from_data(freq)
         kwargs[cls.VALUE_DIST] = value_dists
         return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
