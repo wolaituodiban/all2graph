@@ -24,11 +24,11 @@ class TimeStamp(StringNode):
         super().__init__(value_dist=value_dist, **kwargs)
 
     @classmethod
-    def from_data(cls, num_samples, sample_ids, values, sample_time=None, **kwargs):
+    def from_data(cls, num_samples, sample_ids, values, sample_times=None, **kwargs):
         value_dist = {}
         node_datetime = pd.to_datetime(values, utc=True)
-        if sample_time is not None:
-            sample_datetime = pd.to_datetime(sample_time, utc=True)
+        if sample_times is not None:
+            sample_datetime = pd.to_datetime(sample_times, utc=True)
             # 精确到纳秒
             value_dist[SECOND_DIFF] = ECDF.from_data((sample_datetime - node_datetime) / pd.Timedelta(1))
         for time_unit in ALL_TIME_UNITS:

@@ -24,7 +24,7 @@ class MetaNode(MetaStruct):
 
     对于不同类型的节点，其统计分布的口径会有不同，需要区分对待
     """
-    def __init__(self, node_freq: ECDF, value_dist, **kwargs):
+    def __init__(self, node_freq: ECDF, value_dist=None, **kwargs):
         """
         :params node_freq: 节点数量的频率分布
         :params value_dist: 节点值的分布
@@ -44,7 +44,6 @@ class MetaNode(MetaStruct):
     def num_nodes(self) -> int:
         return self.node_freq.mean * self.node_freq.num_samples
 
-    @abstractmethod
     def to_json(self) -> dict:
         """将对象装化成可以被json序列化的对象"""
         output = super().to_json()
@@ -52,7 +51,6 @@ class MetaNode(MetaStruct):
         return output
 
     @classmethod
-    @abstractmethod
     def from_json(cls, obj: Union[str, dict]):
         if isinstance(obj, str):
             obj = json.loads(obj)
@@ -62,7 +60,6 @@ class MetaNode(MetaStruct):
         return super().from_json(obj)
 
     @classmethod
-    @abstractmethod
     def from_data(cls, num_samples, sample_ids, values, **kwargs):
         """根据向量生成元节点"""
         node_counts = pd.value_counts(sample_ids)
@@ -74,7 +71,6 @@ class MetaNode(MetaStruct):
         return super().from_data(**kwargs)
 
     @classmethod
-    @abstractmethod
     def merge(cls, structs, **kwargs):
         """
         合并多个经验累计分布函数，返回一个贾总的经验累计分布函数

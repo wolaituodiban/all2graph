@@ -16,6 +16,7 @@ class StringNode(MetaNode):
         """
         assert len(value_dist) > 0, '频率分布函数不能为空'
         assert len({ecdf.num_samples for ecdf in value_dist.values()}) == 1, '样本数不一致'
+        assert all(isinstance(value, str) for value in value_dist)
         super().__init__(node_freq=node_freq, value_dist=value_dist, **kwargs)
 
     def __getitem__(self, item):
