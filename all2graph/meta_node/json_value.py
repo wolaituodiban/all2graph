@@ -1,9 +1,11 @@
 import json
 from .array_node import ArrayNode
-from .category import Category
+from .string_node import StringNode
 from .meta_node import MetaNode
+from .number import Number
 from .object_node import ObjectNode
 from .timestamp import TimeStamp, ALL_TIME_UNITS, SECOND_DIFF
+from ..macro import EPSILON
 from ..stats import ECDF
 
 
@@ -34,7 +36,7 @@ class JsonValue(MetaNode):
         string_freq:    ECDF型，记录样本口径下，value为string的频率
         string_attr:    Catgory型，记录样本口径下，每一个字符串的出现频率
         number_freq:    ECDF型，记录样本口径下，value为number的频率
-        number_attr:    ECDF型，记录节点口径下，number的累计分布函数
+        number_attr:    Number型，记录节点口径下，number的累计分布函数
         object_freq:    ECDF型，记录样本口径下，value为object的频率
         object_attr:    ObjectNode型，记录object的属性
         array_freq:     ECDF型，记录样本口径下，value为array的频率
@@ -50,9 +52,9 @@ class JsonValue(MetaNode):
     def __init__(
             self,
             string_freq: ECDF = None,
-            string_attr: Category = None,
+            string_attr: StringNode = None,
             num_freq: ECDF = None,
-            num_attr: ECDF = None,
+            num_attr: Number = None,
             obj_freq: ECDF = None,
             obj_attr: ObjectNode = None,
             array_freq: ECDF = None,
@@ -64,25 +66,40 @@ class JsonValue(MetaNode):
             timestamp_attr: TimeStamp = None,
             **kwargs
     ):
-        # todo 判断freq的均值和attr的节点数是否一致
         super().__init__(**kwargs)
         freqs = {string_freq, num_freq, obj_freq, array_freq, true_freq, false_freq, num_freq, timestamp_freq}
         assert freqs != {None}, '频率不能全为None'
-        assert len({freq.num_samples for freq in freqs if freq is not None}), '所有频率的样本数必须相同'
+        assert len({freq.num_samples for freq in freqs if isinstance(freq, ECDF)}), '所有频率的样本数必须相同'
 
-        assert (string_freq is None) == (string_attr is None), '字符串频率和字符串属性必须同时有，或者同时无'
+        if string_freq is not None:
+            assert string_attr is not None, '字符串频率和字符串属性必须同时有，或者同时无'
+            assert abs(string_freq.mean * string_freq.num_samples - string_attr.num_nodes) < EPSILON
+        else:
+            assert string_attr is None
         self.string_freq = string_freq
         self.string_attr = string_attr
 
-        assert (num_freq is None) == (num_attr is None), '数值频率和数值属性必须同时有，或者同时无'
+        if num_freq is not None:
+            assert num_attr is not None, '数值频率和数值属性必须同时有，或者同时无'
+            assert abs(num_freq.mean * num_freq.num_samples - num_attr.num_nodes) < EPSILON
+        else:
+            assert num_attr is None
         self.num_freq = num_freq
         self.num_attr = num_attr
 
-        assert (obj_freq is None) == (obj_attr is None), '键值对频率和键值对属性必须同时有，或者同时无'
+        if obj_freq is not None:
+            assert obj_attr is not None, '键值对频率和键值对属性必须同时有，或者同时无'
+            assert abs(obj_freq.mean * obj_freq.num_samples - obj_attr.num_nodes) < EPSILON
+        else:
+            assert obj_freq is None
         self.obj_freq = obj_freq
         self.obj_attr = obj_attr
 
-        assert (array_freq is None) == (array_attr is None), '有序列表频率和有序列表属性必须同时有，或者同时无'
+        if array_freq is not None:
+            assert array_attr is not None, '有序列表频率和有序列表属性必须同时有，或者同时无'
+            assert abs(array_freq.mean * array_freq.num_samples - array_attr.num_nodes) < EPSILON
+        else:
+            assert array_attr is None
         self.array_freq = array_freq
         self.array_attr = array_attr
 
@@ -90,6 +107,27 @@ class JsonValue(MetaNode):
         self.false_freq = false_freq
         self.null_freq = null_freq
 
-        assert (timestamp_freq is None) == (timestamp_attr is None), '时间戳频率和时间戳属性必须同时有，或者同时无'
+        if timestamp_freq is not None:
+            assert timestamp_attr is not None, '时间戳频率和时间戳属性必须同时有，或者同时无'
+            assert abs(timestamp_freq.mean * timestamp_freq.num_samples - timestamp_attr.num_nodes) < EPSILON
+        else:
+            assert timestamp_attr is None
         self.timestamp_freq = timestamp_freq
         self.timestamp_attr = timestamp_attr
+
+    def __eq__(self, other):
+        return (
+            super().__eq__(other)
+            and self.string_attr == other.string_attr
+            and self.string_freq == other.string_freq
+        )
+
+    @property
+    def num_nodes(self) -> int:
+        temp = {
+            self.string_freq.num_samples, self.num_freq, self.obj_freq, self.array_freq, self.true_freq,
+            self.false_freq, self.num_freq, self.timestamp_freq
+        }
+        temp = {freq.num_samples for freq in temp if isinstance(freq, ECDF)}
+        return list(temp)[0]
+

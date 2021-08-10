@@ -61,16 +61,13 @@ class ECDF(Distribution):
 
     @classmethod
     def from_data(cls, array, **kwargs):
-        array = pd.Series(array)
-        value_counts = array.value_counts()
-        value_counts = value_counts.reset_index()
-        value_counts = value_counts.sort_values('index')
-        value_counts['y'] = value_counts[0].cumsum()
-        assert array.shape[0] == value_counts['y'].iloc[-1]
-        value_counts['y'] /= array.shape[0]
-        x = value_counts['index'].values
-        y = value_counts['y'].values
-        return super().from_data(array, x=x, y=y, num_samples=array.shape[0], **kwargs)
+        # value_counts有奇怪的bug，sort有时不生效
+        counts = pd.value_counts(array, sort=False)
+        counts = counts.sort_index(ascending=True)
+        counts_cumsum = counts.cumsum()
+        num_samples = int(counts_cumsum.iloc[-1])
+        counts_cumsum /= num_samples
+        return super().from_data(x=counts_cumsum.index, y=counts_cumsum.values, num_samples=num_samples, **kwargs)
 
     @classmethod
     def merge(cls, ecdfs, **kwargs):

@@ -1,4 +1,4 @@
-from .category import Category
+from .string_node import StringNode
 from .meta_node import MetaNode
 from .timestamp import TimeStamp
 

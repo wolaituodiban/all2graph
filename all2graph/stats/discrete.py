@@ -45,7 +45,7 @@ class Discrete(Distribution):
         value_counts[None] = num_samples - value_counts.sum()
         value_counts /= num_samples
         prob = value_counts.to_dict()
-        return super().from_data(array, prob=prob, num_samples=num_samples, **kwargs)
+        return super().from_data(prob=prob, num_samples=num_samples, **kwargs)
 
     @classmethod
     def merge(cls, discretes, **kwargs):

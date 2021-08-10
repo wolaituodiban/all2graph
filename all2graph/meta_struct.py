@@ -75,7 +75,7 @@ class MetaStruct(ABC):
 
     @classmethod
     @abstractmethod
-    def from_data(cls, data, **kwargs):
+    def from_data(cls, **kwargs):
         """根据向量生成元节点"""
         return cls(initialized=True, **kwargs)
 
