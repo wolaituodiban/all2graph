@@ -16,5 +16,10 @@ setup(
     version=get_version(),
     author='xiaotian chen',
     author_email='wolaituodiban@gmail.com',
-    packages=find_packages(include=('all2graph/',))
+    packages=find_packages(include=('all2graph/',)),
+    install_requires=[
+        'networkx',
+        'pandas',
+        'numpy'
+    ]
 )

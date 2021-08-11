@@ -3,7 +3,7 @@ import pandas as pd
 from .meta_graph import MetaGraph
 
 
-class JsonGraph(MetaGraph):
+class JsonMetaGraph(MetaGraph):
     """解析json，并生成表述json结构的元图"""
     @classmethod
     def from_data(cls, data: Union[pd.DataFrame, Iterable] = None, jsons: Union[str, Iterable] = None,
