@@ -1,9 +1,9 @@
 import json
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union
 import pandas as pd
 from toad.utils.progress import Progress
 from .meta_graph import MetaGraph
-from ..meta_node import JsonValue
+from ..meta_node import Index, JsonValue
 from ..meta_edge import MetaEdge
 from ..stats import ECDF
 from ..json import JsonGraph
@@ -12,11 +12,11 @@ from ..json import JsonGraph
 class JsonMetaGraph(MetaGraph):
     """解析json，并生成表述json结构的元图"""
     def __init__(self, nodes: Dict[str, JsonValue], edges: Dict[Tuple[str, str], MetaEdge], **kwargs):
-        assert all(isinstance(n, JsonValue) for n in nodes.values())
+        assert all(isinstance(n, (Index, JsonValue)) for n in nodes.values())
         super().__init__(nodes=nodes, edges=edges, **kwargs)
 
     @classmethod
-    def from_data(cls, sample_times, jsons, **kwargs):
+    def from_data(cls, sample_times, jsons, index_names=None, **kwargs):
         """
 
         :params sample_times:
@@ -40,7 +40,11 @@ class JsonMetaGraph(MetaGraph):
         )
         nodes = {}
         for name, group_df in Progress(node_df.groupby('name')):
-            nodes[name] = JsonValue.from_data(
+            if index_names is not None and name in index_names:
+                node_cls = Index
+            else:
+                node_cls = JsonValue
+            nodes[name] = node_cls.from_data(
                 num_samples=len(jsons), sample_ids=group_df.sample_id, values=group_df.value,
                 sample_times=group_df.sample_time
             )

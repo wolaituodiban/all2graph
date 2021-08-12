@@ -2,6 +2,7 @@ import json
 import pandas as pd
 from typing import Dict
 from .distribution import Distribution
+from .ecdf import ECDF
 from ..macro import EPSILON
 
 
@@ -60,3 +61,10 @@ class Discrete(Distribution):
                     value_counts[k] = v * discrete.num_samples
         prob = {k: v / num_samples for k, v in value_counts.items()}
         return super().reduce(discretes, prob=prob, num_samples=num_samples, **kwargs)
+
+    @classmethod
+    def from_ecdfs(cls, ecdfs: Dict[str, ECDF], **kwargs):
+        data = []
+        for k, v in ecdfs.items():
+            data += [k] * int(v.mean * v.num_samples)
+        return Discrete.from_data(data, **kwargs)

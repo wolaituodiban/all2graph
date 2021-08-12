@@ -41,6 +41,7 @@ def test_json_value():
         )
 
     jv5 = jv3.from_json(json.dumps(jv3.to_json()))
+    print(jv5.to_discrete().to_json())
     assert jv3 == jv5
 
 

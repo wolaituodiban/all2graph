@@ -22,12 +22,18 @@ class StringNode(MetaNode):
     def __getitem__(self, item):
         return self.value_dist[item]
 
+    def __len__(self):
+        return len(self.value_dist)
+
     def __eq__(self, other):
         return super().__eq__(other) and self.value_dist == other.value_dist
 
+    @property
+    def max_len(self):
+        return max(map(len, self.value_dist))
+
     def to_discrete(self) -> Discrete:
-        # todo
-        pass
+        return Discrete.from_ecdfs(self.value_dist)
 
     def to_json(self) -> dict:
         output = super().to_json()

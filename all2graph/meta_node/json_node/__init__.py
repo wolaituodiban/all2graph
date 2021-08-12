@@ -1,5 +1,6 @@
 from .array_node import ArrayNode
 from .bool_node import BoolNode
+from .index import Index
 from .json_value import JsonValue
 from .null_node import NullNode
 from .number import Number

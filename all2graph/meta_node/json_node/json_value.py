@@ -12,7 +12,7 @@ from .object_node import ObjectNode
 from .string_node import StringNode
 from .timestamp import ALL_TIME_UNITS, SECOND_DIFF, TimeStamp
 from ..meta_node import MetaNode
-from ...stats import ECDF
+from ...stats import Discrete, ECDF
 from ...macro import EPSILON
 
 
@@ -61,6 +61,9 @@ class JsonValue(MetaNode):
         assert set(dist.num_samples for dist in self.value_dist.values()) == {self.num_samples}, '{}'.format(
             {k: dist.num_samples for k, dist in self.value_dist.items()}
         )
+
+    def to_discrete(self, **kwargs) -> Discrete:
+        return Discrete.from_ecdfs({k: v.node_freq for k, v in self.value_dist.items()}, **kwargs)
 
     def to_json(self) -> dict:
         output = super().to_json()
