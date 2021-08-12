@@ -1,2 +1,2 @@
-from .json_meta_graph import JsonMetaGraph
+from .json_graph import JsonGraph
 from .meta_graph import MetaGraph

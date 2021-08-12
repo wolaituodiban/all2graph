@@ -17,7 +17,7 @@ def default_callback(
             yield patch_id, name, v, [node_id], None
 
 
-class JsonGraph:
+class Graph:
     def __init__(self):
         self.patch_ids: List[int] = []
         self.names: List[str] = []

@@ -6,7 +6,7 @@ from all2graph.stats import ECDF
 def test_one_sample():
     array = [2, 2]
     ecdf = ECDF.from_data(array)
-    assert ecdf.mean_var == (2, 0)
+    assert ecdf.mean_var == (2, 0), '{}'.format(ecdf.mean_var)
 
 
 def test_not_eq():
@@ -24,6 +24,13 @@ def test_ecdf():
         else:
             array = np.random.randint(0, 10, i)
         ecdf = ECDF.from_data(array)
+        assert len(ecdf.x.shape) == len(ecdf.y.shape) == 1, '必须是一维随机变量'
+        assert ecdf.x.shape[0] == ecdf.y.shape[0] > 0, '随机变量的取值范围必须超过1个'
+        assert ecdf.y[-1] == 1, '累计概率值的最后一个值必须是1, 但是得到{}'.format(ecdf.y[-1])
+        assert np.min(ecdf.y) > 0, '累计概率值必须大于0'
+        if ecdf.x.shape[0] > 1:
+            assert np.min(np.diff(ecdf.x)) > 0, '随机变量的取值必须是单调的'
+            assert np.min(np.diff(ecdf.y)) > 0, '累计概率值必须是单调的'
         assert np.abs(array.mean() - ecdf.mean) < 1e-5, 'test_mean failed, {} vs. {}'.format(array.mean(), ecdf.mean)
         mean, var = ecdf.mean_var
         assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)

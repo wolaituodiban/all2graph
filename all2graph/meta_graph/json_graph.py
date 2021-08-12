@@ -1,15 +1,15 @@
 import json
-from typing import Dict, Tuple, Union
+from typing import Dict, Tuple
 import pandas as pd
 from toad.utils.progress import Progress
 from .meta_graph import MetaGraph
 from ..meta_node import Index, JsonValue
 from ..meta_edge import MetaEdge
 from ..stats import ECDF
-from ..json import JsonGraph
+from ..graph import Graph
 
 
-class JsonMetaGraph(MetaGraph):
+class JsonGraph(MetaGraph):
     """解析json，并生成表述json结构的元图"""
     def __init__(self, nodes: Dict[str, JsonValue], edges: Dict[Tuple[str, str], MetaEdge], **kwargs):
         assert all(isinstance(n, (Index, JsonValue)) for n in nodes.values())
@@ -20,14 +20,14 @@ class JsonMetaGraph(MetaGraph):
         """
 
         :params sample_times:
-        :params json:
+        :params graph:
         """
         assert len(sample_times) == len(jsons)
-        json_graph = JsonGraph()
+        json_graph = Graph()
         for i, value in enumerate(Progress(jsons.values)):
             if isinstance(value, str):
                 value = json.loads(value)
-            json_graph.insert_patch(i, 'json', value)
+            json_graph.insert_patch(i, 'graph', value)
 
         # 创建nodes
         node_df = pd.DataFrame(

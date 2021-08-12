@@ -17,13 +17,13 @@ class ECDF(Distribution):
         super().__init__(num_samples=num_samples, **kwargs)
         x = np.array(x)
         y = np.array(y)
-        assert len(x.shape) == len(y.shape) == 1, '必须是一维随机变量'
-        assert x.shape[0] == y.shape[0] > 0, '随机变量的取值范围必须超过1个'
-        assert y[-1] == 1, '累计概率值的最后一个值必须是1, 但是得到{}'.format(y[-1])
-        assert np.min(y) > 0, '累计概率值必须大于0'
-        if x.shape[0] > 1:
-            assert np.min(np.diff(x)) > 0, '随机变量的取值必须是单调的'
-            assert np.min(np.diff(y)) > 0, '累计概率值必须是单调的'
+        # assert len(x.shape) == len(y.shape) == 1, '必须是一维随机变量'
+        # assert x.shape[0] == y.shape[0] > 0, '随机变量的取值范围必须超过1个'
+        # assert y[-1] == 1, '累计概率值的最后一个值必须是1, 但是得到{}'.format(y[-1])
+        # assert np.min(y) > 0, '累计概率值必须大于0'
+        # if x.shape[0] > 1:
+        #     assert np.min(np.diff(x)) > 0, '随机变量的取值必须是单调的'
+        #     assert np.min(np.diff(y)) > 0, '累计概率值必须是单调的'
         self.x = x
         self.y = y
 
@@ -61,7 +61,7 @@ class ECDF(Distribution):
 
     @classmethod
     def from_data(cls, array, **kwargs):
-        # value_counts有奇怪的bug，sort有时不生效
+        # pd.value_counts sort by frequency，并不是我想要的功能
         counts = pd.value_counts(array, sort=False)
         counts = counts.sort_index(ascending=True)
         counts_cumsum = counts.cumsum()

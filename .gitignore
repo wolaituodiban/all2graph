@@ -6,3 +6,4 @@ notebooks
 *.csv
 *.zip
 .DS_Store
+*.json

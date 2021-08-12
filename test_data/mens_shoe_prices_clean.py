@@ -19,7 +19,7 @@ for i, row in df.iterrows():
         except:
             pass
         new_json[key] = value
-    new_row['json'] = new_json
+    new_row['graph'] = new_json
     new_df.append(new_row)
 new_df = pd.DataFrame(new_df)
 
@@ -28,7 +28,7 @@ for name, group in new_df.groupby(['id', 'dateupdated']):
     new_new_df.append({
         'id': name[0],
         'dateupdated': name[1],
-        'json': json.dumps(group.json.tolist())
+        'graph': json.dumps(group.json.tolist())
     })
 new_new_df = pd.DataFrame(new_new_df)
 

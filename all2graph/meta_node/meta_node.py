@@ -1,6 +1,7 @@
 import json
 from typing import Union
 
+import numpy as np
 import pandas as pd
 
 from ..meta_struct import MetaStruct
@@ -62,9 +63,11 @@ class MetaNode(MetaStruct):
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, **kwargs):
         """根据向量生成元节点"""
-        node_counts = pd.value_counts(sample_ids)
+        node_counts = pd.value_counts(sample_ids).values
         if node_counts.shape[0] < num_samples:
-            node_counts = node_counts.tolist() + [0] * (num_samples - node_counts.shape[0])
+            old_node_counts = node_counts
+            node_counts = np.zeros(num_samples)
+            node_counts[:old_node_counts.shape[0]] = old_node_counts
         else:
             assert node_counts.shape[0] == num_samples
         kwargs[cls.NODE_FREQ] = ECDF.from_data(node_counts)

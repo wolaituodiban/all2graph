@@ -1,6 +1,7 @@
 import json
 from typing import Dict
 
+import numpy as np
 import pandas as pd
 
 from all2graph.meta_node.meta_node import MetaNode
@@ -55,12 +56,14 @@ class StringNode(MetaNode):
         id_col = 'id'
         value_col = 'value'
         df = pd.DataFrame({id_col: sample_ids, value_col: values})
-        count_df = df.reset_index().groupby([id_col, value_col]).count()
-        num_nodes = count_df.index.get_level_values(0).unique().shape[0]
-        for value, count in count_df.groupby(level=value_col):
-            freq = count.values[:, 0].tolist()
-            if len(freq) < num_nodes:
-                freq += [0] * (num_nodes - len(freq))
+        count_df = df.reset_index().groupby([id_col, value_col], sort=False).count()
+
+        for value, count in count_df.groupby(level=value_col, sort=False):
+            freq = count.values[:, 0]
+            if freq.shape[0] < num_samples:
+                old_freq = freq
+                freq = np.zeros(num_samples)
+                freq[:old_freq.shape[0]] = old_freq
             value_dists[value] = ECDF.from_data(freq)
         kwargs[cls.VALUE_DIST] = value_dists
         return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)

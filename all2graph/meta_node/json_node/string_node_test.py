@@ -1,9 +1,11 @@
 import json
+import os
 
 import numpy as np
 import pandas as pd
 
 from all2graph.meta_node import StringNode
+from toad.utils.progress import Progress
 
 
 def test_from_data():
@@ -16,7 +18,7 @@ def test_from_data():
         ],
         columns=['id', 'value']
     )
-    cat = StringNode.from_data(df.shape[0], df['id'], df['value'])
+    cat = StringNode.from_data(df['id'].unique().shape[0], df['id'], df['value'])
     assert cat['a'].mean_var == (0.5, 0.25), '{}:{}'.format(cat['a'].to_json(), cat['a'].mean_var)
     assert cat['b'].mean_var == (1.5, 0.25), '{}'.format(cat['b'].mean_var)
     print('测试from_date成功')
@@ -32,7 +34,7 @@ def test_not_eq():
         ],
         columns=['id', 'value']
     )
-    cat1 = StringNode.from_data(df1.shape[0], df1['id'], df1['value'])
+    cat1 = StringNode.from_data(df1['id'].unique().shape[0], df1['id'], df1['value'])
 
     df2 = pd.DataFrame(
         [
@@ -43,7 +45,7 @@ def test_not_eq():
         ],
         columns=['id', 'value']
     )
-    cat2 = StringNode.from_data(df2.shape[0], df2['id'], df2['value'])
+    cat2 = StringNode.from_data(df2['id'].unique().shape[0], df2['id'], df2['value'])
     assert cat1 != cat2
     print('test_not_eq成功')
 
@@ -71,8 +73,23 @@ def test_merge():
     assert cat1 == cat2, '{}\n{}'.format(cat1.to_json(), cat2.to_json())
 
 
+def test_speed():
+    path = os.path.dirname(__file__)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    path = os.path.join(path, 'test_data', 'MensShoePrices', 'achieve', 'train.csv')
+    df = pd.read_csv(path)
+    df = df.dropna(axis=1, how='all').astype(str)
+    num_samples = df['id'].unique().shape[0]
+    for col in Progress(df.columns[1:]):
+        string_node = StringNode.from_data(num_samples, df['id'], df[col])
+        print(col, len(string_node), string_node.max_len)
+
+
 if __name__ == '__main__':
     test_from_data()
     test_not_eq()
     test_merge()
+    test_speed()
     print('测试Category成功')

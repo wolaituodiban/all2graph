@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from all2graph.meta_graph import JsonMetaGraph
+from all2graph.meta_graph import JsonGraph
 from all2graph.meta_node import JsonValue
 
 
@@ -10,8 +10,7 @@ def test_json_graph():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    df = df.iloc[:3000]
-    meta_graph = JsonMetaGraph.from_data(
+    meta_graph = JsonGraph.from_data(
         df.dateupdated,
         df.json,
         index_names={

@@ -29,7 +29,7 @@ ALL_TYPES_OF_VALUE: Dict[str, Type[MetaNode]] = {
 
 class JsonValue(MetaNode):
     __doc__ = """
-    参照https://www.json.org/json-en.html的标准编制
+    参照https://www.graph.org/graph-en.html的标准编制
 
     json是由collection of name/value pairs和ordered list of values组成的。一般来说list本身会对应一个name。
     为了让所有的value都能对应上一个name，我们把list中的所有value都对应到list本身的name上时，这样所有的value就都有了name上。
