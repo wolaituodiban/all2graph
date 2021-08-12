@@ -35,7 +35,7 @@ class JsonMetaGraph(MetaGraph):
                 'sample_id': json_graph.patch_ids,
                 'name': json_graph.names,
                 'value': json_graph.values,
-                'sample_time': sample_times[json_graph.patch_ids]
+                'sample_time': sample_times.iloc[json_graph.patch_ids]
             }
         )
         nodes = {}
