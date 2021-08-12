@@ -1,16 +1,29 @@
-from typing import Dict, List, Tuple, Union
+from typing import Dict, List, Union
+
+
+def default_callback(
+        node_id: int,
+        patch_id: int,
+        name: str,
+        value: Union[Dict, List, str, int, float, None],
+        preds: List[int],
+        succs: List[int],
+):
+    if isinstance(value, dict):
+        for k, v in value.items():
+            yield patch_id, k, v, [node_id], None
+    elif isinstance(value, list):
+        for v in value:
+            yield patch_id, name, v, [node_id], None
 
 
 class JsonGraph:
-    def __init__(
-            self,
-            names: List[str] = None,
-            values: List[Union[Dict, List, str, int, float, None]] = None,
-            edges: List[Tuple[int, int]] = None
-    ):
-        self.names = list(names or [])
-        self.values = list(values or [])
-        self.edges = list(edges or [])
+    def __init__(self):
+        self.patch_ids: List[int] = []
+        self.names: List[str] = []
+        self.values: List[Union[Dict, List, str, int, float, None]] = []
+        self.preds: List[int] = []
+        self.succs: List[int] = []
 
     @property
     def num_nodes(self):
@@ -18,37 +31,41 @@ class JsonGraph:
 
     @property
     def num_edges(self):
-        return len(self.edges)
+        return len(self.preds)
 
     def insert_node(
             self,
+            patch_id: int,
             name: str,
             value: Union[Dict, List, str, int, float, None],
             preds: List[int] = None,
             succs: List[int] = None
     ) -> int:
         node_id = len(self.names)
+        self.patch_ids.append(patch_id)
         self.names.append(name)
         self.values.append(value)
         if preds is not None:
             for pred in preds:
-                self.edges.append((pred, node_id))
+                self.preds.append(pred)
+                self.succs.append(node_id)
         if succs is not None:
             for succ in succs:
-                self.edges.append((succ, node_id))
+                self.preds.append(node_id)
+                self.succs.append(succ)
         return node_id
 
-    def insert_json(
+    def insert_patch(
             self,
+            patch_id: int,
             name: str,
             value: Union[Dict, List, str, int, float, None],
             preds: List[int] = None,
-            succs: List[int] = None
+            succs: List[int] = None,
+            callback=default_callback
     ):
-        node_id = self.insert_node(name, value, preds, succs)
-        if isinstance(value, dict):
-            for k, v in value.items():
-                self.insert_json(k, v, preds=[node_id])
-        elif isinstance(value, list):
-            for v in value:
-                self.insert_json(name, v, preds=[node_id])
+        node_id = self.insert_node(patch_id, name, value, preds, succs)
+        for args in callback(
+                node_id=node_id, patch_id=patch_id, name=name, value=value, preds=preds, succs=succs
+        ):
+            self.insert_patch(*args, callback=callback)

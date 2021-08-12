@@ -13,7 +13,7 @@ from .string_node import StringNode
 from .timestamp import ALL_TIME_UNITS, SECOND_DIFF, TimeStamp
 from ..meta_node import MetaNode
 from ...stats import ECDF
-from ...macro import TYPE, EPSILON
+from ...macro import EPSILON
 
 
 ALL_TYPES_OF_VALUE: Dict[str, Type[MetaNode]] = {

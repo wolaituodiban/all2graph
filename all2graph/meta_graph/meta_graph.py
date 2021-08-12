@@ -22,6 +22,7 @@ class MetaGraph(MetaStruct):
         :param nodes:
         :param edges:
         """
+        assert len({n.num_samples for n in nodes.values()}.union(e.num_samples for e in edges.values())) == 1
         super().__init__(**kwargs)
         self.nodes = nodes
         self.edges = edges
