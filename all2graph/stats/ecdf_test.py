@@ -1,5 +1,8 @@
 import json
+import os
 import numpy as np
+import pandas as pd
+from toad.utils.progress import Progress
 from all2graph.stats import ECDF
 
 
@@ -50,8 +53,24 @@ def test_ecdf():
     print(json.dumps(ecdf.to_json(), indent=2))
 
 
+def speed():
+    path = os.path.dirname(__file__)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    path = os.path.join(path, 'test_data', 'MensShoePrices', 'achieve', 'train.csv')
+    df = pd.read_csv(path)
+    for col in df:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    df = df.dropna(axis=1, how='all')
+    df = pd.concat([df] * 1000)
+    for col in Progress(df.columns):
+        json_value = ECDF.from_data(df[col])
+        print(col, json_value.num_samples, json_value.mean_var)
+
+
 if __name__ == '__main__':
     test_one_sample()
     test_not_eq()
     test_ecdf()
+    speed()
     print('test_ecdf success')

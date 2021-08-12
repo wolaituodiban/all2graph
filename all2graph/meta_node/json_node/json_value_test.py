@@ -1,4 +1,7 @@
 import json
+import os
+import pandas as pd
+from toad.utils.progress import Progress
 from all2graph.meta_node import JsonValue
 
 
@@ -45,6 +48,20 @@ def test_json_value():
     assert jv3 == jv5
 
 
+def speed():
+    path = os.path.dirname(__file__)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    path = os.path.join(path, 'test_data', 'MensShoePrices', 'achieve', 'train.csv')
+    df = pd.read_csv(path)
+    num_samples = df['id'].unique().shape[0]
+    for col in Progress(df.drop(columns=['id', 'dateadded']).columns):
+        json_value = JsonValue.from_data(num_samples, df['id'], df[col], sample_times=df.dateadded)
+        print(col, json_value.to_discrete().prob)
+
+
 if __name__ == '__main__':
     test_json_value()
+    speed()
     print('测试JsonValue成功')

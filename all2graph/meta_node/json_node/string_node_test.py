@@ -73,7 +73,7 @@ def test_merge():
     assert cat1 == cat2, '{}\n{}'.format(cat1.to_json(), cat2.to_json())
 
 
-def test_speed():
+def speed():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
@@ -91,5 +91,5 @@ if __name__ == '__main__':
     test_from_data()
     test_not_eq()
     test_merge()
-    test_speed()
+    speed()
     print('测试Category成功')
