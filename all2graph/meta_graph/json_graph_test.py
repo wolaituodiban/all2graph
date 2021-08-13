@@ -9,19 +9,21 @@ def test_json_graph():
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
-    df = pd.read_csv(path)
-    meta_graph = JsonGraph.from_data(
-        df.dateupdated,
-        df.json,
-        index_names={
-            'descriptions',
-            'imageurls',
-            'reviews',
-            'sourceURLs',
-            'sourceurls'
-            'text'
-        }
-    )
+    meta_graphs = [JsonGraph.from_data(
+            chunk.dateupdated,
+            chunk.json,
+            index_names={
+                'descriptions',
+                'imageurls',
+                'reviews',
+                'sourceURLs',
+                'sourceurls'
+                'text'
+            }
+        ) for chunk in pd.read_csv(path, chunksize=100, nrows=200)
+    ]
+    meta_graph = JsonGraph.reduce(meta_graphs)
+
     for k, v in meta_graph.nodes.items():
         if isinstance(v, JsonValue):
             if 'string' in v.value_dist:

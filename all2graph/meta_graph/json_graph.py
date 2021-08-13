@@ -10,10 +10,45 @@ from ..graph import Graph
 
 
 class JsonGraph(MetaGraph):
+    INDEX_NODES = 'index_nodes'
     """解析json，并生成表述json结构的元图"""
-    def __init__(self, nodes: Dict[str, JsonValue], edges: Dict[Tuple[str, str], MetaEdge], **kwargs):
+    def __init__(self, nodes: Dict[str, JsonValue], edges: Dict[Tuple[str, str], MetaEdge],
+                 index_nodes: Dict[str, Index] = None, **kwargs):
         assert all(isinstance(n, (Index, JsonValue)) for n in nodes.values())
+        if index_nodes is not None and len(index_nodes) > 0:
+            assert all(isinstance(n, (Index, Index)) for n in index_nodes.values())
+            assert list({n.num_samples for n in nodes.values()}) == list({n.num_samples for n in index_nodes.values()})
+        else:
+            index_nodes = None
         super().__init__(nodes=nodes, edges=edges, **kwargs)
+        self.index_nodes = index_nodes
+
+    def __eq__(self, other):
+        return super().__eq__(other) and self.index_nodes == other.index_nodes
+
+    def to_json(self) -> dict:
+        output = super().to_json()
+        if self.index_nodes is not None:
+            output.update({
+                self.INDEX_NODES: {k: v.to_json() for k, v in self.index_nodes.items()},
+            })
+        return output
+
+    @classmethod
+    def from_json(cls, obj, **kwargs):
+        """
+
+        :param obj: json对象
+        :return:
+        """
+        if isinstance(obj, str):
+            obj = json.loads(obj)
+        else:
+            obj = dict(obj)
+
+        if cls.INDEX_NODES in obj:
+            obj[cls.INDEX_NODES] = {k: Index.from_json(v) for k, v in obj[cls.INDEX_NODES].items()}
+        return super().from_json(obj)
 
     @classmethod
     def from_data(cls, sample_times, jsons, index_names=None, **kwargs):
@@ -39,15 +74,18 @@ class JsonGraph(MetaGraph):
             }
         )
         nodes = {}
+        index_nodes = {}
         for name, group_df in Progress(node_df.groupby('name')):
             if index_names is not None and name in index_names:
-                node_cls = Index
+                index_nodes[name] = Index.from_data(
+                    num_samples=len(jsons), sample_ids=group_df.sample_id, values=group_df.value,
+                    sample_times=group_df.sample_time
+                )
             else:
-                node_cls = JsonValue
-            nodes[name] = node_cls.from_data(
-                num_samples=len(jsons), sample_ids=group_df.sample_id, values=group_df.value,
-                sample_times=group_df.sample_time
-            )
+                nodes[name] = JsonValue.from_data(
+                    num_samples=len(jsons), sample_ids=group_df.sample_id, values=group_df.value,
+                    sample_times=group_df.sample_time
+                )
 
         # 创建edges
         edge_df = pd.DataFrame(
@@ -61,20 +99,28 @@ class JsonGraph(MetaGraph):
         for (pred, succ), group_df in Progress(edge_df.groupby(['pred_name', 'succ_name'])):
             edges[(pred, succ)] = MetaEdge.from_data(len(jsons), group_df.sample_id, **kwargs)
 
-        return super().from_data(nodes=nodes, edges=edges, **kwargs)
+        return super().from_data(nodes=nodes, edges=edges, index_nodes=index_nodes, **kwargs)
 
     @classmethod
     def reduce(cls, graphs, **kwargs):
         num_samples = 0
         nodes = {}
         edges = {}
+        index_nodes = {}
         for graph in graphs:
-
+            num_samples += graph.num_samples
             for k, v in graph.nodes.items():
-                if k in nodes:
-                    nodes[k].append(v)
+                if isinstance(v, JsonValue):
+                    if k in nodes:
+                        nodes[k].append(v)
+                    else:
+                        nodes[k] = [v]
                 else:
-                    nodes[k] = [v]
+                    assert isinstance(v, Index)
+                    if k in index_nodes:
+                        index_nodes[k].append(v)
+                    else:
+                        index_nodes[k] = [v]
 
             for k, v in graph.edges.items():
                 if k in nodes:
@@ -82,22 +128,31 @@ class JsonGraph(MetaGraph):
                 else:
                     edges[k] = [v]
 
-        nodes = {k: JsonValue.reduce(v) for k, v in nodes.items()}
-        edges = {k: MetaEdge.reduce(v) for k, v in edges.items()}
+        nodes = {k: JsonValue.reduce(v) for k, v in Progress(nodes.items())}
+        index_nodes = {k: Index.reduce(v) for k, v in Progress(index_nodes.items())}
+        edges = {k: MetaEdge.reduce(v) for k, v in Progress(edges.items())}
 
-        for k in nodes:
+        for k in Progress(nodes):
             if nodes[k].num_samples < num_samples:
                 nodes[k].node_freq = ECDF.reduce(
                     [
                         nodes[k].node_freq,
-                        ECDF.from_data([0] * (num_samples-nodes[k].node_freq.num_samples), **kwargs)]
+                        ECDF.from_data([0] * (num_samples-nodes[k].num_samples), **kwargs)]
                 )
 
-        for k in edges:
+        for k in Progress(index_nodes):
+            if index_nodes[k].num_samples < num_samples:
+                index_nodes[k].node_freq = ECDF.reduce(
+                    [
+                        index_nodes[k].node_freq,
+                        ECDF.from_data([0] * (num_samples-index_nodes[k].num_samples), **kwargs)]
+                )
+
+        for k in Progress(edges):
             if edges[k].num_samples < num_samples:
                 edges[k].freq = ECDF.reduce(
                     [
                         edges[k].freq,
-                        ECDF.from_data([0] * (num_samples-edges[k].node_freq.num_samples), **kwargs)]
+                        ECDF.from_data([0] * (num_samples-edges[k].num_samples), **kwargs)]
                 )
-        return super().reduce(graphs, nodes=nodes, edges=edges, **kwargs)
+        return super().reduce(graphs, nodes=nodes, edges=edges, index_nodes=index_nodes, **kwargs)

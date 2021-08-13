@@ -22,7 +22,9 @@ class MetaGraph(MetaStruct):
         :param nodes:
         :param edges:
         """
-        assert len({n.num_samples for n in nodes.values()}.union(e.num_samples for e in edges.values())) == 1
+        assert len({n.num_samples for n in nodes.values()}) == 1, {k: n.num_samples for k, n in nodes.items()}
+        assert len({e.num_samples for e in edges.values()}) == 1, {k: e.num_samples for k, e in edges.items()}
+        assert list({n.num_samples for n in nodes.values()}) == list({e.num_samples for e in edges.values()})
         super().__init__(**kwargs)
         self.nodes = nodes
         self.edges = edges
@@ -31,6 +33,10 @@ class MetaGraph(MetaStruct):
 
     def __eq__(self, other):
         return super().__eq__(other) and self.nodes == other.nodes and self.edges == other.edges
+
+    @property
+    def num_samples(self):
+        return self.nodes[list(self.nodes)[0]].num_samples
 
     def to_json(self) -> dict:
         output = super().to_json()
@@ -63,10 +69,6 @@ class MetaGraph(MetaStruct):
         obj[NODES] = {k: classes[v[TYPE]].from_json(v) for k, v in obj[NODES].items()}
         obj[EDGES] = {tuple(k.split(SEP)): classes[v[TYPE]].from_json(v) for k, v in obj[EDGES].items()}
         return super().from_json(obj)
-
-    @classmethod
-    def reduce(cls, graphs, **kwargs):
-        raise NotImplementedError
 
     def to_networkx(self) -> nx.DiGraph:
         """将对象转化成一个networkx有向图"""
