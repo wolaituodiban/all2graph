@@ -72,23 +72,22 @@ class ECDF(Distribution):
     @classmethod
     def reduce(cls, ecdfs, **kwargs):
         """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
-        num_samples = ecdfs[0].num_samples
-        value_counts = pd.Series(np.diff(ecdfs[0].y, prepend=0) * ecdfs[0].num_samples, index=ecdfs[0].x)
-        for ecdf in ecdfs[1:]:
+        num_samples = 0
+        counts = None
+        for ecdf in ecdfs:
             new_value_counts = pd.Series(np.diff(ecdf.y, prepend=0) * ecdf.num_samples, index=ecdf.x)
-            value_counts = pd.concat([value_counts, new_value_counts], axis=1)
-            value_counts = value_counts.sum(axis=1)
+            if counts is None:
+                counts = new_value_counts
+            else:
+                counts = pd.concat([counts, new_value_counts], axis=1)
+                counts = counts.sum(axis=1)
             num_samples += ecdf.num_samples
-        value_counts = value_counts.reset_index()
-        value_counts = value_counts.sort_values('index')
-        value_counts['y'] = value_counts[0].cumsum()
+        counts = counts.sort_index(ascending=True)
+        counts_cumsum = counts.cumsum()
         # 检测并修正最后一个计数为样本数
-        assert abs(value_counts.loc[value_counts.index[-1], 'y'] - num_samples) < 1e-5, '{} v.s {}'.format(
-            value_counts.loc[value_counts.index[-1], 'y'], num_samples
+        assert abs(counts_cumsum.iloc[-1] - num_samples) < 1e-5, '{} v.s {}'.format(
+            counts_cumsum.iloc[-1], num_samples
         )
-        value_counts.loc[value_counts.index[-1], 'y'] = num_samples
-
-        value_counts['y'] /= num_samples
-        x = value_counts['index'].values
-        y = value_counts['y'].values
-        return super().reduce(ecdfs, x=x, y=y, num_samples=num_samples, **kwargs)
+        counts_cumsum.iloc[-1] = num_samples
+        counts_cumsum /= num_samples
+        return super().reduce(ecdfs, x=counts_cumsum.index, y=counts_cumsum.values, num_samples=num_samples, **kwargs)

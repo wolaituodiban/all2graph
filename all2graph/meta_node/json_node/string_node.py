@@ -1,5 +1,5 @@
 import json
-from typing import Dict
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
@@ -70,19 +70,23 @@ class StringNode(MetaNode):
 
     @classmethod
     def reduce(cls, cats, **kwargs):
-        valud_dists = {}
+        value_dists: Dict[str, List[ECDF]] = {}
         num_samples = 0
         for cat in cats:
             num_samples += cat[list(cat.value_dist)[0]].num_samples
             for value, freq in cat.value_dist.items():
-                if value not in valud_dists:
-                    valud_dists[value] = [freq]
+                if value not in value_dists:
+                    value_dists[value] = [freq]
                 else:
-                    valud_dists[value].append(freq)
-        valud_dists = {k: ECDF.reduce(v) for k, v in valud_dists.items()}
+                    value_dists[value].append(freq)
         # 将所有值的频率分布补0，直到样本数一致
-        for value, freq in valud_dists.items():
-            if freq.num_samples < num_samples:
-                valud_dists[value] = ECDF.reduce([freq, ECDF.from_data([0] * (num_samples - freq.num_samples), **kwargs)])
-        kwargs[cls.VALUE_DIST] = valud_dists
+        for value in value_dists:
+            temp_sum_samples = sum(freq.num_samples for freq in value_dists[value])
+            if temp_sum_samples < num_samples:
+                zero_ecdf = ECDF.from_data(np.zeros(num_samples - temp_sum_samples), **kwargs)
+                # 如果需要进一步提升性能，可以主动调用构造函数
+                # zero_ecdf = ECDF([0], [1], num_samples=num_samples-temp_sum_samples, initialized=True)
+                value_dists[value].append(zero_ecdf)
+            value_dists[value] = ECDF.reduce(value_dists[value], **kwargs)
+        kwargs[cls.VALUE_DIST] = value_dists
         return super().reduce(cats, **kwargs)

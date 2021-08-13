@@ -22,6 +22,7 @@ def test_json_graph():
             }
         ) for chunk in pd.read_csv(path, chunksize=100, nrows=200)
     ]
+    print('reduce开始')
     meta_graph = JsonGraph.reduce(meta_graphs)
 
     for k, v in meta_graph.nodes.items():

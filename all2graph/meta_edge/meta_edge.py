@@ -1,6 +1,7 @@
 import json
 from typing import Dict, Type
 
+import numpy as np
 import pandas as pd
 
 from ..macro import TYPE
@@ -61,7 +62,9 @@ class MetaEdge(MetaStruct):
         # todo 没有考虑succ
         counts = pd.value_counts(sample_ids)
         if len(counts) < num_samples:
-            counts = counts.tolist() + [0] * (num_samples - len(counts))
+            old_counts = counts
+            counts = np.zeros(num_samples)
+            counts[:old_counts.shape[0]] = old_counts
         freq = ECDF.from_data(counts, **kwargs)
         kwargs[cls.FREQ] = freq
         return super().from_data(**kwargs)

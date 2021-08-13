@@ -1,5 +1,6 @@
 import json
 from typing import Dict, Tuple
+import numpy as np
 import pandas as pd
 from toad.utils.progress import Progress
 from .meta_graph import MetaGraph
@@ -137,7 +138,7 @@ class JsonGraph(MetaGraph):
                 nodes[k].node_freq = ECDF.reduce(
                     [
                         nodes[k].node_freq,
-                        ECDF.from_data([0] * (num_samples-nodes[k].num_samples), **kwargs)]
+                        ECDF.from_data(np.zeros(num_samples-nodes[k].num_samples), **kwargs)]
                 )
 
         for k in Progress(index_nodes):
@@ -145,7 +146,7 @@ class JsonGraph(MetaGraph):
                 index_nodes[k].node_freq = ECDF.reduce(
                     [
                         index_nodes[k].node_freq,
-                        ECDF.from_data([0] * (num_samples-index_nodes[k].num_samples), **kwargs)]
+                        ECDF.from_data(np.zeros(num_samples-index_nodes[k].num_samples), **kwargs)]
                 )
 
         for k in Progress(edges):
@@ -153,6 +154,6 @@ class JsonGraph(MetaGraph):
                 edges[k].freq = ECDF.reduce(
                     [
                         edges[k].freq,
-                        ECDF.from_data([0] * (num_samples-edges[k].num_samples), **kwargs)]
+                        ECDF.from_data(np.zeros(num_samples-edges[k].num_samples), **kwargs)]
                 )
         return super().reduce(graphs, nodes=nodes, edges=edges, index_nodes=index_nodes, **kwargs)

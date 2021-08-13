@@ -6,6 +6,7 @@ import pandas as pd
 
 from all2graph.meta_node import StringNode
 from toad.utils.progress import Progress
+from tqdm import tqdm
 
 
 def test_from_data():
@@ -73,12 +74,13 @@ def test_merge():
     assert cat1 == cat2, '{}\n{}'.format(cat1.to_json(), cat2.to_json())
 
 
-def speed():
+def speed_from_data():
+    print('测试from_data速度')
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
-    path = os.path.join(path, 'test_data', 'MensShoePrices', 'achieve', 'train.csv')
+    path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
     df = pd.read_csv(path)
     df = df.dropna(axis=1, how='all').astype(str)
     num_samples = df['id'].unique().shape[0]
@@ -87,9 +89,30 @@ def speed():
         print(col, len(string_node), string_node.max_len)
 
 
+def speed_reduce():
+    print('测试reduce速度')
+    path = os.path.dirname(__file__)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
+    string_nodes = []
+    for chunk in tqdm(pd.read_csv(path, chunksize=100, nrows=1000)):
+        chunk = chunk.dropna(axis=1, how='all').astype(str)
+        for col in chunk.columns[1:10]:
+            string_node = StringNode.from_data(chunk['id'].unique().shape[0], chunk['id'], chunk[col])
+            string_nodes.append(string_node)
+    import time
+    start_time = time.time()
+    StringNode.reduce(string_nodes)
+    print(time.time() - start_time)
+    # todo
+
+
 if __name__ == '__main__':
     test_from_data()
     test_not_eq()
     test_merge()
-    speed()
+    # speed_from_data()
+    speed_reduce()
     print('测试Category成功')

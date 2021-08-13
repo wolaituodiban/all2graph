@@ -50,14 +50,13 @@ def test_ecdf():
     assert np.abs(array.var() - var) < 1e-5, 'test_var failed, {} vs. {}'.format(array.std(), var)
     assert ecdf.num_samples == 4949
     assert ecdf.num_steps == 60
-    print(json.dumps(ecdf.to_json(), indent=2))
 
 
 def speed():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
-    path = os.path.join(path, 'test_data', 'MensShoePrices', 'achieve', 'train.csv')
+    path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
     df = pd.read_csv(path)
     for col in df:
         df[col] = pd.to_numeric(df[col], errors='coerce')

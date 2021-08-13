@@ -202,7 +202,7 @@ class JsonValue(MetaNode):
                 value_dist[k].node_freq = ECDF.reduce(
                     [
                         value_dist[k].node_freq,
-                        ECDF.from_data([0] * (num_samples-value_dist[k].node_freq.num_samples), **kwargs)]
+                        ECDF.from_data(np.zeros(num_samples-value_dist[k].node_freq.num_samples), **kwargs)]
                 )
 
         kwargs[cls.VALUE_DIST] = value_dist
