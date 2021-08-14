@@ -1,10 +1,2 @@
-TYPE = 'type'
-VERSION = 'verison'
-UPDATED_TIME = 'updated_time'
-UPDATER = 'updater'
-UPDATE_RECORDS = 'updated_records'
-NODES = 'nodes'
-EDGES = 'edges'
-SEP = ','
 EPSILON = 1e-6
 SECOND_DIFF = 'second_diff'

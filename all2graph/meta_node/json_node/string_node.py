@@ -52,6 +52,7 @@ class StringNode(MetaNode):
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, **kwargs):
+        # 比较np.unique和pd.groupby的性能差异
         value_dists = {}
         id_col = 'id'
         value_col = 'value'

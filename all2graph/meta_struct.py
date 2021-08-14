@@ -6,11 +6,15 @@ from typing import List, Union
 
 import pandas as pd
 
-from .macro import TYPE, UPDATE_RECORDS, VERSION, UPDATED_TIME, UPDATER
 from .version import __version__
 
 
 class MetaStruct(ABC):
+    TYPE = 'type'
+    VERSION = 'version'
+    UPDATE_RECORDS = 'update_record'
+    UPDATED_TIME = 'updated_time'
+    UPDATER = 'updater'
     """基类结构"""
     def __init__(self, creator=None, update_records: List[dict] = None, initialized=False, **kwargs):
         """
@@ -25,9 +29,9 @@ class MetaStruct(ABC):
         if update_records is None:
             self._update_records = [
                 {
-                    VERSION: __version__,
-                    UPDATED_TIME: ddt.now(tz=timezone.utc).isoformat(),
-                    UPDATER: creator or getpass.getuser()
+                    self.VERSION: __version__,
+                    self.UPDATED_TIME: ddt.now(tz=timezone.utc).isoformat(),
+                    self.UPDATER: creator or getpass.getuser()
                 }
             ]
         else:
@@ -40,19 +44,19 @@ class MetaStruct(ABC):
 
     @property
     def version(self):
-        return self._update_records[-1][VERSION]
+        return self._update_records[-1][self.VERSION]
 
     @property
     def creator(self):
-        return self._update_records[0][UPDATER]
+        return self._update_records[0][self.UPDATER]
 
     @property
     def created_time(self):
-        return self._update_records[0][UPDATED_TIME]
+        return self._update_records[0][self.UPDATED_TIME]
 
     @property
     def updated_time(self):
-        return self._update_records[-1][UPDATED_TIME]
+        return self._update_records[-1][self.UPDATED_TIME]
 
     @abstractmethod
     def __eq__(self, other) -> bool:
@@ -62,8 +66,8 @@ class MetaStruct(ABC):
     def to_json(self) -> dict:
         """将对象装化成可以被json序列化的对象"""
         return {
-            TYPE: self.__class__.__name__,
-            UPDATE_RECORDS: self._update_records
+            self.TYPE: self.__class__.__name__,
+            self.UPDATE_RECORDS: self._update_records
         }
 
     @classmethod
@@ -71,7 +75,7 @@ class MetaStruct(ABC):
     def from_json(cls, obj: Union[str, dict]):
         if isinstance(obj, str):
             obj = json.loads(obj)
-        return cls(initialized=True, **{k: v for k, v in obj.items() if k != TYPE})
+        return cls(initialized=True, **{k: v for k, v in obj.items() if k != cls.TYPE})
 
     @classmethod
     @abstractmethod
@@ -90,11 +94,11 @@ class MetaStruct(ABC):
         for struct in structs:
             update_records += struct._update_records
         update_records = pd.DataFrame(update_records)
-        update_records = update_records.sort_values(UPDATED_TIME)
+        update_records = update_records.sort_values(cls.UPDATED_TIME)
 
         new_update_records = [update_records.iloc[0].to_dict()]
         # 将时间戳转换成日期，并根据日期进行去重去重
-        update_records['date'] = update_records[UPDATED_TIME].str[:10]
+        update_records['date'] = update_records[cls.UPDATED_TIME].str[:10]
         update_records = update_records.iloc[1:].drop_duplicates('date', keep='last')
         update_records = update_records.drop(columns='date')
         new_update_records += update_records.to_dict(orient='records')

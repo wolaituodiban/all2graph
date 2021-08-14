@@ -1,5 +1,5 @@
 import json
-from typing import Dict, Tuple
+from typing import Dict, Tuple, Union, List
 import numpy as np
 import pandas as pd
 from toad.utils.progress import Progress
@@ -157,3 +157,17 @@ class JsonGraph(MetaGraph):
                         ECDF.from_data(np.zeros(num_samples-edges[k].num_samples), **kwargs)]
                 )
         return super().reduce(graphs, nodes=nodes, edges=edges, index_nodes=index_nodes, **kwargs)
+
+    def callback(
+            self,
+            node_id: int,
+            patch_id: int,
+            name: str,
+            value: Union[Dict, List, str, int, float, bool, None],
+            preds: Union[List[int], None],
+            succs: Union[List[int], None],
+    ):
+        if name in self.nodes:
+            return self.nodes[name].callback(node_id, patch_id, name, value, preds, succs)
+        elif name in self.index_nodes:
+            return self.index_nodes[name].callback(node_id, patch_id, name, value, preds, succs)

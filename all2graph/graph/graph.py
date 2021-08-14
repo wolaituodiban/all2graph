@@ -1,13 +1,13 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 
 def default_callback(
         node_id: int,
         patch_id: int,
         name: str,
-        value: Union[Dict, List, str, int, float, None],
-        preds: List[int],
-        succs: List[int],
+        value: Union[Dict, List, str, int, float, bool, None],
+        preds: Union[List[int], None],
+        succs: Union[List[int], None],
 ):
     if isinstance(value, dict):
         for k, v in value.items():

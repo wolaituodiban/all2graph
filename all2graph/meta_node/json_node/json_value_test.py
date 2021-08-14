@@ -53,7 +53,7 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
-    path = os.path.join(path, 'test_data', 'MensShoePrices', 'achieve', 'train.csv')
+    path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
     df = pd.read_csv(path)
     num_samples = df['id'].unique().shape[0]
     for col in Progress(df.drop(columns=['id', 'dateadded']).columns):

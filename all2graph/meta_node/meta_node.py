@@ -1,5 +1,5 @@
 import json
-from typing import Union
+from typing import Dict, List, Union
 
 import numpy as np
 import pandas as pd
@@ -82,3 +82,14 @@ class MetaNode(MetaStruct):
         node_freqs = [struct.node_freq for struct in structs]
         kwargs[cls.NODE_FREQ] = ECDF.reduce(node_freqs)
         return super().reduce(structs, **kwargs)
+
+    def callback(
+            self,
+            node_id: int,
+            patch_id: int,
+            name: str,
+            value: Union[Dict, List, str, int, float, bool, None],
+            preds: Union[List[int], None],
+            succs: Union[List[int], None],
+    ):
+        raise NotImplementedError

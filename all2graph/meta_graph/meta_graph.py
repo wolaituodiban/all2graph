@@ -1,9 +1,9 @@
 import json
-from typing import Dict, Type, Tuple
+from typing import Dict, Type, Tuple, List, Union
 
 import networkx as nx
 
-from ..macro import TYPE, NODES, EDGES, SEP
+from ..graph import Graph
 from ..meta_struct import MetaStruct
 from ..meta_edge import MetaEdge, ALL_EDGE_CLASSES
 from ..meta_node import MetaNode, ALL_NODE_CLASSES
@@ -15,6 +15,9 @@ ALL_NODE_EDGE_CLASSES.update(ALL_EDGE_CLASSES)
 
 
 class MetaGraph(MetaStruct):
+    SEP = ','
+    NODES = 'nodes'
+    EDGES = 'edges'
     """图的基类，定义基本成员变量和基本方法"""
     def __init__(self, nodes: Dict[str, MetaNode], edges: Dict[Tuple[str, str], MetaEdge], **kwargs):
         """
@@ -41,8 +44,8 @@ class MetaGraph(MetaStruct):
     def to_json(self) -> dict:
         output = super().to_json()
         output.update({
-            NODES: {k: v.to_json() for k, v in self.nodes.items()},
-            EDGES: {SEP.join(k): v.to_json() for k, v in self.edges.items()}
+            self.NODES: {k: v.to_json() for k, v in self.nodes.items()},
+            self.EDGES: {self.SEP.join(k): v.to_json() for k, v in self.edges.items()}
         })
         return output
 
@@ -66,8 +69,8 @@ class MetaGraph(MetaStruct):
             all_node_edge_classes.update(classes)
             classes = all_node_edge_classes
 
-        obj[NODES] = {k: classes[v[TYPE]].from_json(v) for k, v in obj[NODES].items()}
-        obj[EDGES] = {tuple(k.split(SEP)): classes[v[TYPE]].from_json(v) for k, v in obj[EDGES].items()}
+        obj[cls.NODES] = {k: classes[v[cls.TYPE]].from_json(v) for k, v in obj[cls.NODES].items()}
+        obj[cls.EDGES] = {tuple(k.split(cls.SEP)): classes[v[cls.TYPE]].from_json(v) for k, v in obj[cls.EDGES].items()}
         return super().from_json(obj)
 
     def to_networkx(self) -> nx.DiGraph:
@@ -79,3 +82,18 @@ class MetaGraph(MetaStruct):
             graph.add_edge(pred, succ, **edge.to_json())
         assert nx.number_of_isolates(graph) == 0, "图存在孤立点"
         return graph
+
+    def callback(
+            self,
+            node_id: int,
+            patch_id: int,
+            name: str,
+            value: Union[Dict, List, str, int, float, bool, None],
+            preds: Union[List[int], None],
+            succs: Union[List[int], None],
+    ):
+        raise NotImplementedError
+
+    def create_graph(self, **kwargs) -> Graph:
+        raise NotImplementedError
+

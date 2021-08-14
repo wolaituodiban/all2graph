@@ -4,7 +4,6 @@ from typing import Dict, Type
 import numpy as np
 import pandas as pd
 
-from ..macro import TYPE
 from ..meta_struct import MetaStruct
 from ..meta_node import MetaNode, ALL_NODE_CLASSES
 from ..stats import ECDF
@@ -50,7 +49,7 @@ class MetaEdge(MetaStruct):
             obj = dict(obj)
         obj[cls.FREQ] = ECDF.from_json(obj[cls.FREQ])
         if cls.SUCC in obj:
-            succ_class = obj[cls.SUCC][TYPE]
+            succ_class = obj[cls.SUCC][cls.TYPE]
             if classes is not None and succ_class in classes:
                 obj[cls.SUCC] = classes[succ_class].from_json(obj[cls.SUCC])
             else:

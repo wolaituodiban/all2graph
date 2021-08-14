@@ -19,6 +19,7 @@ setup(
     author_email='wolaituodiban@gmail.com',
     packages=find_packages(include=('all2graph/',)),
     install_requires=[
+        'dgl',
         'toad',
         'networkx',
         'pandas',
