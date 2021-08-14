@@ -3,7 +3,7 @@ from ..meta_node import MetaNode
 from ....stats import ECDF
 
 
-class Number(MetaNode):
+class MetaNumber(MetaNode):
     def to_json(self) -> dict:
         output = super().to_json()
         output[self.NODE_FREQ] = self.node_freq.to_json()

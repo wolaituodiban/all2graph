@@ -1,24 +1,23 @@
 import json
-from typing import Dict, Tuple, Union, List
+from typing import Dict, Tuple
 import numpy as np
 import pandas as pd
 from toad.utils.progress import Progress
 from .meta_graph import MetaGraph
-from .meta_node import Index, JsonValue
+from .meta_node import MetaIndex, MetaJsonValue
 from .meta_edge import MetaEdge
-from ..callback import CallBack
 from ..stats import ECDF
-from ..graph import Graph
+from ..graph import JsonGraph
 
 
-class JsonGraph(MetaGraph):
+class MetaJsonGraph(MetaGraph):
     INDEX_NODES = 'index_nodes'
     """解析json，并生成表述json结构的元图"""
-    def __init__(self, nodes: Dict[str, JsonValue], edges: Dict[Tuple[str, str], MetaEdge],
-                 index_nodes: Dict[str, Index] = None, **kwargs):
-        assert all(isinstance(n, (Index, JsonValue)) for n in nodes.values())
+    def __init__(self, nodes: Dict[str, MetaJsonValue], edges: Dict[Tuple[str, str], MetaEdge],
+                 index_nodes: Dict[str, MetaIndex] = None, **kwargs):
+        assert all(isinstance(n, (MetaIndex, MetaJsonValue)) for n in nodes.values())
         if index_nodes is not None and len(index_nodes) > 0:
-            assert all(isinstance(n, (Index, Index)) for n in index_nodes.values())
+            assert all(isinstance(n, (MetaIndex, MetaIndex)) for n in index_nodes.values())
             assert list({n.num_samples for n in nodes.values()}) == list({n.num_samples for n in index_nodes.values()})
         else:
             index_nodes = None
@@ -49,7 +48,7 @@ class JsonGraph(MetaGraph):
             obj = dict(obj)
 
         if cls.INDEX_NODES in obj:
-            obj[cls.INDEX_NODES] = {k: Index.from_json(v) for k, v in obj[cls.INDEX_NODES].items()}
+            obj[cls.INDEX_NODES] = {k: MetaIndex.from_json(v) for k, v in obj[cls.INDEX_NODES].items()}
         return super().from_json(obj)
 
     @classmethod
@@ -60,31 +59,31 @@ class JsonGraph(MetaGraph):
         :params graph:
         """
         assert len(sample_times) == len(jsons)
-        json_graph = Graph()
+        json_graph = JsonGraph()
         for i, value in enumerate(Progress(jsons.values)):
             if isinstance(value, str):
                 value = json.loads(value)
-            json_graph.insert_patch(i, 'graph', value)
+            json_graph.insert_component(i, 'graph', value)
 
         # 创建nodes
         node_df = pd.DataFrame(
             {
-                'sample_id': json_graph.patch_ids,
+                'sample_id': json_graph.component_ids,
                 'name': json_graph.names,
                 'value': json_graph.values,
-                'sample_time': sample_times.iloc[json_graph.patch_ids]
+                'sample_time': sample_times.iloc[json_graph.component_ids]
             }
         )
         nodes = {}
         index_nodes = {}
         for name, group_df in Progress(node_df.groupby('name')):
             if index_names is not None and name in index_names:
-                index_nodes[name] = Index.from_data(
+                index_nodes[name] = MetaIndex.from_data(
                     num_samples=len(jsons), sample_ids=group_df.sample_id, values=group_df.value,
                     sample_times=group_df.sample_time
                 )
             else:
-                nodes[name] = JsonValue.from_data(
+                nodes[name] = MetaJsonValue.from_data(
                     num_samples=len(jsons), sample_ids=group_df.sample_id, values=group_df.value,
                     sample_times=group_df.sample_time
                 )
@@ -112,13 +111,13 @@ class JsonGraph(MetaGraph):
         for graph in graphs:
             num_samples += graph.num_samples
             for k, v in graph.nodes.items():
-                if isinstance(v, JsonValue):
+                if isinstance(v, MetaJsonValue):
                     if k in nodes:
                         nodes[k].append(v)
                     else:
                         nodes[k] = [v]
                 else:
-                    assert isinstance(v, Index)
+                    assert isinstance(v, MetaIndex)
                     if k in index_nodes:
                         index_nodes[k].append(v)
                     else:
@@ -130,8 +129,8 @@ class JsonGraph(MetaGraph):
                 else:
                     edges[k] = [v]
 
-        nodes = {k: JsonValue.reduce(v) for k, v in Progress(nodes.items())}
-        index_nodes = {k: Index.reduce(v) for k, v in Progress(index_nodes.items())}
+        nodes = {k: MetaJsonValue.reduce(v) for k, v in Progress(nodes.items())}
+        index_nodes = {k: MetaIndex.reduce(v) for k, v in Progress(index_nodes.items())}
         edges = {k: MetaEdge.reduce(v) for k, v in Progress(edges.items())}
 
         for k in Progress(nodes):
@@ -158,17 +157,3 @@ class JsonGraph(MetaGraph):
                         ECDF.from_data(np.zeros(num_samples-edges[k].num_samples), **kwargs)]
                 )
         return super().reduce(graphs, nodes=nodes, edges=edges, index_nodes=index_nodes, **kwargs)
-
-    def callback(
-            self,
-            node_id: int,
-            patch_id: int,
-            name: str,
-            value: Union[Dict, List, str, int, float, bool, None],
-            preds: Union[List[int], None],
-            succs: Union[List[int], None],
-    ) -> CallBack:
-        if name in self.nodes:
-            return self.nodes[name].callback(node_id, patch_id, name, value, preds, succs)
-        elif name in self.index_nodes:
-            return self.index_nodes[name].callback(node_id, patch_id, name, value, preds, succs)

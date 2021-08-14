@@ -1,5 +1,5 @@
 from ..meta_node import MetaNode
 
 
-class ArrayNode(MetaNode):
+class MetaArray(MetaNode):
     pass

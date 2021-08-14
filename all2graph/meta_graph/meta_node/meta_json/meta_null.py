@@ -1,5 +1,5 @@
 from ..meta_node import MetaNode
 
 
-class ObjectNode(MetaNode):
+class MetaNull(MetaNode):
     pass

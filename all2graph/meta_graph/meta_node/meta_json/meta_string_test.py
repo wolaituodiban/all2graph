@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from all2graph.meta_graph.meta_node import StringNode
+from all2graph.meta_graph.meta_node import MetaString
 from toad.utils.progress import Progress
 from tqdm import tqdm
 
@@ -19,7 +19,7 @@ def test_from_data():
         ],
         columns=['id', 'value']
     )
-    cat = StringNode.from_data(df['id'].unique().shape[0], df['id'], df['value'])
+    cat = MetaString.from_data(df['id'].unique().shape[0], df['id'], df['value'])
     assert cat['a'].mean_var == (0.5, 0.25), '{}:{}'.format(cat['a'].to_json(), cat['a'].mean_var)
     assert cat['b'].mean_var == (1.5, 0.25), '{}'.format(cat['b'].mean_var)
     print('测试from_date成功')
@@ -35,7 +35,7 @@ def test_not_eq():
         ],
         columns=['id', 'value']
     )
-    cat1 = StringNode.from_data(df1['id'].unique().shape[0], df1['id'], df1['value'])
+    cat1 = MetaString.from_data(df1['id'].unique().shape[0], df1['id'], df1['value'])
 
     df2 = pd.DataFrame(
         [
@@ -46,7 +46,7 @@ def test_not_eq():
         ],
         columns=['id', 'value']
     )
-    cat2 = StringNode.from_data(df2['id'].unique().shape[0], df2['id'], df2['value'])
+    cat2 = MetaString.from_data(df2['id'].unique().shape[0], df2['id'], df2['value'])
     assert cat1 != cat2
     print('test_not_eq成功')
 
@@ -59,8 +59,8 @@ def test_merge():
         value = np.random.choice(['a', 'b', 'c'], 10, replace=True)
 
         df = pd.DataFrame({'index': index, 'value': value})
-        cat = StringNode.from_data(df.shape[0], df['index'], df['value'])
-        cat2 = StringNode.from_json(json.dumps(cat.to_json()))
+        cat = MetaString.from_data(df.shape[0], df['index'], df['value'])
+        cat2 = MetaString.from_json(json.dumps(cat.to_json()))
         assert cat == cat2, '{}\n{}'.format(
             cat.to_json(), cat2.to_json()
         )
@@ -69,8 +69,8 @@ def test_merge():
         cats.append(cat)
 
     df = pd.concat(dfs)
-    cat1 = StringNode.from_data(df.shape[0], df['index'], df['value'])
-    cat2 = StringNode.reduce(cats)
+    cat1 = MetaString.from_data(df.shape[0], df['index'], df['value'])
+    cat2 = MetaString.reduce(cats)
     assert cat1 == cat2, '{}\n{}'.format(cat1.to_json(), cat2.to_json())
 
 
@@ -85,7 +85,7 @@ def speed_from_data():
     df = df.dropna(axis=1, how='all').astype(str)
     num_samples = df['id'].unique().shape[0]
     for col in Progress(df.columns[1:]):
-        string_node = StringNode.from_data(num_samples, df['id'], df[col])
+        string_node = MetaString.from_data(num_samples, df['id'], df[col])
         print(col, len(string_node), string_node.max_len)
 
 
@@ -95,18 +95,19 @@ def speed_reduce():
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
+    path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
     string_nodes = []
     for chunk in tqdm(pd.read_csv(path, chunksize=100, nrows=1000)):
         chunk = chunk.dropna(axis=1, how='all').astype(str)
         for col in chunk.columns[1:10]:
-            string_node = StringNode.from_data(chunk['id'].unique().shape[0], chunk['id'], chunk[col])
+            string_node = MetaString.from_data(chunk['id'].unique().shape[0], chunk['id'], chunk[col])
             string_nodes.append(string_node)
     import time
     start_time = time.time()
-    StringNode.reduce(string_nodes)
+    MetaString.reduce(string_nodes)
     print(time.time() - start_time)
-    # todo
+    # todo 将reduce的耗时压缩到from_data之内
 
 
 if __name__ == '__main__':

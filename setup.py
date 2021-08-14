@@ -17,7 +17,7 @@ setup(
     version=get_version(),
     author='xiaotian chen',
     author_email='wolaituodiban@gmail.com',
-    packages=find_packages(include=('all2graph/',)),
+    packages=find_packages(include=('all2graph/',), exclude=('*test*',)),
     install_requires=[
         'dgl',
         'toad',
@@ -27,8 +27,8 @@ setup(
     ],
     # ext_modules=cythonize([
     #     # 'all2graph/graph/graph.py'
-    #     # 'all2graph/meta_node/json_node/json_value.py',
-    #     # 'all2graph/meta_node/json_node/string_node.py',
+    #     # 'all2graph/meta_node/meta_json/meta_json_value.py',
+    #     # 'all2graph/meta_node/meta_json/meta_string.py',
     #     # "all2graph/stats/ecdf.py",
     # ])
 )

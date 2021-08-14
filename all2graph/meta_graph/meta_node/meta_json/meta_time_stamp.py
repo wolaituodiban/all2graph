@@ -2,7 +2,7 @@ from typing import Dict
 
 import pandas as pd
 
-from .string_node import StringNode
+from .meta_string import MetaString
 from ....macro import SECOND_DIFF
 from ....stats import ECDF
 
@@ -11,7 +11,7 @@ ALL_TIME_UNITS = {'year', 'month', 'day', 'weekday', 'hour', 'minute', 'second'}
 ALL_TIME_FEATURES = ALL_TIME_UNITS.union([SECOND_DIFF])
 
 
-class TimeStamp(StringNode):
+class MetaTimeStamp(MetaString):
     """时间戳节点"""
     def __init__(self, value_dist: Dict[str, ECDF], **kwargs):
         """
@@ -35,4 +35,4 @@ class TimeStamp(StringNode):
             if num.mean_var[1] > 0:
                 value_dist[time_unit] = num
         kwargs[cls.VALUE_DIST] = value_dist
-        return super(StringNode, cls).from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
+        return super(MetaString, cls).from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)

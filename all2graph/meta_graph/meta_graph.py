@@ -1,9 +1,8 @@
 import json
-from typing import Dict, Type, Tuple, List, Union
+from typing import Dict, Type, Tuple
 
 import networkx as nx
 
-from ..callback import CallBack
 from ..graph import Graph
 from ..meta_struct import MetaStruct
 from .meta_edge import MetaEdge, ALL_EDGE_CLASSES
@@ -83,17 +82,6 @@ class MetaGraph(MetaStruct):
             graph.add_edge(pred, succ, **edge.to_json())
         assert nx.number_of_isolates(graph) == 0, "图存在孤立点"
         return graph
-
-    def callback(
-            self,
-            node_id: int,
-            patch_id: int,
-            name: str,
-            value: Union[Dict, List, str, int, float, bool, None],
-            preds: Union[List[int], None],
-            succs: Union[List[int], None],
-    ) -> CallBack:
-        raise NotImplementedError
 
     def create_graph(self, **kwargs) -> Graph:
         raise NotImplementedError

@@ -72,6 +72,7 @@ class ECDF(Distribution):
     @classmethod
     def reduce(cls, ecdfs, **kwargs):
         """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
+        # todo 判断reduce的速度是否小于from_data的速度，否则就没有意义了
         num_samples = 0
         counts = None
         for ecdf in ecdfs:

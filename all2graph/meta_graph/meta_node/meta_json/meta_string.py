@@ -8,7 +8,7 @@ from ..meta_node import MetaNode
 from ....stats import Discrete, ECDF
 
 
-class StringNode(MetaNode):
+class MetaString(MetaNode):
     """类别节点"""
     def __init__(self, node_freq, value_dist: Dict[str, ECDF], **kwargs):
         """

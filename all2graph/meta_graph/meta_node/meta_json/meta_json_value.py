@@ -4,30 +4,30 @@ from typing import Dict, Union, Type, List
 import numpy as np
 import pandas as pd
 
-from .array_node import ArrayNode
-from .bool_node import BoolNode
-from .null_node import NullNode
-from .number import Number
-from .object_node import ObjectNode
-from .string_node import StringNode
-from .timestamp import ALL_TIME_UNITS, SECOND_DIFF, TimeStamp
+from .meta_array import MetaArray
+from .meta_bool import MetaBool
+from .meta_null import MetaNull
+from .meta_number import MetaNumber
+from .meta_object import MetaObject
+from .meta_string import MetaString
+from .meta_time_stamp import ALL_TIME_UNITS, SECOND_DIFF, MetaTimeStamp
 from ..meta_node import MetaNode
 from ....stats import Discrete, ECDF
 from ....macro import EPSILON, NULL
 
 
 ALL_TYPES_OF_VALUE: Dict[str, Type[MetaNode]] = {
-    'object': ObjectNode,
-    'array': ArrayNode,
-    'timestamp': TimeStamp,
-    'bool': BoolNode,
-    'string': StringNode,
-    'number': Number,
-    NULL: NullNode,
+    'object': MetaObject,
+    'array': MetaArray,
+    'timestamp': MetaTimeStamp,
+    'bool': MetaBool,
+    'string': MetaString,
+    'number': MetaNumber,
+    NULL: MetaNull,
 }
 
 
-class JsonValue(MetaNode):
+class MetaJsonValue(MetaNode):
     __doc__ = """
     参照https://www.graph.org/graph-en.html的标准编制
 
@@ -88,7 +88,7 @@ class JsonValue(MetaNode):
         dict_mask = [isinstance(v, dict) for v in sub_values]
         if any(dict_mask):
             temp_sample_ids = sub_sample_ids[dict_mask]
-            value_dist['object'] = ObjectNode.from_data(
+            value_dist['object'] = MetaObject.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=None, **kwargs
             )
             mask = np.bitwise_not(dict_mask)
@@ -102,7 +102,7 @@ class JsonValue(MetaNode):
         array_mask = [isinstance(v, list) for v in sub_values]
         if any(array_mask):
             temp_sample_ids = sub_sample_ids[array_mask]
-            value_dist['array'] = ArrayNode.from_data(
+            value_dist['array'] = MetaArray.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=None, **kwargs
             )
             mask = np.bitwise_not(array_mask)
@@ -117,7 +117,7 @@ class JsonValue(MetaNode):
         if any(bool_mask):
             temp_sample_ids = sub_sample_ids[bool_mask]
             sub_num_samples = temp_sample_ids.shape[0]
-            value_dist['bool'] = BoolNode.from_data(
+            value_dist['bool'] = MetaBool.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=sub_values[bool_mask], **kwargs
             )
             mask = np.bitwise_not(bool_mask)
@@ -132,7 +132,7 @@ class JsonValue(MetaNode):
         null_mask = pd.isna(sub_values)
         if null_mask.any():
             temp_sample_ids = sub_sample_ids[null_mask]
-            value_dist[NULL] = NullNode.from_data(
+            value_dist[NULL] = MetaNull.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=None, **kwargs
             )
             mask = np.bitwise_not(null_mask)
@@ -147,7 +147,7 @@ class JsonValue(MetaNode):
         num_mask = pd.notna(number)
         if num_mask.any():
             temp_sample_ids = sub_sample_ids[num_mask]
-            value_dist['number'] = Number.from_data(
+            value_dist['number'] = MetaNumber.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=number[num_mask], **kwargs
             )
             mask = np.bitwise_not(num_mask)
@@ -165,7 +165,7 @@ class JsonValue(MetaNode):
                 sample_times = pd.Series(sample_times)[time_mask]
             temp_sample_ids = sub_sample_ids[time_mask]
 
-            value_dist['timestamp'] = TimeStamp.from_data(
+            value_dist['timestamp'] = MetaTimeStamp.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=timestamps[time_mask],
                 sample_times=sample_times,
                 **kwargs
@@ -177,7 +177,7 @@ class JsonValue(MetaNode):
 
         # 处理string
         if sub_sample_ids.shape[0] > 0:
-            value_dist['string'] = StringNode.from_data(
+            value_dist['string'] = MetaString.from_data(
                 num_samples=num_samples, sample_ids=sub_sample_ids, values=sub_values, **kwargs
             )
         kwargs[cls.VALUE_DIST] = value_dist

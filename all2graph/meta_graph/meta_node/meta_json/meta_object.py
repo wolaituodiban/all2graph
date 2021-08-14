@@ -1,5 +1,5 @@
 from ..meta_node import MetaNode
 
 
-class Index(MetaNode):
+class MetaObject(MetaNode):
     pass

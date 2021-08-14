@@ -3,7 +3,7 @@ from ..meta_node import MetaNode
 from ....stats import ECDF
 
 
-class BoolNode(MetaNode):
+class MetaBool(MetaNode):
     def __init__(self, node_freq: ECDF, value_dist: float, **kwargs):
         """
         :params node_freq:
