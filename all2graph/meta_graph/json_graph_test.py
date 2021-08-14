@@ -1,7 +1,7 @@
 import os
 import pandas as pd
 from all2graph.meta_graph import JsonGraph
-from all2graph.meta_node import JsonValue
+from all2graph.meta_graph.meta_node import JsonValue
 
 
 def test_json_graph():

@@ -12,8 +12,8 @@ from .object_node import ObjectNode
 from .string_node import StringNode
 from .timestamp import ALL_TIME_UNITS, SECOND_DIFF, TimeStamp
 from ..meta_node import MetaNode
-from ...stats import Discrete, ECDF
-from ...macro import EPSILON
+from ....stats import Discrete, ECDF
+from ....macro import EPSILON, NULL
 
 
 ALL_TYPES_OF_VALUE: Dict[str, Type[MetaNode]] = {
@@ -23,7 +23,7 @@ ALL_TYPES_OF_VALUE: Dict[str, Type[MetaNode]] = {
     'bool': BoolNode,
     'string': StringNode,
     'number': Number,
-    'null': NullNode,
+    NULL: NullNode,
 }
 
 
@@ -32,7 +32,7 @@ class JsonValue(MetaNode):
     参照https://www.graph.org/graph-en.html的标准编制
 
     json是由collection of name/value pairs和ordered list of values组成的。一般来说list本身会对应一个name。
-    为了让所有的value都能对应上一个name，我们把list中的所有value都对应到list本身的name上时，这样所有的value就都有了name上。
+    为了让所有的value都能对应上一个name，我们把list中的所有value都对应到list本身的name上时，这样所有的value就都有了name。
 
     JsonValue对象会记录某一个name的各种不同value的出现频率和分布
     
@@ -132,7 +132,7 @@ class JsonValue(MetaNode):
         null_mask = pd.isna(sub_values)
         if null_mask.any():
             temp_sample_ids = sub_sample_ids[null_mask]
-            value_dist['null'] = NullNode.from_data(
+            value_dist[NULL] = NullNode.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=None, **kwargs
             )
             mask = np.bitwise_not(null_mask)

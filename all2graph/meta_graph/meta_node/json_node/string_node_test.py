@@ -4,7 +4,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from all2graph.meta_node import StringNode
+from all2graph.meta_graph.meta_node import StringNode
 from toad.utils.progress import Progress
 from tqdm import tqdm
 

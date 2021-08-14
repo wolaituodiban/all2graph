@@ -4,9 +4,9 @@ from typing import Dict, Type
 import numpy as np
 import pandas as pd
 
-from ..meta_struct import MetaStruct
 from ..meta_node import MetaNode, ALL_NODE_CLASSES
-from ..stats import ECDF
+from ...meta_struct import MetaStruct
+from ...stats import ECDF
 
 
 class MetaEdge(MetaStruct):

@@ -1,20 +1,5 @@
-from typing import Dict, List, Union, Tuple
-
-
-def default_callback(
-        node_id: int,
-        patch_id: int,
-        name: str,
-        value: Union[Dict, List, str, int, float, bool, None],
-        preds: Union[List[int], None],
-        succs: Union[List[int], None],
-):
-    if isinstance(value, dict):
-        for k, v in value.items():
-            yield patch_id, k, v, [node_id], None
-    elif isinstance(value, list):
-        for v in value:
-            yield patch_id, name, v, [node_id], None
+from typing import Dict, List, Union
+from ..callback import CallBack, default_callback
 
 
 class Graph:
@@ -62,7 +47,7 @@ class Graph:
             value: Union[Dict, List, str, int, float, None],
             preds: List[int] = None,
             succs: List[int] = None,
-            callback=default_callback
+            callback: CallBack = default_callback
     ):
         node_id = self.insert_node(patch_id, name, value, preds, succs)
         for args in callback(

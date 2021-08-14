@@ -4,8 +4,9 @@ from typing import Dict, List, Union
 import numpy as np
 import pandas as pd
 
-from ..meta_struct import MetaStruct
-from ..stats import ECDF
+from ...callback import CallBack
+from ...meta_struct import MetaStruct
+from ...stats import ECDF
 
 
 class MetaNode(MetaStruct):
@@ -91,5 +92,5 @@ class MetaNode(MetaStruct):
             value: Union[Dict, List, str, int, float, bool, None],
             preds: Union[List[int], None],
             succs: Union[List[int], None],
-    ):
+    ) -> CallBack:
         raise NotImplementedError

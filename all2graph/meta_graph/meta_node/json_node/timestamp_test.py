@@ -1,5 +1,5 @@
 import json
-from all2graph.meta_node import TimeStamp
+from all2graph.meta_graph.meta_node import TimeStamp
 
 
 def test_timestamp():

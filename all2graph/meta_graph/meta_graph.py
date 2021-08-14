@@ -3,10 +3,11 @@ from typing import Dict, Type, Tuple, List, Union
 
 import networkx as nx
 
+from ..callback import CallBack
 from ..graph import Graph
 from ..meta_struct import MetaStruct
-from ..meta_edge import MetaEdge, ALL_EDGE_CLASSES
-from ..meta_node import MetaNode, ALL_NODE_CLASSES
+from .meta_edge import MetaEdge, ALL_EDGE_CLASSES
+from .meta_node import MetaNode, ALL_NODE_CLASSES
 
 
 ALL_NODE_EDGE_CLASSES = {}
@@ -91,7 +92,7 @@ class MetaGraph(MetaStruct):
             value: Union[Dict, List, str, int, float, bool, None],
             preds: Union[List[int], None],
             succs: Union[List[int], None],
-    ):
+    ) -> CallBack:
         raise NotImplementedError
 
     def create_graph(self, **kwargs) -> Graph:

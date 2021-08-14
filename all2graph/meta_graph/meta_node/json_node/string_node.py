@@ -4,8 +4,8 @@ from typing import Dict, List
 import numpy as np
 import pandas as pd
 
-from all2graph.meta_node.meta_node import MetaNode
-from all2graph.stats import Discrete, ECDF
+from ..meta_node import MetaNode
+from ....stats import Discrete, ECDF
 
 
 class StringNode(MetaNode):

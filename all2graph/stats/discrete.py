@@ -3,7 +3,7 @@ import pandas as pd
 from typing import Dict
 from .distribution import Distribution
 from .ecdf import ECDF
-from ..macro import EPSILON
+from ..macro import EPSILON, NULL
 
 
 class Discrete(Distribution):
@@ -13,10 +13,10 @@ class Discrete(Distribution):
         self.prob = prob
         prob_sum = sum(self.prob.values())
         if prob_sum < 1:
-            if 'null' in self.prob:
-                self.prob['null'] += 1 - prob_sum
+            if NULL in self.prob:
+                self.prob[NULL] += 1 - prob_sum
             else:
-                self.prob['null'] = 1 - prob_sum
+                self.prob[NULL] = 1 - prob_sum
 
     def __eq__(self, other):
         if super().__eq__(other) and len(self.prob) == len(other.prob) == len(set(self.prob).union(other.prob)):

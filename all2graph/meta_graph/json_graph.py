@@ -4,8 +4,9 @@ import numpy as np
 import pandas as pd
 from toad.utils.progress import Progress
 from .meta_graph import MetaGraph
-from ..meta_node import Index, JsonValue
-from ..meta_edge import MetaEdge
+from .meta_node import Index, JsonValue
+from .meta_edge import MetaEdge
+from ..callback import CallBack
 from ..stats import ECDF
 from ..graph import Graph
 
@@ -166,7 +167,7 @@ class JsonGraph(MetaGraph):
             value: Union[Dict, List, str, int, float, bool, None],
             preds: Union[List[int], None],
             succs: Union[List[int], None],
-    ):
+    ) -> CallBack:
         if name in self.nodes:
             return self.nodes[name].callback(node_id, patch_id, name, value, preds, succs)
         elif name in self.index_nodes:

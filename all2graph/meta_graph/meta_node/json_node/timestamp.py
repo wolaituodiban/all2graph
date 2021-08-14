@@ -3,8 +3,8 @@ from typing import Dict
 import pandas as pd
 
 from .string_node import StringNode
-from all2graph.macro import SECOND_DIFF
-from all2graph.stats import ECDF
+from ....macro import SECOND_DIFF
+from ....stats import ECDF
 
 
 ALL_TIME_UNITS = {'year', 'month', 'day', 'weekday', 'hour', 'minute', 'second'}
