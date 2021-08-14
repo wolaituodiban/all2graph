@@ -1,12 +1,12 @@
 import json
 import os
+import time
 
 import numpy as np
 import pandas as pd
 
 from all2graph.meta_graph.meta_node import MetaString
 from toad.utils.progress import Progress
-from tqdm import tqdm
 
 
 def test_from_data():
@@ -98,16 +98,20 @@ def speed_reduce():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
     string_nodes = []
-    for chunk in tqdm(pd.read_csv(path, chunksize=100, nrows=1000)):
+    start_time = time.time()
+    for chunk in pd.read_csv(path, chunksize=100, nrows=1000):
         chunk = chunk.dropna(axis=1, how='all').astype(str)
         for col in chunk.columns[1:10]:
             string_node = MetaString.from_data(chunk['id'].unique().shape[0], chunk['id'], chunk[col])
             string_nodes.append(string_node)
-    import time
+    used_time1 = time.time() - start_time
+
     start_time = time.time()
-    MetaString.reduce(string_nodes)
-    print(time.time() - start_time)
-    # todo 将reduce的耗时压缩到from_data之内
+    string_node = MetaString.reduce(string_nodes)
+    used_time2 = time.time() - start_time
+    print(used_time1, used_time2)
+    print(sum(map(len, string_nodes)), max(map(len, string_nodes)), len(string_node))
+    assert used_time2 < used_time1
 
 
 if __name__ == '__main__':

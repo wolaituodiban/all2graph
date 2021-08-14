@@ -37,27 +37,26 @@ def test_json_graph():
         else:
             print(k, v)
 
-    df = pd.read_csv(path)
-    meta_graph = MetaJsonGraph.from_data(
-        df.dateupdated,
-        df.json,
-        index_names={
-            'descriptions',
-            'imageurls',
-            'reviews',
-            'sourceURLs',
-            'sourceurls'
-            'text'
-        }
-    )
-    for k, v in meta_graph.nodes.items():
-        if isinstance(v, MetaJsonValue):
-            print(v.to_discrete().prob)
-            if 'string' in v.value_dist:
-                print(k, len(v.value_dist['string']), v.value_dist['string'].max_len)
-        else:
-            print(k, v)
-
+    # df = pd.read_csv(path)
+    # meta_graph = MetaJsonGraph.from_data(
+    #     df.dateupdated,
+    #     df.json,
+    #     index_names={
+    #         'descriptions',
+    #         'imageurls',
+    #         'reviews',
+    #         'sourceURLs',
+    #         'sourceurls'
+    #         'text'
+    #     }
+    # )
+    # for k, v in meta_graph.nodes.items():
+    #     if isinstance(v, MetaJsonValue):
+    #         print(v.to_discrete().prob)
+    #         if 'string' in v.value_dist:
+    #             print(k, len(v.value_dist['string']), v.value_dist['string'].max_len)
+    #     else:
+    #         print(k, v)
 
 
 if __name__ == '__main__':

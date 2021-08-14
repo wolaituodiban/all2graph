@@ -70,12 +70,13 @@ class MetaString(MetaNode):
         return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
 
     @classmethod
-    def reduce(cls, cats, **kwargs):
+    def reduce(cls, metas, **kwargs):
+        # todo 将reduce的耗时压缩到from_data之内
         value_dists: Dict[str, List[ECDF]] = {}
         num_samples = 0
-        for cat in cats:
-            num_samples += cat[list(cat.value_dist)[0]].num_samples
-            for value, freq in cat.value_dist.items():
+        for meta in metas:
+            num_samples += meta.num_samples
+            for value, freq in meta.value_dist.items():
                 if value not in value_dists:
                     value_dists[value] = [freq]
                 else:
@@ -84,10 +85,10 @@ class MetaString(MetaNode):
         for value in value_dists:
             temp_sum_samples = sum(freq.num_samples for freq in value_dists[value])
             if temp_sum_samples < num_samples:
-                zero_ecdf = ECDF.from_data(np.zeros(num_samples - temp_sum_samples), **kwargs)
+                # zero_ecdf = ECDF.from_data(np.zeros(num_samples - temp_sum_samples), **kwargs)
                 # 如果需要进一步提升性能，可以主动调用构造函数
-                # zero_ecdf = ECDF([0], [1], num_samples=num_samples-temp_sum_samples, initialized=True)
+                zero_ecdf = ECDF([0], [1], num_samples=num_samples-temp_sum_samples, initialized=True)
                 value_dists[value].append(zero_ecdf)
             value_dists[value] = ECDF.reduce(value_dists[value], **kwargs)
         kwargs[cls.VALUE_DIST] = value_dists
-        return super().reduce(cats, **kwargs)
+        return super().reduce(metas, **kwargs)

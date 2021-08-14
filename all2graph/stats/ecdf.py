@@ -72,23 +72,11 @@ class ECDF(Distribution):
     @classmethod
     def reduce(cls, ecdfs, **kwargs):
         """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
-        # todo 判断reduce的速度是否小于from_data的速度，否则就没有意义了
-        num_samples = 0
-        counts = None
-        for ecdf in ecdfs:
-            new_value_counts = pd.Series(np.diff(ecdf.y, prepend=0) * ecdf.num_samples, index=ecdf.x)
-            if counts is None:
-                counts = new_value_counts
-            else:
-                counts = pd.concat([counts, new_value_counts], axis=1)
-                counts = counts.sum(axis=1)
-            num_samples += ecdf.num_samples
-        counts = counts.sort_index(ascending=True)
-        counts_cumsum = counts.cumsum()
-        # 检测并修正最后一个计数为样本数
-        assert abs(counts_cumsum.iloc[-1] - num_samples) < 1e-5, '{} v.s {}'.format(
-            counts_cumsum.iloc[-1], num_samples
-        )
-        counts_cumsum.iloc[-1] = num_samples
-        counts_cumsum /= num_samples
-        return super().reduce(ecdfs, x=counts_cumsum.index, y=counts_cumsum.values, num_samples=num_samples, **kwargs)
+        # todo 优化reduce的速度以超过from_data的速度，否则就没有意义了
+        temp = pd.concat([pd.Series(ecdf.y * ecdf.num_samples, index=ecdf.x) for ecdf in ecdfs], axis=1)
+        temp = temp.sort_index(ascending=True)
+        temp.fillna(method='pad', inplace=True)
+        temp = temp.sum(axis=1)
+        num_samples = int(temp.iloc[-1])
+        temp /= num_samples
+        return super().reduce(ecdfs, x=temp.index, y=temp.values, num_samples=num_samples, **kwargs)

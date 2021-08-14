@@ -1,3 +1,4 @@
+import time
 import json
 import os
 import numpy as np
@@ -61,10 +62,20 @@ def speed():
     for col in df:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df = df.dropna(axis=1, how='all')
-    df = pd.concat([df] * 1000)
-    for col in Progress(df.columns):
-        json_value = ECDF.from_data(df[col])
-        print(col, json_value.num_samples, json_value.mean_var)
+    df = pd.concat([df])
+
+    start_time = time.time()
+    ecdfs = [
+        ECDF.from_data(series) for col, series in df.iteritems()
+    ]
+    use_time = time.time() - start_time
+
+    start_time = time.time()
+    ecdf = ECDF.reduce(ecdfs)
+    use_time2 = time.time() - start_time
+    print(use_time, use_time2, ecdf.num_steps, ecdf.num_samples)
+    print(sum(x.num_steps for x in ecdfs))
+    assert use_time2 < use_time
 
 
 if __name__ == '__main__':
