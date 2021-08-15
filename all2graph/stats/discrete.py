@@ -11,12 +11,6 @@ class Discrete(Distribution):
     def __init__(self, prob: Dict[str, float], num_samples, **kwargs):
         super().__init__(num_samples=num_samples, **kwargs)
         self.prob = prob
-        prob_sum = sum(self.prob.values())
-        if prob_sum < 1:
-            if NULL in self.prob:
-                self.prob[NULL] += 1 - prob_sum
-            else:
-                self.prob[NULL] = 1 - prob_sum
 
     def __eq__(self, other):
         if super().__eq__(other) and len(self.prob) == len(other.prob) == len(set(self.prob).union(other.prob)):
@@ -26,6 +20,9 @@ class Discrete(Distribution):
             return True
         else:
             return False
+
+    def __len__(self):
+        return len(self.prob)
 
     def to_json(self) -> dict:
         output = super().to_json()
@@ -42,8 +39,8 @@ class Discrete(Distribution):
 
     @classmethod
     def from_data(cls, array, **kwargs):
-        value_counts = pd.value_counts(array)
-        num_samples = len(array)
+        value_counts = pd.value_counts(array, sort=False)
+        num_samples = int(value_counts.sum())
         value_counts /= num_samples
         prob = value_counts.to_dict()
         return super().from_data(prob=prob, num_samples=num_samples, **kwargs)

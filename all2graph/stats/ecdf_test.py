@@ -3,8 +3,7 @@ import json
 import os
 import numpy as np
 import pandas as pd
-from toad.utils.progress import Progress
-from all2graph.stats import ECDF
+from all2graph.stats import ECDF, Discrete
 
 
 def test_one_sample():
@@ -62,7 +61,6 @@ def speed():
     for col in df:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df = df.dropna(axis=1, how='all')
-    df = pd.concat([df])
 
     start_time = time.time()
     ecdfs = [

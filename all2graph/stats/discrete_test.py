@@ -1,4 +1,7 @@
+import os
+import time
 import json
+import pandas as pd
 import numpy as np
 from all2graph.stats import Discrete
 
@@ -7,11 +10,10 @@ def test_descrete():
     array = ['a', 'a', 'b', 'c', None, np.nan]
     discrete = Discrete.from_data(array)
     assert abs(sum(discrete.prob.values()) - 1) < 1e-5, '概率之和不为1'
-    assert abs(discrete.prob['a'] - 1/3) < 1e-5
-    assert abs(discrete.prob['b'] - 1/6) < 1e-5
-    assert abs(discrete.prob['c'] - 1/6) < 1e-5
-    assert abs(discrete.prob['null'] - 1/3) < 1e-5
-    assert discrete.num_samples == 6
+    assert abs(discrete.prob['a'] - 1/2) < 1e-5
+    assert abs(discrete.prob['b'] - 1/4) < 1e-5
+    assert abs(discrete.prob['c'] - 1/4) < 1e-5
+    assert discrete.num_samples == 4
 
     discrete2 = Discrete.from_json(json.dumps(discrete.to_json()))
     assert discrete == discrete2, '{}\n{}'.format(discrete.to_json(), discrete2.to_json())
@@ -39,7 +41,31 @@ def test_merge():
     print(discrete1.to_json())
 
 
+def speed():
+    path = os.path.dirname(__file__)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
+    df = pd.read_csv(path)
+    for col in df:
+        df[col] = pd.to_numeric(df[col], errors='coerce')
+    df = df.dropna(axis=1, how='all')
+
+    start_time = time.time()
+    discretes = [
+        Discrete.from_data(series) for col, series in df.iteritems()
+    ]
+    use_time = time.time() - start_time
+
+    start_time = time.time()
+    discrete = Discrete.reduce(discretes)
+    use_time2 = time.time() - start_time
+    print(use_time, use_time2, len(discrete), sum(map(len, discretes)))
+    assert use_time2 < use_time
+
+
 if __name__ == '__main__':
     test_descrete()
     test_merge()
+    speed()
     print('测试离散分布成功')
