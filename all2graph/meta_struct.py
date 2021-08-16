@@ -1,8 +1,8 @@
 import getpass
-import json
+
 from datetime import datetime as ddt, timezone
 from abc import ABC, abstractmethod
-from typing import List, Union
+from typing import List
 
 import pandas as pd
 
@@ -72,9 +72,7 @@ class MetaStruct(ABC):
 
     @classmethod
     @abstractmethod
-    def from_json(cls, obj: Union[str, dict]):
-        if isinstance(obj, str):
-            obj = json.loads(obj)
+    def from_json(cls, obj: dict):
         return cls(initialized=True, **{k: v for k, v in obj.items() if k != cls.TYPE})
 
     @classmethod
@@ -85,7 +83,7 @@ class MetaStruct(ABC):
 
     @classmethod
     @abstractmethod
-    def reduce(cls, structs, **kwargs):
+    def reduce(cls, structs, weights=None, **kwargs):
         """
         合并多个结构，返回一个加总的结构
         会自动解析update_records，并生成一个合并后的update_records

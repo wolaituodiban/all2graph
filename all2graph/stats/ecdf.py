@@ -7,25 +7,16 @@ from ..macro import EPSILON
 
 class ECDF(Distribution):
     """经验累计分布函数"""
-    def __init__(self, x, y, num_samples: int, **kwargs):
+    def __init__(self, x, y, **kwargs):
         """
 
         :param x: 随机变量的取值
         :param y: 取值对应的累积概率值
         :num_samples: 原始数据的数据量
         """
-        super().__init__(num_samples=num_samples, **kwargs)
-        x = np.array(x)
-        y = np.array(y)
-        # assert len(x.shape) == len(y.shape) == 1, '必须是一维随机变量'
-        # assert x.shape[0] == y.shape[0] > 0, '随机变量的取值范围必须超过1个'
-        # assert y[-1] == 1, '累计概率值的最后一个值必须是1, 但是得到{}'.format(y[-1])
-        # assert np.min(y) > 0, '累计概率值必须大于0'
-        # if x.shape[0] > 1:
-        #     assert np.min(np.diff(x)) > 0, '随机变量的取值必须是单调的'
-        #     assert np.min(np.diff(y)) > 0, '累计概率值必须是单调的'
-        self.x = x
-        self.y = y
+        super().__init__(**kwargs)
+        self.x = np.array(x)
+        self.y = np.array(y)
 
     def __eq__(self, other) -> bool:
         if super().__eq__(other) and self.x.shape[0] == other.x.shape[0] and self.y.shape[0] == other.y.shape[0]:
@@ -56,27 +47,24 @@ class ECDF(Distribution):
         return output
 
     @classmethod
-    def from_json(cls, obj):
-        return super().from_json(obj)
-
-    @classmethod
     def from_data(cls, array, **kwargs):
         # pd.value_counts sort by frequency，并不是我想要的功能
         counts = pd.value_counts(array, sort=False)
         counts = counts.sort_index(ascending=True)
         counts_cumsum = counts.cumsum()
-        num_samples = int(counts_cumsum.iloc[-1])
-        counts_cumsum /= num_samples
-        return super().from_data(x=counts_cumsum.index, y=counts_cumsum.values, num_samples=num_samples, **kwargs)
+        counts_cumsum /= counts_cumsum.iloc[-1]
+        return super().from_data(x=counts_cumsum.index, y=counts_cumsum.values, **kwargs)
 
     @classmethod
-    def reduce(cls, ecdfs, **kwargs):
+    def reduce(cls, ecdfs, weights=None, **kwargs):
         """合并多个经验累计分布函数，返回一个贾总的经验累计分布函数"""
         # todo 优化reduce的速度以超过from_data的速度，否则就没有意义了
-        temp = pd.concat([pd.Series(ecdf.y * ecdf.num_samples, index=ecdf.x) for ecdf in ecdfs], axis=1)
+        if weights is None:
+            weights = np.full(len(ecdfs), 1/len(ecdfs))
+        else:
+            weights = weights / sum(weights)
+        temp = pd.concat([pd.Series(ecdf.y, index=ecdf.x) * w for ecdf, w in zip(ecdfs, weights)], axis=1)
         temp = temp.sort_index(ascending=True)
         temp.fillna(method='pad', inplace=True)
         temp = temp.sum(axis=1)
-        num_samples = int(temp.iloc[-1])
-        temp /= num_samples
-        return super().reduce(ecdfs, x=temp.index, y=temp.values, num_samples=num_samples, **kwargs)
+        return super().reduce(ecdfs, x=temp.index, y=temp.values, **kwargs)

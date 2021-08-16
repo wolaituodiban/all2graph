@@ -3,7 +3,7 @@ import json
 import os
 import numpy as np
 import pandas as pd
-from all2graph.stats import ECDF, Discrete
+from all2graph.stats import ECDF
 
 
 def test_one_sample():
@@ -38,17 +38,16 @@ def test_ecdf():
         mean, var = ecdf.mean_var
         assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)
         assert np.abs(array.var() - var) < 1e-5, 'test_var failed, {} vs. {}'.format(array.std(), var)
-        ecdf2 = ECDF.from_json(json.dumps(ecdf.to_json()))
+        ecdf2 = ECDF.from_json(json.loads(json.dumps(ecdf.to_json())))
         assert ecdf == ecdf2, '{} vs. {}'.format(ecdf.to_json(), ecdf2.to_json())
         arrays.append(array)
         ecdfs.append(ecdf)
 
     array = np.concatenate(arrays)
-    ecdf = ECDF.reduce(ecdfs)
+    ecdf = ECDF.reduce(ecdfs, weights=np.array([a.shape[0] for a in arrays]))
     mean, var = ecdf.mean_var
     assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)
     assert np.abs(array.var() - var) < 1e-5, 'test_var failed, {} vs. {}'.format(array.std(), var)
-    assert ecdf.num_samples == 4949
     assert ecdf.num_steps == 60
 
 
@@ -71,8 +70,7 @@ def speed():
     start_time = time.time()
     ecdf = ECDF.reduce(ecdfs)
     use_time2 = time.time() - start_time
-    print(use_time, use_time2, ecdf.num_steps, ecdf.num_samples)
-    print(sum(x.num_steps for x in ecdfs))
+    print(use_time, use_time2, ecdf.num_steps, sum(x.num_steps for x in ecdfs))
     assert use_time2 < use_time
 
 

@@ -13,9 +13,8 @@ def test_descrete():
     assert abs(discrete.prob['a'] - 1/2) < 1e-5
     assert abs(discrete.prob['b'] - 1/4) < 1e-5
     assert abs(discrete.prob['c'] - 1/4) < 1e-5
-    assert discrete.num_samples == 4
 
-    discrete2 = Discrete.from_json(json.dumps(discrete.to_json()))
+    discrete2 = Discrete.from_json(json.loads(json.dumps(discrete.to_json())))
     assert discrete == discrete2, '{}\n{}'.format(discrete.to_json(), discrete2.to_json())
     print(discrete.to_json())
 
@@ -35,7 +34,7 @@ def test_merge():
         arrays.append(array)
         discretes.append(discrete)
 
-    discrete1 = Discrete.reduce(discretes)
+    discrete1 = Discrete.reduce(discretes, weights=np.array([pd.notna(a).sum() for a in arrays]))
     discrete2 = Discrete.from_data(np.concatenate(arrays))
     assert discrete1 == discrete2, '{}\n{}'.format(discrete1.to_json(), discrete2.to_json())
     print(discrete1.to_json())
