@@ -55,19 +55,16 @@ class MetaJsonValue(MetaNode):
         super().__init__(
             meta_data=meta_data, **kwargs
         )
-        assert abs(self.num_nodes - sum(dist.num_nodes for dist in self.meta_data.values())) < EPSILON, '{}'.format(
-            json.dumps(self.to_json(), indent=2)
-        )
-        assert set(dist.num_samples for dist in self.meta_data.values()) == {self.num_samples}, '{}'.format(
-            {k: dist.num_samples for k, dist in self.meta_data.items()}
-        )
+
+    def __getitem__(self, item):
+        return self.meta_data[item]
 
     def to_discrete(self, **kwargs) -> Discrete:
         return Discrete.from_ecdfs({k: v.freq for k, v in self.meta_data.items()}, **kwargs)
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output[self.VALUE_DIST] = {k: v.to_json() for k, v in self.meta_data.items()}
+        output['meta_data'] = {k: v.to_json() for k, v in self.meta_data.items()}
         return output
 
     @classmethod
@@ -76,19 +73,19 @@ class MetaJsonValue(MetaNode):
             obj = json.loads(obj)
         else:
             obj = dict(obj)
-        obj[cls.VALUE_DIST] = {k: ALL_TYPES_OF_VALUE[k].from_json(v) for k, v in obj[cls.VALUE_DIST].items()}
+        obj['meta_data'] = {k: ALL_TYPES_OF_VALUE[k].from_json(v) for k, v in obj['meta_data'].items()}
         return super().from_json(obj)
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, sample_times=None, **kwargs):
-        value_dist = {}
+        meta_data = {}
         sub_sample_ids = pd.Series(sample_ids)
         sub_values = pd.Series(values)
         # 处理object
         dict_mask = [isinstance(v, dict) for v in sub_values]
         if any(dict_mask):
             temp_sample_ids = sub_sample_ids[dict_mask]
-            value_dist['object'] = MetaObject.from_data(
+            meta_data['object'] = MetaObject.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=None, **kwargs
             )
             mask = np.bitwise_not(dict_mask)
@@ -102,7 +99,7 @@ class MetaJsonValue(MetaNode):
         array_mask = [isinstance(v, list) for v in sub_values]
         if any(array_mask):
             temp_sample_ids = sub_sample_ids[array_mask]
-            value_dist['array'] = MetaArray.from_data(
+            meta_data['array'] = MetaArray.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=None, **kwargs
             )
             mask = np.bitwise_not(array_mask)
@@ -117,7 +114,7 @@ class MetaJsonValue(MetaNode):
         if any(bool_mask):
             temp_sample_ids = sub_sample_ids[bool_mask]
             sub_num_samples = temp_sample_ids.shape[0]
-            value_dist['bool'] = MetaBool.from_data(
+            meta_data['bool'] = MetaBool.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=sub_values[bool_mask], **kwargs
             )
             mask = np.bitwise_not(bool_mask)
@@ -132,7 +129,7 @@ class MetaJsonValue(MetaNode):
         null_mask = pd.isna(sub_values)
         if null_mask.any():
             temp_sample_ids = sub_sample_ids[null_mask]
-            value_dist[NULL] = MetaNull.from_data(
+            meta_data[NULL] = MetaNull.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=None, **kwargs
             )
             mask = np.bitwise_not(null_mask)
@@ -147,7 +144,7 @@ class MetaJsonValue(MetaNode):
         num_mask = pd.notna(number)
         if num_mask.any():
             temp_sample_ids = sub_sample_ids[num_mask]
-            value_dist['number'] = MetaNumber.from_data(
+            meta_data['number'] = MetaNumber.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=number[num_mask], **kwargs
             )
             mask = np.bitwise_not(num_mask)
@@ -165,7 +162,7 @@ class MetaJsonValue(MetaNode):
                 sample_times = pd.Series(sample_times)[time_mask]
             temp_sample_ids = sub_sample_ids[time_mask]
 
-            value_dist['timestamp'] = MetaTimeStamp.from_data(
+            meta_data['timestamp'] = MetaTimeStamp.from_data(
                 num_samples=num_samples, sample_ids=temp_sample_ids, values=timestamps[time_mask],
                 sample_times=sample_times,
                 **kwargs
@@ -177,33 +174,37 @@ class MetaJsonValue(MetaNode):
 
         # 处理string
         if sub_sample_ids.shape[0] > 0:
-            value_dist['string'] = MetaString.from_data(
+            meta_data['string'] = MetaString.from_data(
                 num_samples=num_samples, sample_ids=sub_sample_ids, values=sub_values, **kwargs
             )
-        kwargs[cls.VALUE_DIST] = value_dist
-        return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
+        return super().from_data(
+            num_samples=num_samples, sample_ids=sample_ids, values=values, meta_data=meta_data, **kwargs
+        )
 
     @classmethod
-    def reduce(cls, structs: List[MetaNode], **kwargs):
-        num_samples = 0
-        value_dist = {}
-        for struct in structs:
-            num_samples += struct.num_samples
+    def reduce(cls, structs: List[MetaNode], weights=None, **kwargs):
+        if weights is None:
+            weights = np.full(len(structs), 1 / len(structs))
+        else:
+            weights = np.array(weights) / sum(weights)
+
+        temp_data = {}
+        for weight, struct in zip(weights, structs):
             for k, v in struct.meta_data.items():
-                if k not in value_dist:
-                    value_dist[k] = [v]
+                if k not in temp_data:
+                    temp_data[k] = ([v], [weight])
                 else:
-                    value_dist[k].append(v)
+                    temp_data[k][0].append(v)
+                    temp_data[k][1].append(weight)
 
-        value_dist = {k: ALL_TYPES_OF_VALUE[k].reduce(v) for k, v in value_dist.items()}
+        meta_data = {k: ALL_TYPES_OF_VALUE[k].reduce(v, weights=w, **kwargs) for k, (v, w) in temp_data.items()}
 
-        for k in value_dist:
-            if value_dist[k].num_samples < num_samples:
-                value_dist[k].freq = ECDF.reduce(
-                    [
-                        value_dist[k].freq,
-                        ECDF.from_data(np.zeros(num_samples - value_dist[k].freq.num_samples), **kwargs)]
+        for k in temp_data:
+            w_sum = sum(temp_data[k][1])
+            if w_sum < 1:
+                meta_data[k].freq = ECDF.reduce(
+                    [meta_data[k].freq, ECDF([0], [1], initialized=True)],
+                    weights=[w_sum, 1-w_sum], **kwargs
                 )
 
-        kwargs[cls.VALUE_DIST] = value_dist
-        return super().reduce(structs, **kwargs)
+        return super().reduce(structs, meta_data=meta_data, weights=weights, **kwargs)

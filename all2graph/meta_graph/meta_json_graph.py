@@ -17,8 +17,7 @@ class MetaJsonGraph(MetaGraph):
                  index_nodes: Dict[str, MetaIndex] = None, **kwargs):
         assert all(isinstance(n, (MetaIndex, MetaJsonValue)) for n in nodes.values())
         if index_nodes is not None and len(index_nodes) > 0:
-            assert all(isinstance(n, (MetaIndex, MetaIndex)) for n in index_nodes.values())
-            assert list({n.num_samples for n in nodes.values()}) == list({n.num_samples for n in index_nodes.values()})
+            assert all(isinstance(n, MetaIndex) for n in index_nodes.values())
         else:
             index_nodes = None
         super().__init__(nodes=nodes, edges=edges, **kwargs)

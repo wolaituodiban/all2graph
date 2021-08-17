@@ -13,16 +13,15 @@ class MetaBool(MetaNode):
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, **kwargs):
-        kwargs[cls.VALUE_DIST] = np.mean(values)
-        return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
+        return super().from_data(
+            num_samples=num_samples, sample_ids=sample_ids, values=values, meta_data=float(np.mean(values)), **kwargs
+        )
 
     @classmethod
-    def reduce(cls, structs, **kwargs):
-        num_samples = 0
-        value_dist = 0
-        for struct in structs:
-            new_num_samples = num_samples + struct.num_samples
-            value_dist = num_samples/new_num_samples*value_dist + struct.num_samples/new_num_samples*struct.meta_data
-            num_samples = new_num_samples
-        kwargs[cls.VALUE_DIST] = value_dist
-        return super().reduce(structs, **kwargs)
+    def reduce(cls, structs, weights=None, **kwargs):
+        if weights is None:
+            weights = np.full(len(structs), 1 / len(structs))
+        else:
+            weights = np.array(weights) / sum(weights)
+        meta_data = sum(w * struct.meta_data for w, struct in zip(weights, structs))
+        return super().reduce(structs, meta_data=meta_data, weights=weights, **kwargs)

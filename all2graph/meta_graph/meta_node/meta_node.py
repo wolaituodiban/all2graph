@@ -40,6 +40,7 @@ class MetaNode(MetaStruct):
         """将对象装化成可以被json序列化的对象"""
         output = super().to_json()
         output['freq'] = self.freq.to_json()
+        output['meta_data'] = self.meta_data
         return output
 
     @classmethod

@@ -1,5 +1,6 @@
 import json
 import os
+import time
 import pandas as pd
 from toad.utils.progress import Progress
 from all2graph.meta_graph.meta_node import MetaJsonValue
@@ -21,9 +22,14 @@ def test_json_value():
     sample_ids3 = sample_ids1 + sample_ids2
     values3 = values1 + values2
     sample_times3 = sample_times1 + sample_times2
+    weights = (len(sample_ids1), len(sample_ids2))
 
     jv3 = MetaJsonValue.from_data(len(sample_ids3), sample_ids3, values3, sample_times=sample_times3)
-    jv4 = MetaJsonValue.reduce([jv1, jv2])
+    jv4 = MetaJsonValue.reduce([jv1, jv2], weights=weights)
+
+    # print(weights)
+    # print(jv1['bool'].to_json())
+    # print(jv2['bool'].to_json())
 
     assert jv3.freq == jv4.freq, '{}\n{}'.format(jv3.freq.to_json(), jv4.freq.to_json())
     for k in jv3.meta_data:
@@ -57,9 +63,16 @@ def speed():
     path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
     df = pd.read_csv(path)
     num_samples = df['id'].unique().shape[0]
+    json_values = []
     for col in Progress(df.drop(columns=['id', 'dateadded']).columns):
         json_value = MetaJsonValue.from_data(num_samples, df['id'], df[col], sample_times=df.dateadded)
-        print(col, json_value.to_discrete().prob)
+        # print(col, json_value.to_discrete().prob)
+        json_values.append(json_value)
+
+    start_time = time.time()
+    json_value = MetaJsonValue.reduce(json_values)
+    print(time.time() - start_time)
+    print(json_value.to_discrete())
 
 
 if __name__ == '__main__':

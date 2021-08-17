@@ -1,3 +1,5 @@
+import numpy as np
+
 from ..meta_node import MetaNode
 from ....stats import ECDF
 
@@ -21,10 +23,14 @@ class MetaNumber(MetaNode):
 
     @classmethod
     def reduce(cls, structs, weights=None, **kwargs):
+        if weights is None:
+            weights = np.full(len(structs), 1 / len(structs))
+        else:
+            weights = np.array(weights) / sum(weights)
         # meta data的weight可以从freq中推出
         meta_data = ECDF.reduce(
             [struct.meta_data for struct in structs],
-            weights=[struct.freq.mean for struct in structs],
+            weights=[w * struct.freq.mean for w, struct in zip(weights, structs)],
             **kwargs
         )
         return super().reduce(structs, meta_data=meta_data, weights=weights, **kwargs)
