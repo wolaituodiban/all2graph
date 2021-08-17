@@ -23,7 +23,8 @@ setup(
         'toad',
         'networkx',
         'pandas',
-        'numpy'
+        'numpy',
+        'scipy'
     ],
     # ext_modules=cythonize([
     #     # 'all2graph/graph/graph.py'

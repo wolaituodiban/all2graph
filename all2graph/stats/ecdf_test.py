@@ -27,13 +27,13 @@ def test_ecdf():
         else:
             array = np.random.randint(0, 10, i)
         ecdf = ECDF.from_data(array)
-        assert len(ecdf.x.shape) == len(ecdf.y.shape) == 1, '必须是一维随机变量'
-        assert ecdf.x.shape[0] == ecdf.y.shape[0] > 0, '随机变量的取值范围必须超过1个'
-        assert ecdf.y[-1] == 1, '累计概率值的最后一个值必须是1, 但是得到{}'.format(ecdf.y[-1])
-        assert np.min(ecdf.y) > 0, '累计概率值必须大于0'
-        if ecdf.x.shape[0] > 1:
-            assert np.min(np.diff(ecdf.x)) > 0, '随机变量的取值必须是单调的'
-            assert np.min(np.diff(ecdf.y)) > 0, '累计概率值必须是单调的'
+        assert len(ecdf.quantiles.shape) == len(ecdf.probs.shape) == 1, '必须是一维随机变量'
+        assert ecdf.quantiles.shape[0] == ecdf.probs.shape[0] > 0, '随机变量的取值范围必须超过1个'
+        assert ecdf.probs[-1] == 1, '累计概率值的最后一个值必须是1, 但是得到{}'.format(ecdf.probs[-1])
+        assert np.min(ecdf.probs) > 0, '累计概率值必须大于0'
+        if ecdf.quantiles.shape[0] > 1:
+            assert np.min(np.diff(ecdf.quantiles)) > 0, '随机变量的取值必须是单调的'
+            assert np.min(np.diff(ecdf.probs)) > 0, '累计概率值必须是单调的'
         assert np.abs(array.mean() - ecdf.mean) < 1e-5, 'test_mean failed, {} vs. {}'.format(array.mean(), ecdf.mean)
         mean, var = ecdf.mean_var
         assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)
@@ -48,7 +48,7 @@ def test_ecdf():
     mean, var = ecdf.mean_var
     assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)
     assert np.abs(array.var() - var) < 1e-5, 'test_var failed, {} vs. {}'.format(array.std(), var)
-    assert ecdf.num_steps == 60
+    assert ecdf.num_bins == 60
 
 
 def speed():
@@ -60,17 +60,20 @@ def speed():
     for col in df:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df = df.dropna(axis=1, how='all')
+    print(df.shape)
 
     start_time = time.time()
     ecdfs = [
-        ECDF.from_data(series) for col, series in df.iteritems()
+        ECDF.from_data(series, num_bins=30) for col, series in df.iteritems()
     ]
     use_time = time.time() - start_time
 
     start_time = time.time()
-    ecdf = ECDF.reduce(ecdfs)
+    ecdf = ECDF.reduce(ecdfs, num_bins=100)
     use_time2 = time.time() - start_time
-    print(use_time, use_time2, ecdf.num_steps, sum(x.num_steps for x in ecdfs))
+    print(use_time, use_time2, ecdf.num_bins, sum(x.num_bins for x in ecdfs))
+    ecdf2 = ECDF.reduce([ECDF.from_data(series) for col, series in df.iteritems()])
+    print(ecdf.get_quantiles([0.1, 0.3, 0.4, 0.5, 0.9]), '\n', ecdf2.get_quantiles([0.1, 0.3, 0.4, 0.5, 0.9]))
     assert use_time2 < use_time
 
 
