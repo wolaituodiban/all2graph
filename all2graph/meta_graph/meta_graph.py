@@ -25,9 +25,6 @@ class MetaGraph(MetaStruct):
         :param nodes:
         :param edges:
         """
-        assert len({n.num_samples for n in nodes.values()}) == 1, {k: n.num_samples for k, n in nodes.items()}
-        assert len({e.num_samples for e in edges.values()}) == 1, {k: e.num_samples for k, e in edges.items()}
-        assert list({n.num_samples for n in nodes.values()}) == list({e.num_samples for e in edges.values()})
         super().__init__(**kwargs)
         self.nodes = nodes
         self.edges = edges
@@ -36,10 +33,6 @@ class MetaGraph(MetaStruct):
 
     def __eq__(self, other):
         return super().__eq__(other) and self.nodes == other.nodes and self.edges == other.edges
-
-    @property
-    def num_samples(self):
-        return self.nodes[list(self.nodes)[0]].num_samples
 
     def to_json(self) -> dict:
         output = super().to_json()
@@ -69,8 +62,8 @@ class MetaGraph(MetaStruct):
             all_node_edge_classes.update(classes)
             classes = all_node_edge_classes
 
-        obj[cls.NODES] = {k: classes[v[cls.TYPE]].from_json(v) for k, v in obj[cls.NODES].items()}
-        obj[cls.EDGES] = {tuple(k.split(cls.SEP)): classes[v[cls.TYPE]].from_json(v) for k, v in obj[cls.EDGES].items()}
+        obj[cls.NODES] = {k: classes[v['type']].from_json(v) for k, v in obj[cls.NODES].items()}
+        obj[cls.EDGES] = {tuple(k.split(cls.SEP)): classes[v['type']].from_json(v) for k, v in obj[cls.EDGES].items()}
         return super().from_json(obj)
 
     def to_networkx(self) -> nx.DiGraph:

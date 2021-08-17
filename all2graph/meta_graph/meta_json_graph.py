@@ -102,57 +102,75 @@ class MetaJsonGraph(MetaGraph):
         return super().from_data(nodes=nodes, edges=edges, index_nodes=index_nodes, **kwargs)
 
     @classmethod
-    def reduce(cls, graphs, **kwargs):
-        num_samples = 0
-        nodes = {}
-        edges = {}
-        index_nodes = {}
-        for graph in graphs:
-            num_samples += graph.num_samples
+    def reduce(cls, graphs, weights=None, **kwargs):
+        if weights is None:
+            weights = np.full(len(graphs), 1 / len(graphs))
+        else:
+            weights = np.array(weights) / sum(weights)
+
+        temp_nodes = {}
+        temp_edges = {}
+        temp_indices = {}
+        for w, graph in zip(weights, graphs):
             for k, v in graph.nodes.items():
                 if isinstance(v, MetaJsonValue):
-                    if k in nodes:
-                        nodes[k].append(v)
+                    if k in temp_nodes:
+                        temp_nodes[k][0].append(w)
+                        temp_nodes[k][1].append(v)
                     else:
-                        nodes[k] = [v]
+                        temp_nodes[k] = ([w], [v])
                 else:
                     assert isinstance(v, MetaIndex)
-                    if k in index_nodes:
-                        index_nodes[k].append(v)
+                    if k in temp_indices:
+                        temp_indices[k][0].append(w)
+                        temp_indices[k][1].append(v)
                     else:
-                        index_nodes[k] = [v]
+                        temp_indices[k] = ([w], [v])
 
             for k, v in graph.edges.items():
-                if k in nodes:
-                    edges[k].append(v)
+                if k in temp_nodes:
+                    temp_edges[k][0].append(w)
+                    temp_edges[k][1].append(v)
                 else:
-                    edges[k] = [v]
+                    temp_edges[k] = ([w], [v])
 
-        nodes = {k: MetaJsonValue.reduce(v) for k, v in Progress(nodes.items())}
-        index_nodes = {k: MetaIndex.reduce(v) for k, v in Progress(index_nodes.items())}
-        edges = {k: MetaEdge.reduce(v) for k, v in Progress(edges.items())}
+        nodes = {k: MetaJsonValue.reduce(v, weights=w, **kwargs) for k, (w, v) in Progress(temp_nodes.items())}
+        indices = {k: MetaIndex.reduce(v, weights=w, **kwargs) for k, (w, v) in Progress(temp_indices.items())}
+        edges = {k: MetaEdge.reduce(v, weights=w, **kwargs) for k, (w, v) in Progress(temp_edges.items())}
 
-        for k in Progress(nodes):
-            if nodes[k].num_samples < num_samples:
+        for k in temp_nodes:
+            w_sum = sum(temp_nodes[k][0])
+            if w_sum < 1:
                 nodes[k].freq = ECDF.reduce(
                     [
                         nodes[k].freq,
-                        ECDF.from_data(np.zeros(num_samples-nodes[k].num_samples), **kwargs)]
+                        ECDF([0], [1], initialized=True)
+                    ],
+                    weights=[w_sum, 1 - w_sum],
+                    **kwargs
                 )
 
-        for k in Progress(index_nodes):
-            if index_nodes[k].num_samples < num_samples:
-                index_nodes[k].freq = ECDF.reduce(
+        for k in temp_indices:
+            w_sum = sum(temp_indices[k][0])
+            if w_sum < 1:
+                indices[k].freq = ECDF.reduce(
                     [
-                        index_nodes[k].freq,
-                        ECDF.from_data(np.zeros(num_samples-index_nodes[k].num_samples), **kwargs)]
+                        indices[k].freq,
+                        ECDF([0], [1], initialized=True)
+                    ],
+                    weights=[w_sum, 1 - w_sum],
+                    **kwargs
                 )
 
-        for k in Progress(edges):
-            if edges[k].num_samples < num_samples:
+        for k in temp_edges:
+            w_sum = sum(temp_edges[k][0])
+            if w_sum < 1:
                 edges[k].freq = ECDF.reduce(
                     [
                         edges[k].freq,
-                        ECDF.from_data(np.zeros(num_samples-edges[k].num_samples), **kwargs)]
+                        ECDF([0], [1], initialized=True)
+                    ],
+                    weights=[w_sum, 1 - w_sum],
+                    **kwargs
                 )
-        return super().reduce(graphs, nodes=nodes, edges=edges, index_nodes=index_nodes, **kwargs)
+        return super().reduce(graphs, nodes=nodes, edges=edges, index_nodes=indices, **kwargs)

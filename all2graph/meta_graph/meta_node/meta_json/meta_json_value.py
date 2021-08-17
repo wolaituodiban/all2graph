@@ -56,6 +56,9 @@ class MetaJsonValue(MetaNode):
             meta_data=meta_data, **kwargs
         )
 
+    def __iter__(self):
+        return iter(self.meta_data)
+
     def __getitem__(self, item):
         return self.meta_data[item]
 

@@ -36,9 +36,7 @@ class MetaTimeStamp(MetaString):
             # 精确到纳秒
             meta_data[SECOND_DIFF] = ECDF.from_data((sample_datetime-node_datetime)/pd.Timedelta(1)/1e9, **kwargs)
         for time_unit in ALL_TIME_UNITS:
-            num = ECDF.from_data(getattr(node_datetime, time_unit), **kwargs)
-            if num.mean_var[1] > 0:
-                meta_data[time_unit] = num
+            meta_data[time_unit] = ECDF.from_data(getattr(node_datetime, time_unit), **kwargs)
         return super(MetaString, cls).from_data(
             num_samples=num_samples, sample_ids=sample_ids, values=values, meta_data=meta_data, **kwargs
         )
