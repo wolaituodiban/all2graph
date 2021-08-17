@@ -24,15 +24,18 @@ class MetaTimeStamp(MetaString):
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, sample_times=None, **kwargs):
-        value_dist = {}
-        node_datetime = pd.to_datetime(list(values), utc=True)
+        if isinstance(values, pd.Series):
+            values = values.values
+        meta_data = {}
+        node_datetime = pd.to_datetime(values, utc=True, errors='coerce')
         if sample_times is not None:
-            sample_datetime = pd.to_datetime(sample_times, utc=True)
+            sample_datetime = pd.to_datetime(sample_times, utc=True, errors='coerce')
             # 精确到纳秒
-            value_dist[SECOND_DIFF] = ECDF.from_data((sample_datetime - node_datetime) / pd.Timedelta(1) / 1e9)
+            meta_data[SECOND_DIFF] = ECDF.from_data((sample_datetime-node_datetime)/pd.Timedelta(1)/1e9, **kwargs)
         for time_unit in ALL_TIME_UNITS:
-            num = ECDF.from_data(getattr(node_datetime, time_unit))
+            num = ECDF.from_data(getattr(node_datetime, time_unit), **kwargs)
             if num.mean_var[1] > 0:
-                value_dist[time_unit] = num
-        kwargs[cls.VALUE_DIST] = value_dist
-        return super(MetaString, cls).from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
+                meta_data[time_unit] = num
+        return super(MetaString, cls).from_data(
+            num_samples=num_samples, sample_ids=sample_ids, values=values, meta_data=meta_data, **kwargs
+        )

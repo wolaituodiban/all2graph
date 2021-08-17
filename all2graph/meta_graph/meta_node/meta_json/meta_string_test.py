@@ -5,7 +5,8 @@ import time
 import numpy as np
 import pandas as pd
 
-from all2graph.meta_graph.meta_node import MetaString
+from all2graph.graph import JsonGraph
+from all2graph.meta_graph import MetaString
 from toad.utils.progress import Progress
 
 
@@ -22,7 +23,6 @@ def test_from_data():
     cat = MetaString.from_data(df['id'].unique().shape[0], df['id'], df['value'])
     assert cat['a'].mean_var == (0.5, 0.25), '{}:{}'.format(cat['a'].to_json(), cat['a'].mean_var)
     assert cat['b'].mean_var == (1.5, 0.25), '{}'.format(cat['b'].mean_var)
-    print('测试from_date成功')
 
 
 def test_not_eq():
@@ -48,76 +48,81 @@ def test_not_eq():
     )
     cat2 = MetaString.from_data(df2['id'].unique().shape[0], df2['id'], df2['value'])
     assert cat1 != cat2
-    print('test_not_eq成功')
 
 
 def test_merge():
     dfs = []
     cats = []
+    weights = []
     for i in range(1, 100):
-        index = np.random.choice(list(range(10*i, 10*(i+1))), 10, replace=True)
+        index = np.random.randint(3*(i-1), 3*i, 10)
         value = np.random.choice(['a', 'b', 'c'], 10, replace=True)
 
         df = pd.DataFrame({'index': index, 'value': value})
         cat = MetaString.from_data(df.shape[0], df['index'], df['value'])
-        cat2 = MetaString.from_json(json.dumps(cat.to_json()))
+        cat2 = MetaString.from_json(json.loads(json.dumps(cat.to_json())))
         assert cat == cat2, '{}\n{}'.format(
             cat.to_json(), cat2.to_json()
         )
 
         dfs.append(df)
         cats.append(cat)
+        weights.append(df.shape[0])
 
     df = pd.concat(dfs)
     cat1 = MetaString.from_data(df.shape[0], df['index'], df['value'])
-    cat2 = MetaString.reduce(cats)
-    assert cat1 == cat2, '{}\n{}'.format(cat1.to_json(), cat2.to_json())
+    cat2 = MetaString.reduce(cats, weights=weights)
+    assert cat1.freq == cat2.freq, '{}\n{}'.format(cat1.freq.probs, cat2.freq.probs)
+    for k in cat1:
+        assert cat1[k] == cat2[k], '{}\n{}\n{}'.format(k, cat1[k].quantiles, cat2[k].quantiles)
 
 
-def speed_from_data():
-    print('测试from_data速度')
+def speed():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
-    path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
+    path = os.path.dirname(path)
+    path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    df = df.dropna(axis=1, how='all').astype(str)
-    num_samples = df['id'].unique().shape[0]
-    for col in Progress(df.columns[1:]):
-        string_node = MetaString.from_data(num_samples, df['id'], df[col])
-        print(col, len(string_node), string_node.max_len)
+    json_graph = JsonGraph(flatten_dict=True)
+    for i, value in enumerate(Progress(df.json.values)):
+        json_graph.insert_component(i, 'graph', json.loads(value))
 
+    num_samples = json_graph.num_components
 
-def speed_reduce():
-    print('测试reduce速度')
-    path = os.path.dirname(__file__)
-    path = os.path.dirname(path)
-    path = os.path.dirname(path)
-    path = os.path.dirname(path)
-    path = os.path.dirname(path)
-    path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
-    string_nodes = []
-    start_time = time.time()
-    for chunk in pd.read_csv(path, chunksize=100, nrows=1000):
-        chunk = chunk.dropna(axis=1, how='all').astype(str)
-        for col in chunk.columns[1:10]:
-            string_node = MetaString.from_data(chunk['id'].unique().shape[0], chunk['id'], chunk[col])
-            string_nodes.append(string_node)
-    used_time1 = time.time() - start_time
+    groups = []
+    node_df = json_graph.nodes_to_df()
+    for name, group in node_df.groupby('name'):
+        group['value'] = group['value'].astype(str)
+        if group['value'].notna().any() and group['value'].unique().shape[0] < 1000:
+            groups.append(group)
 
-    start_time = time.time()
-    string_node = MetaString.reduce(string_nodes)
-    used_time2 = time.time() - start_time
-    print(used_time1, used_time2)
-    print(sum(map(len, string_nodes)), max(map(len, string_nodes)), len(string_node))
-    assert used_time2 < used_time1
+    merge_start_time = time.time()
+    meta_strings = [
+        MetaString.from_data(
+            num_samples=num_samples, sample_ids=group.component_id, values=group.value, num_bins=20
+        )
+        for group in Progress(groups)
+    ]
+    merge_time = time.time() - merge_start_time
+
+    reduce_start_time = time.time()
+    meta_string = MetaString.reduce(meta_strings, num_bins=20)
+    reduce_time = time.time() - reduce_start_time
+
+    print(reduce_time, merge_time)
+    print(meta_string.freq.quantiles)
+    print(meta_string.freq.probs)
+    print(meta_string.freq.get_quantiles([0.25, 0.5, 0.75], fill_value=(0, np.inf)))
+    print(len(meta_string))
+    print(meta_string.to_discrete().prob)
+    assert reduce_time < merge_time
+
 
 
 if __name__ == '__main__':
     test_from_data()
     test_not_eq()
     test_merge()
-    # speed_from_data()
-    speed_reduce()
-    print('测试Category成功')
+    speed()

@@ -1,4 +1,3 @@
-import json
 from typing import Dict, List
 
 import numpy as np
@@ -16,9 +15,11 @@ class MetaString(MetaNode):
         :param meta_data: 在sample的维度上，看待每个value的频率分布函数
         """
         assert len(meta_data) > 0, '频率分布函数不能为空'
-        assert len({ecdf.num_samples for ecdf in meta_data.values()}) == 1, '样本数不一致'
         assert all(isinstance(value, str) for value in meta_data)
         super().__init__(freq=freq, meta_data=meta_data, **kwargs)
+
+    def __iter__(self):
+        return iter(self.meta_data)
 
     def __getitem__(self, item):
         return self.meta_data[item]
@@ -26,11 +27,8 @@ class MetaString(MetaNode):
     def __len__(self):
         return len(self.meta_data)
 
-    def __eq__(self, other):
-        return super().__eq__(other) and self.meta_data == other.meta_data
-
     @property
-    def max_len(self):
+    def max_str_len(self):
         return max(map(len, self.meta_data))
 
     def to_discrete(self) -> Discrete:
@@ -38,57 +36,47 @@ class MetaString(MetaNode):
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output[self.VALUE_DIST] = {k: v.to_json() for k, v in self.meta_data.items()}
+        output['meta_data'] = {k: v.to_json() for k, v in self.meta_data.items()}
         return output
 
     @classmethod
     def from_json(cls, obj):
-        if isinstance(obj, str):
-            obj = json.loads(obj)
-        else:
-            obj = dict(obj)
-        obj[cls.VALUE_DIST] = {k: ECDF.from_json(v) for k, v in obj[cls.VALUE_DIST].items()}
+        obj = dict(obj)
+        obj['meta_data'] = {k: ECDF.from_json(v) for k, v in obj['meta_data'].items()}
         return super().from_json(obj)
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, **kwargs):
-        # 比较np.unique和pd.groupby的性能差异
-        value_dists = {}
-        id_col = 'id'
-        value_col = 'value'
-        df = pd.DataFrame({id_col: sample_ids, value_col: values})
-        count_df = df.reset_index().groupby([id_col, value_col], sort=False).count()
+        meta_data = {}
+        df = pd.DataFrame({'id': sample_ids, 'value': values})
+        count_df = df.reset_index().groupby(['id', 'value'], sort=False).count()
 
-        for value, count in count_df.groupby(level=value_col, sort=False):
+        for value, count in count_df.groupby(level='value', sort=False):
             freq = count.values[:, 0]
             if freq.shape[0] < num_samples:
                 old_freq = freq
                 freq = np.zeros(num_samples)
                 freq[:old_freq.shape[0]] = old_freq
-            value_dists[value] = ECDF.from_data(freq)
-        kwargs[cls.VALUE_DIST] = value_dists
-        return super().from_data(num_samples=num_samples, sample_ids=sample_ids, values=values, **kwargs)
+            meta_data[value] = ECDF.from_data(freq, **kwargs)
+        return super().from_data(
+            num_samples=num_samples, sample_ids=sample_ids, values=values, meta_data=meta_data, **kwargs
+        )
 
     @classmethod
-    def reduce(cls, metas, **kwargs):
+    def reduce(cls, structs, weights=None, **kwargs):
         # todo 将reduce的耗时压缩到from_data之内
-        value_dists: Dict[str, List[ECDF]] = {}
-        num_samples = 0
-        for meta in metas:
-            num_samples += meta.num_samples
-            for value, freq in meta.meta_data.items():
-                if value not in value_dists:
-                    value_dists[value] = [freq]
+        all_strings = np.unique(np.concatenate([list(struct.meta_data.keys()) for struct in structs]))
+
+        weights = [struct.freq.mean for struct in structs]
+        meta_data = {value: [] for value in all_strings}
+        for struct in structs:
+            for value in meta_data:
+                if value in struct.meta_data:
+                    meta_data[value].append(struct[value])
                 else:
-                    value_dists[value].append(freq)
-        # 将所有值的频率分布补0，直到样本数一致
-        for value in value_dists:
-            temp_sum_samples = sum(freq.num_samples for freq in value_dists[value])
-            if temp_sum_samples < num_samples:
-                # zero_ecdf = ECDF.from_data(np.zeros(num_samples - temp_sum_samples), **kwargs)
-                # 如果需要进一步提升性能，可以主动调用构造函数
-                zero_ecdf = ECDF([0], [1], num_samples=num_samples-temp_sum_samples, initialized=True)
-                value_dists[value].append(zero_ecdf)
-            value_dists[value] = ECDF.reduce(value_dists[value], **kwargs)
-        kwargs[cls.VALUE_DIST] = value_dists
-        return super().reduce(metas, **kwargs)
+                    # 频率分布补0
+                    meta_data[value].append(ECDF(quantiles=[0], probs=[1], initialized=True))
+
+        meta_data = {value: ECDF.reduce(ecdfs, weights=weights, **kwargs) for value, ecdfs in meta_data.items()}
+
+        return super().reduce(structs, weights=weights, meta_data=meta_data, **kwargs)
