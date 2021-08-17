@@ -68,11 +68,10 @@ def speed():
     print(timestamp.freq.quantiles)
     print(timestamp.freq.probs)
     print(timestamp.freq.get_quantiles([0.25, 0.5, 0.75], fill_value=(0, np.inf)))
-    print(len(timestamp))
+    print(timestamp.meta_data.keys())
     assert reduce_time < merge_time
 
 
 if __name__ == '__main__':
     test_timestamp()
     speed()
-    print('测试Timestamp成功')

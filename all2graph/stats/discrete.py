@@ -25,6 +25,12 @@ class Discrete(Distribution):
     def __len__(self):
         return len(self.prob)
 
+    def __getitem__(self, item):
+        return self.prob[item]
+
+    def __iter__(self):
+        return iter(self.prob)
+
     def to_json(self) -> dict:
         output = super().to_json()
         output['prob'] = self.prob
@@ -59,10 +65,7 @@ class Discrete(Distribution):
     def from_ecdfs(cls, ecdfs: Dict[str, ECDF], weights: Dict[str, float] = None, **kwargs):
         if weights is None:
             weights = {k: 1/len(ecdfs) for k in ecdfs}
-        else:
-            weights_sum = sum(weights.values())
-            weights = {k: weights[k]/weights_sum for k in ecdfs}
-        data = []
-        for k, v in ecdfs.items():
-            data += [k] * int(v.mean * weights[k])
-        return Discrete.from_data(data, **kwargs)
+        prob = {k: v.mean * weights[k] for k, v in ecdfs.items()}
+        value_sum = sum(prob.values())
+        prob = {k: v / value_sum for k, v in prob.items()}
+        return Discrete(prob=prob, initialized=True, **kwargs)

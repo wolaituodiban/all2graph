@@ -119,7 +119,7 @@ class ECDF(Distribution):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
-            weights = weights / sum(weights)
+            weights = np.array(weights) / sum(weights)
 
         quantiles = [struct.quantiles for struct in structs]
         quantiles = np.concatenate(quantiles)

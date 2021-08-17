@@ -22,6 +22,9 @@ class MetaTimeStamp(MetaString):
         assert ALL_TIME_FEATURES.issuperset(meta_data), '衍生变量的范围必须在{}之内'.format(ALL_TIME_FEATURES)
         super().__init__(meta_data=meta_data, **kwargs)
 
+    def to_discrete(self):
+        raise NotImplementedError
+
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, sample_times=None, **kwargs):
         if isinstance(values, pd.Series):

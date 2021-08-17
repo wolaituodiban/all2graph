@@ -116,9 +116,8 @@ def speed():
     print(meta_string.freq.probs)
     print(meta_string.freq.get_quantiles([0.25, 0.5, 0.75], fill_value=(0, np.inf)))
     print(len(meta_string))
-    print(meta_string.to_discrete().prob)
+    print(sum(meta_string.to_discrete().prob.values()))
     assert reduce_time < merge_time
-
 
 
 if __name__ == '__main__':

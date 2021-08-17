@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import pandas as pd
@@ -64,19 +64,27 @@ class MetaString(MetaNode):
 
     @classmethod
     def reduce(cls, structs, weights=None, **kwargs):
-        # todo 将reduce的耗时压缩到from_data之内
+        if weights is None:
+            weights = np.full(len(structs), 1 / len(structs))
+        else:
+            weights = np.array(weights) / sum(weights)
+
+        meta_data_weights = np.array([weight * struct.freq.mean for weight, struct in zip(weights, structs)])
+        meta_data_weights /= sum(meta_data_weights)
+
         all_strings = np.unique(np.concatenate([list(struct.meta_data.keys()) for struct in structs]))
+        meta_data = {value: ([], []) for value in all_strings}
+        for weight, struct in zip(weights, structs):
+            for value in struct:
+                meta_data[value][0].append(struct[value])
+                meta_data[value][1].append(weight)
 
-        weights = [struct.freq.mean for struct in structs]
-        meta_data = {value: [] for value in all_strings}
-        for struct in structs:
-            for value in meta_data:
-                if value in struct.meta_data:
-                    meta_data[value].append(struct[value])
-                else:
-                    # 频率分布补0
-                    meta_data[value].append(ECDF(quantiles=[0], probs=[1], initialized=True))
+        for value in meta_data:
+            weight_sum = sum(meta_data[value][1])
+            if weight_sum < 1:
+                meta_data[value][0].append(ECDF([0], [1], initialized=True))
+                meta_data[value][1].append(1 - weight_sum)
 
-        meta_data = {value: ECDF.reduce(ecdfs, weights=weights, **kwargs) for value, ecdfs in meta_data.items()}
+        meta_data = {value: ECDF.reduce(ecdfs, weights=ws, **kwargs) for value, (ecdfs, ws) in meta_data.items()}
 
         return super().reduce(structs, weights=weights, meta_data=meta_data, **kwargs)
