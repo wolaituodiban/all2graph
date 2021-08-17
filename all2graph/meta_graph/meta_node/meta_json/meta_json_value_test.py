@@ -25,22 +25,22 @@ def test_json_value():
     jv3 = MetaJsonValue.from_data(len(sample_ids3), sample_ids3, values3, sample_times=sample_times3)
     jv4 = MetaJsonValue.reduce([jv1, jv2])
 
-    assert jv3.node_freq == jv4.node_freq, '{}\n{}'.format(jv3.node_freq.to_json(), jv4.node_freq.to_json())
-    for k in jv3.value_dist:
-        if isinstance(jv3.value_dist[k].value_dist, dict):
-            a = jv3.value_dist[k].value_dist
-            b = jv4.value_dist[k].value_dist
+    assert jv3.freq == jv4.freq, '{}\n{}'.format(jv3.freq.to_json(), jv4.freq.to_json())
+    for k in jv3.meta_data:
+        if isinstance(jv3.meta_data[k].meta_data, dict):
+            a = jv3.meta_data[k].meta_data
+            b = jv4.meta_data[k].meta_data
             for kk in a:
                 assert a[kk] == b[kk], '{}\n{}\n{}'.format(
                     kk, a[kk].to_json(), b[kk].to_json()
                 )
         else:
-            assert jv3.value_dist[k] == jv4.value_dist[k], '{}\n{}'.format(
-                jv3.value_dist[k].to_json(), jv4.value_dist[k].to_json()
+            assert jv3.meta_data[k] == jv4.meta_data[k], '{}\n{}'.format(
+                jv3.meta_data[k].to_json(), jv4.meta_data[k].to_json()
             )
-    for k in jv3.value_dist:
-        assert jv3.value_dist[k] == jv4.value_dist[k], '{}\n{}'.format(
-            jv3.value_dist[k].to_json(), jv4.value_dist[k].to_json()
+    for k in jv3.meta_data:
+        assert jv3.meta_data[k] == jv4.meta_data[k], '{}\n{}'.format(
+            jv3.meta_data[k].to_json(), jv4.meta_data[k].to_json()
         )
 
     jv5 = jv3.from_json(json.dumps(jv3.to_json()))

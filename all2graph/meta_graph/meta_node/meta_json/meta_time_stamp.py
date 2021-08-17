@@ -13,14 +13,14 @@ ALL_TIME_FEATURES = ALL_TIME_UNITS.union([SECOND_DIFF])
 
 class MetaTimeStamp(MetaString):
     """时间戳节点"""
-    def __init__(self, value_dist: Dict[str, ECDF], **kwargs):
+    def __init__(self, meta_data: Dict[str, ECDF], **kwargs):
         """
 
-        :param value_dist: 在node的角度上，每个时间特征的分布
+        :param meta_data: 在node的角度上，每个时间特征的分布
         :param kwargs:
         """
-        assert ALL_TIME_FEATURES.issuperset(value_dist), '衍生变量的范围必须在{}之内'.format(ALL_TIME_FEATURES)
-        super().__init__(value_dist=value_dist, **kwargs)
+        assert ALL_TIME_FEATURES.issuperset(meta_data), '衍生变量的范围必须在{}之内'.format(ALL_TIME_FEATURES)
+        super().__init__(meta_data=meta_data, **kwargs)
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, sample_times=None, **kwargs):

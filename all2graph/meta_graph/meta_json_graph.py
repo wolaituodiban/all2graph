@@ -135,17 +135,17 @@ class MetaJsonGraph(MetaGraph):
 
         for k in Progress(nodes):
             if nodes[k].num_samples < num_samples:
-                nodes[k].node_freq = ECDF.reduce(
+                nodes[k].freq = ECDF.reduce(
                     [
-                        nodes[k].node_freq,
+                        nodes[k].freq,
                         ECDF.from_data(np.zeros(num_samples-nodes[k].num_samples), **kwargs)]
                 )
 
         for k in Progress(index_nodes):
             if index_nodes[k].num_samples < num_samples:
-                index_nodes[k].node_freq = ECDF.reduce(
+                index_nodes[k].freq = ECDF.reduce(
                     [
-                        index_nodes[k].node_freq,
+                        index_nodes[k].freq,
                         ECDF.from_data(np.zeros(num_samples-index_nodes[k].num_samples), **kwargs)]
                 )
 

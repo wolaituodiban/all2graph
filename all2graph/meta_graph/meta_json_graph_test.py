@@ -32,8 +32,8 @@ def test_json_graph():
     for k, v in meta_graph.nodes.items():
         if isinstance(v, MetaJsonValue):
             print(v.to_discrete().prob)
-            if 'string' in v.value_dist:
-                print(k, len(v.value_dist['string']), v.value_dist['string'].max_len)
+            if 'string' in v.meta_data:
+                print(k, len(v.meta_data['string']), v.meta_data['string'].max_len)
         else:
             print(k, v)
 

@@ -43,7 +43,8 @@ class ECDF(Distribution):
                 assume_sorted=assume_sorted, **kwargs
             )(q)
 
-    def get_quantiles(self, p, assume_sorted=True, fill_value="extrapolate", **kwargs) -> np.ndarray:
+    def get_quantiles(self, p, bounds_error=False, fill_value="extrapolate", assume_sorted=True,
+                      **kwargs) -> np.ndarray:
         """
 
         :param p: 累积概率
@@ -56,7 +57,8 @@ class ECDF(Distribution):
             return np.full_like(p, self.probs[0])
         else:
             return interpolate.interp1d(
-                self.probs, self.quantiles, assume_sorted=assume_sorted, fill_value=fill_value, **kwargs
+                self.probs, self.quantiles, bounds_error=bounds_error,
+                assume_sorted=assume_sorted, fill_value=fill_value, **kwargs
             )(p)
 
     def __eq__(self, other) -> bool:

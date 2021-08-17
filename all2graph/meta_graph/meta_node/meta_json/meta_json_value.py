@@ -49,25 +49,25 @@ class MetaJsonValue(MetaNode):
     为了保证完备性，每一个value会按照上述所述的类型顺序，被唯一的归入其中一类。
     """.format(SECOND_DIFF, ALL_TIME_UNITS)
 
-    def __init__(self, value_dist: Dict[str, MetaNode], **kwargs):
-        for k, v in value_dist.items():
-            assert type(v) == ALL_TYPES_OF_VALUE[k], '{}'.format(value_dist)
+    def __init__(self, meta_data: Dict[str, MetaNode], **kwargs):
+        for k, v in meta_data.items():
+            assert type(v) == ALL_TYPES_OF_VALUE[k], '{}'.format(meta_data)
         super().__init__(
-            value_dist=value_dist, **kwargs
+            meta_data=meta_data, **kwargs
         )
-        assert abs(self.num_nodes - sum(dist.num_nodes for dist in self.value_dist.values())) < EPSILON, '{}'.format(
+        assert abs(self.num_nodes - sum(dist.num_nodes for dist in self.meta_data.values())) < EPSILON, '{}'.format(
             json.dumps(self.to_json(), indent=2)
         )
-        assert set(dist.num_samples for dist in self.value_dist.values()) == {self.num_samples}, '{}'.format(
-            {k: dist.num_samples for k, dist in self.value_dist.items()}
+        assert set(dist.num_samples for dist in self.meta_data.values()) == {self.num_samples}, '{}'.format(
+            {k: dist.num_samples for k, dist in self.meta_data.items()}
         )
 
     def to_discrete(self, **kwargs) -> Discrete:
-        return Discrete.from_ecdfs({k: v.node_freq for k, v in self.value_dist.items()}, **kwargs)
+        return Discrete.from_ecdfs({k: v.freq for k, v in self.meta_data.items()}, **kwargs)
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output[self.VALUE_DIST] = {k: v.to_json() for k, v in self.value_dist.items()}
+        output[self.VALUE_DIST] = {k: v.to_json() for k, v in self.meta_data.items()}
         return output
 
     @classmethod
@@ -189,7 +189,7 @@ class MetaJsonValue(MetaNode):
         value_dist = {}
         for struct in structs:
             num_samples += struct.num_samples
-            for k, v in struct.value_dist.items():
+            for k, v in struct.meta_data.items():
                 if k not in value_dist:
                     value_dist[k] = [v]
                 else:
@@ -199,10 +199,10 @@ class MetaJsonValue(MetaNode):
 
         for k in value_dist:
             if value_dist[k].num_samples < num_samples:
-                value_dist[k].node_freq = ECDF.reduce(
+                value_dist[k].freq = ECDF.reduce(
                     [
-                        value_dist[k].node_freq,
-                        ECDF.from_data(np.zeros(num_samples-value_dist[k].node_freq.num_samples), **kwargs)]
+                        value_dist[k].freq,
+                        ECDF.from_data(np.zeros(num_samples - value_dist[k].freq.num_samples), **kwargs)]
                 )
 
         kwargs[cls.VALUE_DIST] = value_dist

@@ -10,35 +10,35 @@ from ....stats import Discrete, ECDF
 
 class MetaString(MetaNode):
     """类别节点"""
-    def __init__(self, node_freq, value_dist: Dict[str, ECDF], **kwargs):
+    def __init__(self, freq, meta_data: Dict[str, ECDF], **kwargs):
         """
 
-        :param value_dist: 在sample的维度上，看待每个value的频率分布函数
+        :param meta_data: 在sample的维度上，看待每个value的频率分布函数
         """
-        assert len(value_dist) > 0, '频率分布函数不能为空'
-        assert len({ecdf.num_samples for ecdf in value_dist.values()}) == 1, '样本数不一致'
-        assert all(isinstance(value, str) for value in value_dist)
-        super().__init__(node_freq=node_freq, value_dist=value_dist, **kwargs)
+        assert len(meta_data) > 0, '频率分布函数不能为空'
+        assert len({ecdf.num_samples for ecdf in meta_data.values()}) == 1, '样本数不一致'
+        assert all(isinstance(value, str) for value in meta_data)
+        super().__init__(freq=freq, meta_data=meta_data, **kwargs)
 
     def __getitem__(self, item):
-        return self.value_dist[item]
+        return self.meta_data[item]
 
     def __len__(self):
-        return len(self.value_dist)
+        return len(self.meta_data)
 
     def __eq__(self, other):
-        return super().__eq__(other) and self.value_dist == other.value_dist
+        return super().__eq__(other) and self.meta_data == other.meta_data
 
     @property
     def max_len(self):
-        return max(map(len, self.value_dist))
+        return max(map(len, self.meta_data))
 
     def to_discrete(self) -> Discrete:
-        return Discrete.from_ecdfs(self.value_dist)
+        return Discrete.from_ecdfs(self.meta_data)
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output[self.VALUE_DIST] = {k: v.to_json() for k, v in self.value_dist.items()}
+        output[self.VALUE_DIST] = {k: v.to_json() for k, v in self.meta_data.items()}
         return output
 
     @classmethod
@@ -76,7 +76,7 @@ class MetaString(MetaNode):
         num_samples = 0
         for meta in metas:
             num_samples += meta.num_samples
-            for value, freq in meta.value_dist.items():
+            for value, freq in meta.meta_data.items():
                 if value not in value_dists:
                     value_dists[value] = [freq]
                 else:
