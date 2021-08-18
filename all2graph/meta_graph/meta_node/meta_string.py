@@ -3,8 +3,8 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
-from ..meta_node import MetaNode
-from ....stats import Discrete, ECDF
+from all2graph.meta_graph.meta_node.meta_node import MetaNode
+from all2graph.stats import Discrete, ECDF
 
 
 class MetaString(MetaNode):
@@ -64,6 +64,7 @@ class MetaString(MetaNode):
 
     @classmethod
     def reduce(cls, structs, weights=None, **kwargs):
+        # todo 存在结果的微小不一致
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -73,18 +74,21 @@ class MetaString(MetaNode):
         meta_data_weights /= sum(meta_data_weights)
 
         all_strings = np.unique(np.concatenate([list(struct.meta_data.keys()) for struct in structs]))
-        meta_data = {value: ([], []) for value in all_strings}
-        for weight, struct in zip(weights, structs):
+        meta_data = {value: [] for value in all_strings}
+        meta_data_w = {value: [] for value in all_strings}
+        for weight, struct in zip(meta_data_weights, structs):
             for value in struct:
-                meta_data[value][0].append(struct[value])
-                meta_data[value][1].append(weight)
+                meta_data[value].append(struct[value])
+                meta_data_w[value].append(weight)
 
         for value in meta_data:
-            weight_sum = sum(meta_data[value][1])
+            weight_sum = sum(meta_data_w[value])
             if weight_sum < 1:
-                meta_data[value][0].append(ECDF([0], [1], initialized=True))
-                meta_data[value][1].append(1 - weight_sum)
+                meta_data[value].append(ECDF([0], [1], initialized=True))
+                meta_data_w[value].append(1 - weight_sum)
 
-        meta_data = {value: ECDF.reduce(ecdfs, weights=ws, **kwargs) for value, (ecdfs, ws) in meta_data.items()}
+        meta_data = {
+            value: ECDF.reduce(ecdfs, weights=meta_data_w[value], **kwargs) for value, ecdfs in meta_data.items()
+        }
 
         return super().reduce(structs, weights=weights, meta_data=meta_data, **kwargs)

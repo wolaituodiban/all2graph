@@ -3,7 +3,6 @@ from typing import Dict, Type, Tuple
 
 import networkx as nx
 
-from ..graph import Graph
 from ..meta_struct import MetaStruct
 from .meta_edge import MetaEdge, ALL_EDGE_CLASSES
 from .meta_node import MetaNode, ALL_NODE_CLASSES
@@ -75,7 +74,3 @@ class MetaGraph(MetaStruct):
             graph.add_edge(pred, succ, **edge.to_json())
         assert nx.number_of_isolates(graph) == 0, "图存在孤立点"
         return graph
-
-    def create_graph(self, **kwargs) -> Graph:
-        raise NotImplementedError
-

@@ -3,8 +3,8 @@ import json
 import time
 import numpy as np
 import pandas as pd
-from all2graph.graph import JsonGraph
 from all2graph.meta_graph import MetaNumber
+from all2graph.resolvers import JsonResolver
 from toad.utils.progress import Progress
 
 
@@ -13,12 +13,9 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
-    path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph = JsonGraph(flatten_dict=True)
-    for i, value in enumerate(Progress(df.json.values)):
-        json_graph.insert_component(i, 'graph', json.loads(value))
+    json_graph = JsonResolver(flatten_dict=True).resolve('graph', list(map(json.loads, df.json)))
 
     num_samples = json_graph.num_components
 

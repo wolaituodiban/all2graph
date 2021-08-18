@@ -48,6 +48,7 @@ class ECDF(Distribution):
         """
 
         :param p: 累积概率
+        :param bounds_error:
         :param assume_sorted:
         :param fill_value:
         :param kwargs:

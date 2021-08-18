@@ -42,23 +42,6 @@ class Graph:
         self.values.append(value)
         return node_id
 
-    def insert_component(
-            self,
-            component_id: int,
-            name: str,
-            value: Union[Dict, List, str, int, float, None],
-            preds: List[int] = None,
-    ):
-        """
-        插入一个连通片（component）。如果图中任意两点都是连通的，那么图被称作连通图。
-        :param component_id: 连通片编号
-        :param name: 第一个节点的名称
-        :param value: 第一个节点的值
-        :param preds: 前置节点的编号
-        :return:
-        """
-        raise NotImplementedError
-
     def nodes_to_df(self) -> pd.DataFrame:
         """
         将节点信息以dataframe的形式返回
@@ -78,11 +61,11 @@ class Graph:
         node_df = self.nodes_to_df()
         edge_df = pd.DataFrame(
             {
-                'component_id': node_df.component_id.iloc[json_graph.preds],
+                'component_id': node_df.component_id.iloc[self.preds],
                 'pred': self.preds,
-                'pred_name': node_df.name.iloc[json_graph.preds],
+                'pred_name': node_df.name.iloc[self.preds],
                 'succ': self.succs,
-                'succ_name': node_df.name.iloc[json_graph.succs]
+                'succ_name': node_df.name.iloc[self.succs]
             }
         )
         edge_df = edge_df.merge(node_df, left_on='succ', right_index=True, how='left')
