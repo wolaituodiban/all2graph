@@ -15,7 +15,7 @@ class ECDF(Distribution):
         :param probs: 分位数的累积概率值
         :num_samples: 原始数据的数据量
         """
-        super().__init__(num_bins=None, **kwargs)
+        super().__init__(**kwargs)
         self.quantiles = np.array(quantiles)
         self.probs = np.array(probs)
 
