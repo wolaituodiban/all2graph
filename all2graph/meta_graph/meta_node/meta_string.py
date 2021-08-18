@@ -2,9 +2,10 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
+from toad.utils.progress import Progress
 
-from all2graph.meta_graph.meta_node.meta_node import MetaNode
-from all2graph.stats import Discrete, ECDF
+from .meta_node import MetaNode
+from ...stats import Discrete, ECDF
 
 
 class MetaString(MetaNode):
@@ -26,6 +27,9 @@ class MetaString(MetaNode):
 
     def __len__(self):
         return len(self.meta_data)
+
+    def items(self):
+        return self.meta_data.items()
 
     @property
     def max_str_len(self):
@@ -73,13 +77,16 @@ class MetaString(MetaNode):
         meta_data_weights = np.array([weight * struct.freq.mean for weight, struct in zip(weights, structs)])
         meta_data_weights /= sum(meta_data_weights)
 
-        all_strings = np.unique(np.concatenate([list(struct.meta_data.keys()) for struct in structs]))
-        meta_data = {value: [] for value in all_strings}
-        meta_data_w = {value: [] for value in all_strings}
+        meta_data = {}
+        meta_data_w = {}
         for weight, struct in zip(meta_data_weights, structs):
-            for value in struct:
-                meta_data[value].append(struct[value])
-                meta_data_w[value].append(weight)
+            for value, freq in struct.items():
+                if value in meta_data:
+                    meta_data[value].append(freq)
+                    meta_data_w[value].append(weight)
+                else:
+                    meta_data[value] = [freq]
+                    meta_data_w[value] = [weight]
 
         for value in meta_data:
             weight_sum = sum(meta_data_w[value])
@@ -88,7 +95,8 @@ class MetaString(MetaNode):
                 meta_data_w[value].append(1 - weight_sum)
 
         meta_data = {
-            value: ECDF.reduce(ecdfs, weights=meta_data_w[value], **kwargs) for value, ecdfs in meta_data.items()
+            value: ECDF.reduce(ecdfs, weights=meta_data_w[value], **kwargs)
+            for value, ecdfs in Progress(meta_data.items())
         }
 
         return super().reduce(structs, weights=weights, meta_data=meta_data, **kwargs)

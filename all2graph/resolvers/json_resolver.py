@@ -1,5 +1,4 @@
-from typing import Dict, List, Union, Set, Iterable, Generator
-import jieba
+from typing import Dict, List, Union, Set, Iterable
 from toad.utils.progress import Progress
 from ..graph import Graph
 from .resolver import Resolver
@@ -94,7 +93,7 @@ class JsonResolver(Resolver):
                         graph=graph, component_id=component_id, name=k, value=v, preds=preds + [node_id],
                         local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
                     )
-        elif isinstance(value, (list, Generator)):
+        elif isinstance(value, list):
             node_ids = []
             for v in value:
                 node_id = graph.insert_node(component_id, name, v)

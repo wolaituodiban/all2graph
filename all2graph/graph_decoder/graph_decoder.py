@@ -2,6 +2,7 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
+from toad.utils.progress import Progress
 
 from ..graph import Graph
 from ..meta_struct import MetaStruct
@@ -45,7 +46,7 @@ class GraphDecoder(MetaStruct):
 
         def bool_to_str(x):
             if isinstance(x, bool):
-                return TRUE if x else False
+                return TRUE if x else FALSE
             else:
                 return x
         node_df['value'] = node_df.value.apply(bool_to_str)
@@ -80,9 +81,11 @@ class GraphDecoder(MetaStruct):
                     meta_numbers[k].append(v)
                     meta_num_w[k].append(w)
 
-        meta_numbers = {k: MetaNumber.reduce(v, weights=meta_num_w[k], **kwargs) for k, v in meta_numbers.items()}
+        meta_numbers = {
+            k: MetaNumber.reduce(v, weights=meta_num_w[k], **kwargs) for k, v in Progress(meta_numbers.items())
+        }
 
-        for k in meta_numbers:
+        for k in Progress(meta_numbers):
             w_sum = sum(meta_num_w[k])
             if w_sum < 1:
                 meta_numbers[k].freq = ECDF.reduce(

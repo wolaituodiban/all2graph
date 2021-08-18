@@ -1,7 +1,7 @@
 import numpy as np
 
-from all2graph.meta_graph.meta_node.meta_node import MetaNode
-from all2graph.stats import ECDF
+from .meta_node import MetaNode
+from ...stats import ECDF
 
 
 class MetaNumber(MetaNode):

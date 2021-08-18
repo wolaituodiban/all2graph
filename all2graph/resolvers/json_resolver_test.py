@@ -85,7 +85,6 @@ def test_json_graph():
 
     json_graph2, index_mapper = JsonResolver(
         dict_pred_degree=0, list_pred_degree=0, list_inner_degree=0, r_list_inner_degree=0, global_index_names={'name'},
-        segmentation=True
     ).resolve('graph', list(map(json.loads, df.json)))
     assert len(index_mapper) > 0
     assert np.unique(json_graph2.component_ids).shape[0] == df.shape[0]
