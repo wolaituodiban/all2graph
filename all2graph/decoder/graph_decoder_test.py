@@ -16,20 +16,27 @@ def test():
 
     start_time1 = time.time()
     resolver = JsonResolver(
-        dict_pred_degree=0, list_pred_degree=0, list_inner_degree=0, r_list_inner_degree=0, global_index_names={'name'}
+        dict_pred_degree=0, list_pred_degree=0, list_inner_degree=0, r_list_inner_degree=0, local_index_names={'name'}
     )
-    graph, _ = resolver.resolve('graph', list(map(json.loads, df.json)), progress_bar=True)
-    decoder = GraphDecoder.from_data(graph, num_bins=None, progress_bar=True)
+    graph, global_index_mapper, local_index_mappers = resolver.resolve(
+        'graph', list(map(json.loads, df.json)), progress_bar=True
+    )
+    index_ids = list(global_index_mapper.values())
+    for mapper in local_index_mappers:
+        index_ids += list(mapper.values())
+    decoder = GraphDecoder.from_data(graph, index_ids=index_ids, num_bins=None, progress_bar=True)
     used_time1 = time.time() - start_time1
-    print(len(decoder.meta_string))
     print(decoder.meta_name.keys())
 
     decoders = []
     chunks = list(pd.read_csv(path, chunksize=1000))
     start_time2 = time.time()
     for chunk in Progress(chunks):
-        graph, _ = resolver.resolve('graph', list(map(json.loads, chunk.json)))
-        decoders.append(GraphDecoder.from_data(graph, num_bins=None))
+        graph, global_index_mapper, local_index_mappers = resolver.resolve('graph', list(map(json.loads, chunk.json)))
+        index_ids = list(global_index_mapper.values())
+        for mapper in local_index_mappers:
+            index_ids += list(mapper.values())
+        decoders.append(GraphDecoder.from_data(graph, index_ids=index_ids, num_bins=None))
     used_time2 = time.time() - start_time2
 
     print('开始reduce')
@@ -39,7 +46,10 @@ def test():
     print(used_time1, used_time2, used_time3)
     print(decoder2.meta_name.keys())
     assert decoder.meta_numbers == decoder2.meta_numbers
-    assert used_time3 < used_time1 < used_time2
+    assert used_time3 < used_time1 and used_time3 < used_time2
+    for k in decoder.meta_string:
+        print(k)
+        assert decoder.meta_string[k] == decoder2.meta_string[k], k
 
 
 if __name__ == '__main__':

@@ -65,7 +65,7 @@ class JsonResolver(Resolver):
                     if v in local_index_mapper:
                         node_id = local_index_mapper[v]
                     else:
-                        node_id = graph.insert_node(component_id, k, None)
+                        node_id = graph.insert_node(component_id, k, v)
                         local_index_mapper[v] = node_id
                     new_preds = preds
                     new_succs = [node_id] * len(preds)
@@ -74,7 +74,7 @@ class JsonResolver(Resolver):
                     if v in global_index_mapper:
                         node_id = global_index_mapper[v]
                     else:
-                        node_id = graph.insert_node(component_id, k, None)
+                        node_id = graph.insert_node(component_id, k, v)
                         global_index_mapper[v] = node_id
                     new_preds = preds
                     new_succs = [node_id] * len(preds)
@@ -119,9 +119,10 @@ class JsonResolver(Resolver):
             root_name: str,
             jsons: Iterable[Union[Dict, List]],
             progress_bar=False,
-    ) -> (Graph, dict):
+    ) -> (Graph, dict, List[dict]):
         graph = Graph()
         global_index_mapper = {}
+        local_index_mappers = []
         process = jsons
         if progress_bar:
             process = Progress(jsons)
@@ -132,7 +133,5 @@ class JsonResolver(Resolver):
                 graph=graph, component_id=i, name=root_name, value=value, preds=None,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
             )
-        if self.global_index_names is None:
-            return graph
-        else:
-            return graph, global_index_mapper
+            local_index_mappers.append(local_index_mapper)
+        return graph, global_index_mapper, local_index_mappers

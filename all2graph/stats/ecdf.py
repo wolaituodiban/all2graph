@@ -91,6 +91,7 @@ class ECDF(Distribution):
         :param num_bins:
         :return:
         """
+        # todo 压缩算法有问题，精度损失过大
         if self.num_bins <= num_bins:
             return
         density = np.diff(self.probs, prepend=0)

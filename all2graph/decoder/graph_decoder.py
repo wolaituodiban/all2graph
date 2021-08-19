@@ -44,9 +44,12 @@ class GraphDecoder(MetaStruct):
         return super().from_json(**obj)
 
     @classmethod
-    def from_data(cls, graph: Graph, progress_bar=False, **kwargs):
+    def from_data(cls, graph: Graph, index_ids=None, progress_bar=False, **kwargs):
         node_df = graph.node_df()
         num_samples = node_df.component_id.unique().shape[0]
+
+        if index_ids is not None:
+            node_df = node_df.drop(index_ids)
 
         # # # # # 生成meta_numbers # # # # #
         node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
@@ -61,6 +64,8 @@ class GraphDecoder(MetaStruct):
             )
 
         # # # # # 生成meta_string # # # # #
+        node_df = node_df[pd.isna(node_df.number) & node_df.value.apply(lambda x: not isinstance(x, (dict, list)))]
+
         def bool_to_str(x):
             if isinstance(x, bool):
                 return TRUE if x else FALSE
@@ -68,12 +73,7 @@ class GraphDecoder(MetaStruct):
                 return x
 
         node_df['value'] = node_df.value.apply(bool_to_str)
-        node_df.loc[
-            pd.notna(node_df.number)
-            | node_df.value.apply(lambda x: isinstance(x, (dict, list)))
-            | pd.isna(node_df.value),
-            'value'
-        ] = NULL
+        node_df['value'] = node_df.value.fillna(NULL)
 
         meta_string = MetaString.from_data(
             num_samples=num_samples, sample_ids=node_df.component_id, values=node_df.value, progress_bar=progress_bar,
