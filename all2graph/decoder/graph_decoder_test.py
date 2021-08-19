@@ -45,11 +45,9 @@ def test():
     used_time3 = time.time() - start_time3
     print(used_time1, used_time2, used_time3)
     print(decoder2.meta_name.keys())
-    assert decoder.meta_numbers == decoder2.meta_numbers
+
     assert used_time3 < used_time1 and used_time3 < used_time2
-    for k in decoder.meta_string:
-        print(k)
-        assert decoder.meta_string[k] == decoder2.meta_string[k], k
+    assert decoder == decoder2
 
 
 if __name__ == '__main__':

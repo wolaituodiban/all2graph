@@ -28,12 +28,14 @@ class GraphDecoder(MetaStruct):
     def __eq__(self, other):
         return super().__eq__(other)\
                and self.meta_string == other.meta_string\
-               and self.meta_numbers == other.meta_numbers
+               and self.meta_numbers == other.meta_numbers\
+               and self.meta_name == other.meta_name
 
     def to_json(self) -> dict:
         output = super().to_json()
         output['meta_string'] = self.meta_string.to_json()
         output['meta_numbers'] = {k: v.to_json() for k, v in self.meta_numbers.items()}
+        output['meta_name'] = self.meta_name.to_json()
         return output
 
     @classmethod
@@ -41,6 +43,7 @@ class GraphDecoder(MetaStruct):
         obj = dict(obj)
         obj['meta_string'] = MetaString.from_json(obj['meta_string'])
         obj['meta_numbers'] = {k: MetaNumber.from_json(v) for k, v in obj['meta_numbers'].items()}
+        obj['meta_name'] = MetaString.from_json(obj['meta_name'])
         return super().from_json(**obj)
 
     @classmethod
@@ -106,7 +109,7 @@ class GraphDecoder(MetaStruct):
         return super().from_data(meta_string=meta_string, meta_numbers=meta_numbers, meta_name=meta_name, **kwargs)
 
     @classmethod
-    def reduce(cls, structs, weights=None, progress_bar=True, **kwargs):
+    def reduce(cls, structs, weights=None, progress_bar=False, **kwargs):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:

@@ -79,18 +79,14 @@ class MetaString(MetaNode):
 
     @classmethod
     def reduce(cls, structs, weights=None, progress_bar=False, prefix='reducing meta string', **kwargs):
-        # todo 存在结果的微小不一致
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
             weights = np.array(weights) / sum(weights)
 
-        meta_data_weights = np.array([weight * struct.freq.mean for weight, struct in zip(weights, structs)])
-        meta_data_weights /= sum(meta_data_weights)
-
         meta_data = {}
         meta_data_w = {}
-        for weight, struct in zip(meta_data_weights, structs):
+        for weight, struct in zip(weights, structs):
             for value, freq in struct.items():
                 if value in meta_data:
                     meta_data[value].append(freq)

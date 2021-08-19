@@ -23,14 +23,6 @@ class MetaEdge(MetaStruct):
         self.freq = freq
         self.succ = succ
 
-    @property
-    def num_samples(self) -> int:
-        return self.freq.num_samples
-
-    @property
-    def num_nodes(self) -> int:
-        return self.freq.mean * self.freq.num_samples
-
     def __eq__(self, other):
         return super().__eq__(other) and self.freq == other.freq and self.succ == other.succ
 
@@ -49,7 +41,7 @@ class MetaEdge(MetaStruct):
             obj = dict(obj)
         obj[cls.FREQ] = ECDF.from_json(obj[cls.FREQ])
         if cls.SUCC in obj:
-            succ_class = obj[cls.SUCC][cls.TYPE]
+            succ_class = obj[cls.SUCC]['type']
             if classes is not None and succ_class in classes:
                 obj[cls.SUCC] = classes[succ_class].from_json(obj[cls.SUCC])
             else:

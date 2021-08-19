@@ -84,7 +84,7 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph = JsonResolver(flatten_dict=True).resolve('graph', list(map(json.loads, df.json)))
+    json_graph, *_ = JsonResolver(flatten_dict=True).resolve('graph', list(map(json.loads, df.json)))
 
     num_samples = json_graph.num_components
 

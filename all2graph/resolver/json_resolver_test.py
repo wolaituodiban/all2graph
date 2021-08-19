@@ -65,19 +65,19 @@ def test_complicated_situation():
         }
     }
     jg1, *_ = JsonResolver(flatten_dict=True, dict_pred_degree=0, list_pred_degree=0, list_inner_degree=2,
-                       r_list_inner_degree=1).resolve('input', [inputs])
+                           r_list_inner_degree=1).resolve('input', [inputs])
     assert jg1.num_nodes == 10 and jg1.num_edges == 34, '\n{}\n{}\n{}\n{}'.format(
         jg1.names, jg1.values, jg1.preds, jg1.succs
     )
 
 
-def test_json_graph():
+def speed():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph, _, _ = JsonResolver(flatten_dict=True).resolve('graph', list(map(json.loads, df.json)), progress_bar=True)
+    json_graph, *_ = JsonResolver(flatten_dict=True).resolve('graph', list(map(json.loads, df.json)), progress_bar=True)
     assert json_graph.num_nodes - json_graph.num_edges == df.shape[0]
     assert np.unique(json_graph.component_ids).shape[0] == df.shape[0]
     print(json_graph.num_nodes, json_graph.num_edges)
@@ -98,4 +98,4 @@ if __name__ == '__main__':
     test_list_pred_degree()
     test_list_inner_degree()
     test_complicated_situation()
-    test_json_graph()
+    speed()

@@ -1,4 +1,3 @@
-from abc import abstractmethod
 from ..meta_struct import MetaStruct
 
 
