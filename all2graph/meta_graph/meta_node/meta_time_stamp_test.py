@@ -5,7 +5,7 @@ import time
 import numpy as np
 import pandas as pd
 
-from all2graph.resolvers import JsonResolver
+from all2graph.resolver import JsonResolver
 from all2graph.meta_graph import MetaTimeStamp
 from toad.utils.progress import Progress
 
@@ -39,7 +39,7 @@ def speed():
     num_samples = json_graph.num_components
 
     groups = []
-    node_df = json_graph.nodes_to_df()
+    node_df = json_graph.node_df()
     for name, group in Progress(node_df.groupby('name')):
         group['value'] = group['value'].apply(lambda x: None if isinstance(x, (dict, list)) else x)
         group['value'] = pd.to_datetime(group['value'], errors='coerce')

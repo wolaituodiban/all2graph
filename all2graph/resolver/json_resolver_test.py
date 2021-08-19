@@ -2,7 +2,7 @@ import os
 import json
 import numpy as np
 import pandas as pd
-from all2graph.resolvers import JsonResolver
+from all2graph.resolver import JsonResolver
 
 
 def test_flatten_dict():
@@ -77,7 +77,7 @@ def test_json_graph():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph = JsonResolver(flatten_dict=True).resolve('graph', list(map(json.loads, df.json)))
+    json_graph = JsonResolver(flatten_dict=True).resolve('graph', list(map(json.loads, df.json)), progress_bar=True)
     assert json_graph.num_nodes - json_graph.num_edges == df.shape[0]
     assert np.unique(json_graph.component_ids).shape[0] == df.shape[0]
     print(json_graph.num_nodes, json_graph.num_edges)
@@ -85,7 +85,7 @@ def test_json_graph():
 
     json_graph2, index_mapper = JsonResolver(
         dict_pred_degree=0, list_pred_degree=0, list_inner_degree=0, r_list_inner_degree=0, global_index_names={'name'},
-    ).resolve('graph', list(map(json.loads, df.json)))
+    ).resolve('graph', list(map(json.loads, df.json)), progress_bar=True)
     assert len(index_mapper) > 0
     assert np.unique(json_graph2.component_ids).shape[0] == df.shape[0]
     assert json_graph2.num_nodes < json_graph.num_nodes

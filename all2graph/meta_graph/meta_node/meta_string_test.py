@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from all2graph.meta_graph import MetaString
-from all2graph.resolvers import JsonResolver
+from all2graph.resolver import JsonResolver
 from toad.utils.progress import Progress
 
 
@@ -89,7 +89,7 @@ def speed():
     num_samples = json_graph.num_components
 
     groups = []
-    node_df = json_graph.nodes_to_df()
+    node_df = json_graph.node_df()
     for name, group in node_df.groupby('name'):
         group['value'] = group['value'].astype(str)
         if group['value'].notna().any() and group['value'].unique().shape[0] < 1000:

@@ -42,7 +42,7 @@ class Graph:
         self.values.append(value)
         return node_id
 
-    def nodes_to_df(self) -> pd.DataFrame:
+    def node_df(self) -> pd.DataFrame:
         """
         将节点信息以dataframe的形式返回
         """
@@ -54,11 +54,11 @@ class Graph:
             }
         )
 
-    def to_df(self) -> (pd.DataFrame, pd.DataFrame):
+    def edge_df(self, node_df: pd.DataFrame = None) -> pd.DataFrame:
         """
         分别返回节点dataframe和边dataframe
         """
-        node_df = self.nodes_to_df()
+        node_df = node_df or self.node_df()
         edge_df = pd.DataFrame(
             {
                 'component_id': node_df.component_id.iloc[self.preds],
@@ -69,6 +69,13 @@ class Graph:
             }
         )
         edge_df = edge_df.merge(node_df, left_on='succ', right_index=True, how='left')
-        return node_df, edge_df
+        return edge_df
 
-
+    def meta_df(self, node_df: pd.DataFrame = None, edge_df: pd.DataFrame = None) -> pd.DataFrame:
+        edge_df = edge_df or self.edge_df(node_df)
+        meta_df = []
+        for component_id, component_df in edge_df.groupby('component_id'):
+            component_df = component_df[['pred_name', 'succ_name']].drop_duplicates()
+            meta_df.append(component_df)
+        meta_df = pd.concat(meta_df)
+        return meta_df

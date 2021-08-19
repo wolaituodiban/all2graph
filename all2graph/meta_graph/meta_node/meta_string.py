@@ -28,6 +28,12 @@ class MetaString(MetaNode):
     def __len__(self):
         return len(self.meta_data)
 
+    def keys(self):
+        return self.meta_data.keys()
+
+    def values(self):
+        return self.meta_data.values()
+
     def items(self):
         return self.meta_data.items()
 
@@ -50,12 +56,17 @@ class MetaString(MetaNode):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, num_samples, sample_ids, values, **kwargs):
+    def from_data(cls, num_samples, sample_ids, values, progress_bar=False, prefix='constructing meta string',
+                  **kwargs):
         meta_data = {}
         df = pd.DataFrame({'id': sample_ids, 'value': values})
         count_df = df.reset_index().groupby(['id', 'value'], sort=False).count()
 
-        for value, count in count_df.groupby(level='value', sort=False):
+        progress = count_df.groupby(level='value', sort=False)
+        if progress_bar:
+            progress = Progress(progress)
+            progress.prefix = prefix
+        for value, count in progress:
             freq = count.values[:, 0]
             if freq.shape[0] < num_samples:
                 old_freq = freq
@@ -67,7 +78,7 @@ class MetaString(MetaNode):
         )
 
     @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
+    def reduce(cls, structs, weights=None, progress_bar=False, prefix='reducing meta string', **kwargs):
         # todo 存在结果的微小不一致
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
@@ -94,9 +105,13 @@ class MetaString(MetaNode):
                 meta_data[value].append(ECDF([0], [1], initialized=True))
                 meta_data_w[value].append(1 - weight_sum)
 
+        progress = meta_data.items()
+        if progress_bar:
+            progress = Progress(progress)
+            progress.prefix = prefix
         meta_data = {
             value: ECDF.reduce(ecdfs, weights=meta_data_w[value], **kwargs)
-            for value, ecdfs in Progress(meta_data.items())
+            for value, ecdfs in progress
         }
 
         return super().reduce(structs, weights=weights, meta_data=meta_data, **kwargs)

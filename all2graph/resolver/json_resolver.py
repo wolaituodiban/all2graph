@@ -114,10 +114,19 @@ class JsonResolver(Resolver):
                 )
                 node_ids.append(node_id)
 
-    def resolve(self, root_name, jsons: Iterable[Union[Dict, List]], sample_times: Iterable = None) -> (Graph, dict):
+    def resolve(
+            self,
+            root_name: str,
+            jsons: Iterable[Union[Dict, List]], sample_times: Iterable = None,
+            progress_bar=False,
+    ) -> (Graph, dict):
         graph = Graph()
         global_index_mapper = {}
-        for i, value in enumerate(Progress(jsons)):
+        process = jsons
+        if progress_bar:
+            process = Progress(jsons)
+            process.prefix = 'resolving json'
+        for i, value in enumerate(process):
             local_index_mapper = {}
             self.insert_component(
                 graph=graph, component_id=i, name=root_name, value=value, preds=None,
