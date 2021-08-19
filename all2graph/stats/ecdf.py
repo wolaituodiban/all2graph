@@ -23,12 +23,11 @@ class ECDF(Distribution):
             self.compress(num_bins)
 
     def get_probs(
-            self, q, kind='previous', bounds_error=False, fill_value=(0, 1), assume_sorted=True, **kwargs
+            self, q, bounds_error=False, fill_value=(0, 1), assume_sorted=True, **kwargs
     ) -> np.ndarray:
         """
 
         :param q: 分位数
-        :param kind:
         :param bounds_error:
         :param fill_value:
         :param assume_sorted:
@@ -39,7 +38,7 @@ class ECDF(Distribution):
             return np.array(q) >= self.quantiles[0]
         else:
             return interpolate.interp1d(
-                self.quantiles, self.probs, kind=kind, bounds_error=bounds_error, fill_value=fill_value,
+                self.quantiles, self.probs, bounds_error=bounds_error, fill_value=fill_value,
                 assume_sorted=assume_sorted, **kwargs
             )(q)
 
@@ -91,11 +90,15 @@ class ECDF(Distribution):
         :param num_bins:
         :return:
         """
-        # todo 压缩算法有问题，精度损失过大
+        # todo 为了保证信息最多，压缩后的点的概率应该尽可能均匀的分布在[0, 1]之间
+        # 一种能想到的指标是让min(diff(probs))最大化
         if self.num_bins <= num_bins:
             return
-        density = np.diff(self.probs, prepend=0)
-        sel_mask = np.argsort(density) >= self.num_bins - num_bins
+        delta_probs = np.diff(self.probs, prepend=0)
+        delta_quantiles = np.diff(self.quantiles, prepend=self.quantiles[0]-1)
+        fst_ord_diff = delta_probs / delta_quantiles
+        fst_ord_diff[[0, -1]] = np.inf
+        sel_mask = np.argsort(fst_ord_diff) >= self.num_bins - num_bins
         self.probs = self.probs[sel_mask]
         self.quantiles = self.quantiles[sel_mask]
 
@@ -127,7 +130,7 @@ class ECDF(Distribution):
         quantiles = np.concatenate(quantiles)
         quantiles = np.unique(quantiles)
 
-        probs = [w * struct.get_probs(quantiles) for w, struct in zip(weights, structs)]
+        probs = [w * struct.get_probs(quantiles, kind='previous') for w, struct in zip(weights, structs)]
         probs = np.sum(probs, axis=0)
 
         return super().reduce(structs, weights=weights, quantiles=quantiles, probs=probs, **kwargs)

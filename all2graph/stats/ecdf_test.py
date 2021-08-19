@@ -3,6 +3,7 @@ import json
 import os
 import numpy as np
 import pandas as pd
+from all2graph.macro import EPSILON
 from all2graph.stats import ECDF
 
 
@@ -51,16 +52,53 @@ def test_ecdf():
     assert ecdf.num_bins == 60
 
 
+def test_compress():
+    def q_diff(i, s, f):
+        from scipy.stats import ks_2samp
+        fq = f.get_quantiles(probs)
+        stats, pvalue = ks_2samp(s, fq)
+        assert pvalue > 0.05, '{} {} {} {}\n{}\n{}\n{}'.format(
+            i, f.num_bins, stats, pvalue, np.quantile(s, probs), f.quantiles, f.probs
+        )
+
+    # !!!本测试用于检验压缩算法的精度
+    num_loops = 100
+    num_samples = 1000
+    bins = [512, 256, 128, 64, 32]
+    probs = np.arange(0, 1, 0.05)[1:]
+    # beta
+    print('beta')
+    for b in bins:
+        for _ in range(num_loops):
+            samples = np.random.beta(5, 1, num_samples)
+            ecdf = ECDF.from_data(samples, num_bins=b)
+            q_diff(_, samples, ecdf)
+
+    # binomial
+    print('binomial')
+    for b in bins:
+        for _ in range(num_loops):
+            samples = np.random.binomial(100, 0.2, num_samples)
+            ecdf = ECDF.from_data(samples, num_bins=b)
+            q_diff(_, samples, ecdf)
+
+    print('chisquare')
+    for b in bins:
+        for _ in range(num_loops):
+            samples = np.random.chisquare(5, num_samples)
+            ecdf = ECDF.from_data(samples, num_bins=b)
+            q_diff(_, samples, ecdf)
+
+
 def speed():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
-    df = pd.read_csv(path)
+    df = pd.read_csv(path, low_memory=False)
     for col in df:
         df[col] = pd.to_numeric(df[col], errors='coerce')
     df = df.dropna(axis=1, how='all')
-    print(df.shape)
 
     start_time = time.time()
     ecdfs = [
@@ -69,11 +107,8 @@ def speed():
     use_time = time.time() - start_time
 
     start_time = time.time()
-    ecdf = ECDF.reduce(ecdfs, num_bins=100)
+    ECDF.reduce(ecdfs, num_bins=100)
     use_time2 = time.time() - start_time
-    print(use_time, use_time2, ecdf.num_bins, sum(x.num_bins for x in ecdfs))
-    ecdf2 = ECDF.reduce([ECDF.from_data(series) for col, series in df.iteritems()])
-    print(ecdf.get_quantiles([0.1, 0.3, 0.4, 0.5, 0.9]), '\n', ecdf2.get_quantiles([0.1, 0.3, 0.4, 0.5, 0.9]))
     assert use_time2 < use_time
 
 
@@ -81,5 +116,5 @@ if __name__ == '__main__':
     test_one_sample()
     test_not_eq()
     test_ecdf()
+    test_compress()
     speed()
-    print('test_ecdf success')
