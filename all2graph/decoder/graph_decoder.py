@@ -51,7 +51,7 @@ class GraphDecoder(MetaStruct):
         # # # # # 生成meta_numbers # # # # #
         node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
         meta_numbers = {}
-        progress = node_df.dropna(subset=['number']).groupby('name')
+        progress = node_df.dropna(subset=['number']).groupby('name', sort=False)
         if progress_bar:
             progress = Progress(progress)
             progress.prefix = 'constructing meta numbers'
@@ -87,7 +87,7 @@ class GraphDecoder(MetaStruct):
         token_sample_ids = []
         tokens = []
 
-        progress = node_df.groupby('component_id')
+        progress = node_df.groupby('component_id', sort=False)
         if progress_bar:
             progress = Progress(progress)
             progress.prefix = 'constructing meta name'
