@@ -44,12 +44,12 @@ class GraphDecoder(MetaStruct):
         return super().from_json(**obj)
 
     @classmethod
-    def from_data(cls, graph: Graph, index_ids=None, progress_bar=False, **kwargs):
+    def from_data(cls, graph: Graph, drop_nodes=None, progress_bar=False, **kwargs):
         node_df = graph.node_df()
         num_samples = node_df.component_id.unique().shape[0]
 
-        if index_ids is not None:
-            node_df = node_df.drop(index_ids)
+        if drop_nodes is not None:
+            node_df = node_df.drop(drop_nodes)
 
         # # # # # 生成meta_numbers # # # # #
         node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')

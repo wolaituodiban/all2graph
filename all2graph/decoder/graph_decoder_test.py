@@ -24,7 +24,7 @@ def test():
     index_ids = list(global_index_mapper.values())
     for mapper in local_index_mappers:
         index_ids += list(mapper.values())
-    decoder = GraphDecoder.from_data(graph, index_ids=index_ids, num_bins=None, progress_bar=True)
+    decoder = GraphDecoder.from_data(graph, drop_nodes=index_ids, num_bins=None, progress_bar=True)
     used_time1 = time.time() - start_time1
     print(decoder.meta_name.keys())
 
@@ -36,7 +36,7 @@ def test():
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
-        decoders.append(GraphDecoder.from_data(graph, index_ids=index_ids, num_bins=None))
+        decoders.append(GraphDecoder.from_data(graph, drop_nodes=index_ids, num_bins=None))
     used_time2 = time.time() - start_time2
 
     print('开始reduce')
