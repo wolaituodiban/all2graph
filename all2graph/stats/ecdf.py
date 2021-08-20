@@ -90,17 +90,15 @@ class ECDF(Distribution):
         :param num_bins:
         :return:
         """
-        # todo 为了保证信息最多，压缩后的点的概率应该尽可能均匀的分布在[0, 1]之间
         # 一种能想到的指标是让min(diff(probs))最大化
         if self.num_bins <= num_bins:
             return
-        delta_probs = np.diff(self.probs, prepend=0)
-        delta_quantiles = np.diff(self.quantiles, prepend=self.quantiles[0]-1)
-        fst_ord_diff = delta_probs / delta_quantiles
-        fst_ord_diff[[0, -1]] = np.inf
-        sel_mask = np.argsort(fst_ord_diff) >= self.num_bins - num_bins
-        self.probs = self.probs[sel_mask]
-        self.quantiles = self.quantiles[sel_mask]
+        probs = np.arange(0, 1, 1/(num_bins+1))[1:]
+        probs = np.reshape(probs, (-1, 1))
+        diff = np.abs(probs - self.probs)
+        argmin = np.argmin(diff, axis=-1)
+        self.probs = self.probs[argmin]
+        self.quantiles = self.quantiles[argmin]
 
     def to_json(self) -> dict:
         output = super().to_json()

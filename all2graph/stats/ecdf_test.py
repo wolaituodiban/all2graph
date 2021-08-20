@@ -53,19 +53,19 @@ def test_ecdf():
 
 
 def test_compress():
-    def q_diff(i, s, f):
+    def q_diff(i, s, f, **kwargs):
         from scipy.stats import ks_2samp
-        fq = f.get_quantiles(probs)
+        fq = f.get_quantiles(probs, **kwargs)
         stats, pvalue = ks_2samp(s, fq)
-        assert pvalue > 0.05, '{} {} {} {}\n{}\n{}\n{}'.format(
-            i, f.num_bins, stats, pvalue, np.quantile(s, probs), f.quantiles, f.probs
+        assert pvalue > 0.05, '{} {} {} {}\n{}\n{}\n{}\n{}'.format(
+            i, f.num_bins, stats, pvalue, np.quantile(s, probs), fq, f.quantiles, f.probs
         )
 
     # !!!本测试用于检验压缩算法的精度
     num_loops = 100
     num_samples = 1000
-    bins = [512, 256, 128, 64, 32]
-    probs = np.arange(0, 1, 0.05)[1:]
+    bins = [512, 256, 128, 64, 32, 16, 8]
+    probs = np.arange(0, 1, 0.01)[1:]
     # beta
     print('beta')
     for b in bins:
@@ -86,6 +86,48 @@ def test_compress():
     for b in bins:
         for _ in range(num_loops):
             samples = np.random.chisquare(5, num_samples)
+            ecdf = ECDF.from_data(samples, num_bins=b)
+            q_diff(_, samples, ecdf)
+
+    print('exponential')
+    for b in bins:
+        for _ in range(num_loops):
+            samples = np.random.exponential(3.14, num_samples)
+            ecdf = ECDF.from_data(samples, num_bins=b)
+            q_diff(_, samples, ecdf)
+
+    print('gamma')
+    for b in bins:
+        for _ in range(num_loops):
+            samples = np.random.gamma(2, 2, size=num_samples)
+            ecdf = ECDF.from_data(samples, num_bins=b)
+            q_diff(_, samples, ecdf)
+
+    print('lognormal')
+    for b in bins:
+        for _ in range(num_loops):
+            samples = np.random.lognormal(2, 2, size=num_samples)
+            ecdf = ECDF.from_data(samples, num_bins=b)
+            q_diff(_, samples, ecdf)
+
+    print('logistic')
+    for b in bins:
+        for _ in range(num_loops):
+            samples = np.random.logistic(1, 0.9, size=num_samples)
+            ecdf = ECDF.from_data(samples, num_bins=b)
+            q_diff(_, samples, ecdf)
+
+    # print('poisson')
+    # for b in bins:
+    #     for _ in range(num_loops):
+    #         samples = np.random.poisson(1, size=num_samples)
+    #         ecdf = ECDF.from_data(samples, num_bins=b)
+    #         q_diff(_, samples, ecdf, kind='previous', fill_value=(0, np.nan))
+
+    print('wald')
+    for b in bins:
+        for _ in range(num_loops):
+            samples = np.random.wald(1, 8, size=num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
             q_diff(_, samples, ecdf)
 
