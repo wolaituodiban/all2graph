@@ -4,15 +4,15 @@ import time
 import pandas as pd
 from toad.utils.progress import Progress
 from all2graph.resolver import JsonResolver
-from all2graph.decoder import GraphDecoder
+from all2graph.meta_graph import MetaGraph
 
 
 def test():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
-    path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
-    df = pd.read_csv(path)
+    csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
+    df = pd.read_csv(csv_path)
 
     start_time1 = time.time()
     resolver = JsonResolver(
@@ -24,30 +24,32 @@ def test():
     index_ids = list(global_index_mapper.values())
     for mapper in local_index_mappers:
         index_ids += list(mapper.values())
-    decoder = GraphDecoder.from_data(graph, drop_nodes=index_ids, num_bins=None, progress_bar=True)
+    decoder = MetaGraph.from_data(graph, drop_nodes=index_ids, num_bins=None, progress_bar=True)
     used_time1 = time.time() - start_time1
     print(decoder.meta_name.keys())
 
     decoders = []
-    chunks = list(pd.read_csv(path, chunksize=1000))
+    chunks = list(pd.read_csv(csv_path, chunksize=1000))
     start_time2 = time.time()
     for chunk in Progress(chunks):
         graph, global_index_mapper, local_index_mappers = resolver.resolve('graph', list(map(json.loads, chunk.json)))
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
-        decoders.append(GraphDecoder.from_data(graph, drop_nodes=index_ids, num_bins=None))
+        decoders.append(MetaGraph.from_data(graph, drop_nodes=index_ids, num_bins=None))
     used_time2 = time.time() - start_time2
 
     print('开始reduce')
     start_time3 = time.time()
-    decoder2 = GraphDecoder.reduce(decoders, num_bins=None, progress_bar=True)
+    decoder2 = MetaGraph.reduce(decoders, num_bins=None, progress_bar=True)
     used_time3 = time.time() - start_time3
     print(used_time1, used_time2, used_time3)
     print(decoder2.meta_name.keys())
 
     assert used_time3 < used_time1 and used_time3 < used_time2
     assert decoder == decoder2
+    with open(os.path.join(path, 'test_data', 'meta_graph.json'), 'w') as file:
+        json.dump(decoder.to_json(), file)
 
 
 if __name__ == '__main__':

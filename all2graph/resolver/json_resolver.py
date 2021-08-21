@@ -126,7 +126,7 @@ class JsonResolver(Resolver):
         process = jsons
         if progress_bar:
             process = Progress(jsons)
-            process.prefix = 'resolving json'
+            process.suffix = 'resolving json'
         for i, value in enumerate(process):
             local_index_mapper = {}
             self.insert_component(

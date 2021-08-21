@@ -1,76 +1,142 @@
-import json
-from typing import Dict, Type, Tuple
+from typing import Dict
 
-import networkx as nx
+import numpy as np
+import pandas as pd
+from toad.utils.progress import Progress
 
+from .meta_node import MetaNumber, MetaString
+from ..graph import Graph
 from ..meta_struct import MetaStruct
-from .meta_edge import MetaEdge, ALL_EDGE_CLASSES
-from .meta_node import MetaNode, ALL_NODE_CLASSES
-
-
-ALL_NODE_EDGE_CLASSES = {}
-ALL_NODE_EDGE_CLASSES.update(ALL_NODE_CLASSES)
-ALL_NODE_EDGE_CLASSES.update(ALL_EDGE_CLASSES)
+from ..macro import NULL, TRUE, FALSE
+from ..stats import ECDF
 
 
 class MetaGraph(MetaStruct):
-    SEP = ','
-    NODES = 'nodes'
-    EDGES = 'edges'
-    """图的基类，定义基本成员变量和基本方法"""
-    def __init__(self, nodes: Dict[str, MetaNode], edges: Dict[Tuple[str, str], MetaEdge], **kwargs):
-        """
-
-        :param nodes:
-        :param edges:
-        """
+    def __init__(
+            self,
+            meta_string: MetaString,
+            meta_numbers: Dict[str, MetaNumber],
+            meta_name: MetaString,
+            **kwargs
+    ):
         super().__init__(**kwargs)
-        self.nodes = nodes
-        self.edges = edges
-        # 检查是否存在孤立点
-        self.to_networkx()
+        self.meta_string = meta_string
+        self.meta_numbers = meta_numbers
+        self.meta_name = meta_name
 
     def __eq__(self, other):
-        return super().__eq__(other) and self.nodes == other.nodes and self.edges == other.edges
+        return super().__eq__(other)\
+               and self.meta_string == other.meta_string\
+               and self.meta_numbers == other.meta_numbers\
+               and self.meta_name == other.meta_name
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output.update({
-            self.NODES: {k: v.to_json() for k, v in self.nodes.items()},
-            self.EDGES: {self.SEP.join(k): v.to_json() for k, v in self.edges.items()}
-        })
+        output['meta_string'] = self.meta_string.to_json()
+        output['meta_numbers'] = {k: v.to_json() for k, v in self.meta_numbers.items()}
+        output['meta_name'] = self.meta_name.to_json()
         return output
 
     @classmethod
-    def from_json(cls, obj, classes: Dict[str, Type[MetaNode]] = None):
-        """
-
-        :param obj: json对象
-        :param classes: 所有json中包含的的点和边的类，如果为空，那么取默认
-        :return:
-        """
-        if isinstance(obj, str):
-            obj = json.loads(obj)
-        else:
-            obj = dict(obj)
-
-        if classes is None:
-            classes = ALL_NODE_EDGE_CLASSES
-        else:
-            all_node_edge_classes = dict(ALL_NODE_EDGE_CLASSES)
-            all_node_edge_classes.update(classes)
-            classes = all_node_edge_classes
-
-        obj[cls.NODES] = {k: classes[v['type']].from_json(v) for k, v in obj[cls.NODES].items()}
-        obj[cls.EDGES] = {tuple(k.split(cls.SEP)): classes[v['type']].from_json(v) for k, v in obj[cls.EDGES].items()}
+    def from_json(cls, obj: dict):
+        obj = dict(obj)
+        obj['meta_string'] = MetaString.from_json(obj['meta_string'])
+        obj['meta_numbers'] = {k: MetaNumber.from_json(v) for k, v in obj['meta_numbers'].items()}
+        obj['meta_name'] = MetaString.from_json(obj['meta_name'])
         return super().from_json(obj)
 
-    def to_networkx(self) -> nx.DiGraph:
-        """将对象转化成一个networkx有向图"""
-        graph = nx.DiGraph()
-        for name, node in self.nodes.items():
-            graph.add_node(name, **node.to_json())
-        for (pred, succ), edge in self.edges.items():
-            graph.add_edge(pred, succ, **edge.to_json())
-        assert nx.number_of_isolates(graph) == 0, "图存在孤立点"
-        return graph
+    @classmethod
+    def from_data(cls, graph: Graph, drop_nodes=None, progress_bar=False, **kwargs):
+        node_df = graph.node_df()
+        num_samples = node_df.component_id.unique().shape[0]
+
+        # # # # # 生成meta_name # # # # #
+        meta_name = MetaString.from_data(
+            num_samples=num_samples, sample_ids=node_df.component_id, values=node_df.name, progress_bar=progress_bar,
+            suffix='constructing meta name', **kwargs
+        )
+
+        # # # # # 生成meta_numbers # # # # #
+        if drop_nodes is not None:
+            node_df = node_df.drop(drop_nodes)
+        node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
+        meta_numbers = {}
+        progress = node_df.dropna(subset=['number']).groupby('name', sort=False)
+        if progress_bar:
+            progress = Progress(progress)
+            progress.suffix = 'constructing meta numbers'
+        for name, df in progress:
+            meta_numbers[name] = MetaNumber.from_data(
+                num_samples=num_samples, sample_ids=df.component_id, values=df.number, **kwargs
+            )
+
+        # # # # # 生成meta_string # # # # #
+        node_df = node_df[pd.isna(node_df.number) & node_df.value.apply(lambda x: not isinstance(x, (dict, list)))]
+
+        def bool_to_str(x):
+            if isinstance(x, bool):
+                return TRUE if x else FALSE
+            else:
+                return x
+
+        node_df['value'] = node_df.value.apply(bool_to_str)
+        node_df['value'] = node_df.value.fillna(NULL)
+
+        meta_string = MetaString.from_data(
+            num_samples=num_samples, sample_ids=node_df.component_id, values=node_df.value, progress_bar=progress_bar,
+            **kwargs
+        )
+
+        return super().from_data(meta_string=meta_string, meta_numbers=meta_numbers, meta_name=meta_name, **kwargs)
+
+    @classmethod
+    def reduce(cls, structs, weights=None, progress_bar=False, **kwargs):
+        if weights is None:
+            weights = np.full(len(structs), 1 / len(structs))
+        else:
+            weights = np.array(weights) / sum(weights)
+
+        # # # # # 合并meta_numbers # # # # #
+        meta_numbers = {}
+        meta_num_w = {}
+        for w, struct in zip(weights, structs):
+            for k, v in struct.meta_numbers.items():
+                if k not in meta_numbers:
+                    meta_numbers[k] = [v]
+                    meta_num_w[k] = [w]
+                else:
+                    meta_numbers[k].append(v)
+                    meta_num_w[k].append(w)
+
+        progress = meta_numbers.items()
+        if progress_bar:
+            progress = Progress(progress)
+            progress.suffix = 'reducing meta numbers'
+        meta_numbers = {
+            k: MetaNumber.reduce(v, weights=meta_num_w[k], **kwargs) for k, v in progress
+        }
+
+        # 分布补0
+        progress = meta_numbers
+        if progress_bar:
+            progress = Progress(progress)
+            progress.suffix = 'reducing meta numbers phase 2'
+        for k in progress:
+            w_sum = sum(meta_num_w[k])
+            if w_sum < 1:
+                meta_numbers[k].freq = ECDF.reduce(
+                    [meta_numbers[k].freq, ECDF([0], [1], initialized=True)],
+                    weights=[w_sum, 1-w_sum], **kwargs
+                )
+        # # # # # 合并meta_string # # # # #
+        meta_string = MetaString.reduce(
+            [struct.meta_string for struct in structs], weights=weights, progress_bar=progress_bar, **kwargs
+        )
+        # # # # # 合并meta_name # # # # #
+        meta_name = MetaString.reduce(
+            [struct.meta_name for struct in structs], weights=weights, progress_bar=progress_bar,
+            suffix='reducing meta name', **kwargs
+        )
+        return super().reduce(
+            structs, weights=weights, meta_numbers=meta_numbers, meta_string=meta_string, meta_name=meta_name, **kwargs
+        )

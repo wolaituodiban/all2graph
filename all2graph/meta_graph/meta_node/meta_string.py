@@ -56,7 +56,7 @@ class MetaString(MetaNode):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, num_samples, sample_ids, values, progress_bar=False, prefix='constructing meta string',
+    def from_data(cls, num_samples, sample_ids, values, progress_bar=False, suffix='constructing meta string',
                   **kwargs):
         meta_data = {}
         df = pd.DataFrame({'id': sample_ids, 'value': values})
@@ -65,7 +65,7 @@ class MetaString(MetaNode):
         progress = count_df.groupby(level='value', sort=False)
         if progress_bar:
             progress = Progress(progress)
-            progress.prefix = prefix
+            progress.suffix = suffix
         for value, count in progress:
             freq = count.values[:, 0]
             if freq.shape[0] < num_samples:
@@ -78,7 +78,7 @@ class MetaString(MetaNode):
         )
 
     @classmethod
-    def reduce(cls, structs, weights=None, progress_bar=False, prefix='reducing meta string', **kwargs):
+    def reduce(cls, structs, weights=None, progress_bar=False, suffix='reducing meta string', **kwargs):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -104,7 +104,7 @@ class MetaString(MetaNode):
         progress = meta_data.items()
         if progress_bar:
             progress = Progress(progress)
-            progress.prefix = prefix
+            progress.suffix = suffix
         meta_data = {
             value: ECDF.reduce(ecdfs, weights=meta_data_w[value], **kwargs)
             for value, ecdfs in progress
