@@ -1,12 +1,14 @@
 import os
+import json
 import time
 
+import numpy as np
 import pandas as pd
 from all2graph import Factory, MetaGraph
 from all2graph.json import JsonPreProcessor, JsonResolver
 
 
-def speed():
+def test():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
@@ -23,11 +25,13 @@ def speed():
         resolver=resolver, preprocessor=preprocessor,
         min_df=0.01, max_df=0.99, top_k=100, top_method='max_tfidf', segmentation=True
     )
+    processes = os.cpu_count()
+
     meta_graph2 = factory.produce(
-        csv_path, processes=6, progress_bar=True
+        csv_path, chunksize=int(np.ceil(10000/processes)), progress_bar=True, processes=processes,
     )
     used_time1 = time.time() - start_time1
-
+    print(used_time1)
     # 原生模式
     start_time2 = time.time()
     df = pd.read_csv(csv_path)
@@ -43,7 +47,9 @@ def speed():
     print(used_time1, used_time2)
     assert meta_graph1 == meta_graph2
     assert used_time1 < used_time2
+    with open(os.path.join(path, 'test_data', 'meta_graph.json'), 'w') as file:
+        json.dump(meta_graph1.to_json(), file)
 
 
 if __name__ == '__main__':
-    speed()
+    test()

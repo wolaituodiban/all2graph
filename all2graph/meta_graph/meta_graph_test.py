@@ -27,8 +27,6 @@ def speed():
     meta_graph = MetaGraph.from_data(graph, index_nodes=index_ids, num_bins=None, progress_bar=True)
     used_time1 = time.time() - start_time1
     print(meta_graph.meta_name.keys())
-    with open(os.path.join(path, 'test_data', 'meta_graph.json'), 'w') as file:
-        json.dump(meta_graph.to_json(), file)
 
     print('开始分片读取')
     meta_graphs = []
@@ -48,8 +46,6 @@ def speed():
     used_time3 = time.time() - start_time3
     print(used_time1, used_time2, used_time3)
     print(meta_graph2.meta_name.keys())
-    with open(os.path.join(path, 'test_data', 'meta_graph2.json'), 'w') as file:
-        json.dump(meta_graph2.to_json(), file)
     assert used_time3 < used_time1 and used_time3 < used_time2
     assert meta_graph == meta_graph2
 

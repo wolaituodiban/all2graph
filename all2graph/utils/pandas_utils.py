@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 
 
-def dataframe_chunk_iter(data, chunksize=64, **kwargs):
+def dataframe_chunk_iter(data, chunksize, **kwargs):
     if isinstance(data, pd.DataFrame):
         for i in range(int(np.ceil(data.shape[0] / chunksize))):
             yield data.iloc[chunksize*i:chunksize*(i+1)]

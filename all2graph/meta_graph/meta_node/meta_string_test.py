@@ -91,7 +91,7 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph, *_ = JsonResolver(flatten_dict=True).resolve('graph', list(map(json.loads, df.json)))
+    json_graph, *_ = JsonResolver('graph', flatten_dict=True).resolve(list(map(json.loads, df.json)))
 
     num_samples = json_graph.num_components
 
@@ -112,13 +112,12 @@ def speed():
     merge_time = time.time() - merge_start_time
 
     reduce_start_time = time.time()
-    meta_string = MetaString.reduce(meta_strings, num_bins=20)
+    meta_string = MetaString.reduce(meta_strings, num_bins=20, progress_bar=True)
     reduce_time = time.time() - reduce_start_time
 
     print(reduce_time, merge_time)
     print(len(meta_string))
     print(sum(meta_string.to_discrete().prob.values()))
-    # print(json.dumps({k: v.to_json() for k, v in meta_string.tf_idf_ecdf().items()}, indent=2))
     assert reduce_time < merge_time
 
 

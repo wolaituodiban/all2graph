@@ -28,30 +28,40 @@ class Factory:
         return meta_graph, chunk.shape[0]
 
     def produce(
-            self, data: Iterable[pd.DataFrame], progress_bar=False, suffix='reading csv',
-            processes=None, chunksize=1, read_csv_kwargs=None, **meta_graph_kwargs
+            self, data: Iterable[pd.DataFrame], chunksize=64, read_csv_kwargs=None, meta_graph_kwargs=None,
+            progress_bar=False, suffix='reading csv', processes=0,
     ) -> MetaGraph:
-        self.meta_graph_config = meta_graph_kwargs
+
         read_csv_kwargs = read_csv_kwargs or {}
         if isinstance(data, (str, pd.DataFrame)):
-            data = dataframe_chunk_iter(data, **read_csv_kwargs)
-        if progress_bar and not isinstance(data, Progress):
-            data = Progress(data)
-            if toad.version.__version__ <= '0.0.65' and data.size is None:
-                data.size = sys.maxsize
-            data.suffix = suffix
+            data = dataframe_chunk_iter(data, chunksize=chunksize, **read_csv_kwargs)
 
+        self.meta_graph_config = meta_graph_kwargs or {}
         meta_graphs: List[MetaGraph] = []
         weights = []
         if processes == 0:
-            for meta_graph, weight in map(self._produce_meta_graph, data):
+            results = map(self._produce_meta_graph, data)
+            if progress_bar and not isinstance(data, Progress):
+                results = Progress(results)
+                if toad.version.__version__ <= '0.0.65' and results.size is None:
+                    results.size = sys.maxsize
+                results.suffix = suffix
+            for meta_graph, weight in results:
                 meta_graphs.append(meta_graph)
                 weights.append(weight)
         else:
             with Pool(processes) as pool:
-                for meta_graph, weight in pool.imap(self._produce_meta_graph, data, chunksize=chunksize):
+                results = pool.imap(self._produce_meta_graph, data)
+                if progress_bar and not isinstance(data, Progress):
+                    results = Progress(results)
+                    if toad.version.__version__ <= '0.0.65' and results.size is None:
+                        results.size = sys.maxsize
+                    results.suffix = suffix
+                for meta_graph, weight in results:
                     meta_graphs.append(meta_graph)
                     weights.append(weight)
 
-        meta_graph = MetaGraph.reduce(meta_graphs, weights=weights, progress_bar=progress_bar, **meta_graph_kwargs)
+        meta_graph = MetaGraph.reduce(
+            meta_graphs, weights=weights, progress_bar=progress_bar, processes=processes, **self.meta_graph_config
+        )
         return meta_graph

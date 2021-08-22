@@ -1,3 +1,4 @@
+from multiprocessing import Pool
 from typing import Dict, Union, Iterable
 
 import numpy as np
@@ -7,6 +8,7 @@ from toad.utils.progress import Progress
 from .meta_node import MetaNode
 from ...macro import EPSILON
 from ...stats import Discrete, ECDF
+from ...utils import MpMapFuncWrapper
 
 
 def term_count_ecdf_to_doc_freq(term_count: ECDF, inverse=False) -> float:
@@ -136,7 +138,8 @@ class MetaString(MetaNode):
         return super().from_data(term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf, **kwargs)
 
     @classmethod
-    def reduce(cls, structs, weights=None, progress_bar=False, suffix='reducing meta string', **kwargs):
+    def reduce(cls, structs, weights=None, progress_bar=False, suffix='reducing meta string',
+               processes=0, chunksize=None, **kwargs):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -147,33 +150,60 @@ class MetaString(MetaNode):
         term_count_ecdfs = {}
         term_freq_ecdfs = {}
         for weight, struct in zip(weights, structs):
-            for value in struct:
-                if value in term_count_ecdfs:
-                    term_weights[value].append(weight)
-                    term_count_ecdfs[value].append(struct.term_count_ecdf[value])
-                    term_freq_ecdfs[value].append(struct.term_freq_ecdf[value])
+            for term in struct:
+                if term in term_count_ecdfs:
+                    term_weights[term].append(weight)
+                    term_count_ecdfs[term].append(struct.term_count_ecdf[term])
+                    term_freq_ecdfs[term].append(struct.term_freq_ecdf[term])
                 else:
-                    term_weights[value] = [weight]
-                    term_count_ecdfs[value] = [struct.term_count_ecdf[value]]
-                    term_freq_ecdfs[value] = [struct.term_freq_ecdf[value]]
+                    term_weights[term] = [weight]
+                    term_count_ecdfs[term] = [struct.term_count_ecdf[term]]
+                    term_freq_ecdfs[term] = [struct.term_freq_ecdf[term]]
 
-        for value in term_count_ecdfs:
-            weight_sum = sum(term_weights[value])
+        for term in term_count_ecdfs:
+            weight_sum = sum(term_weights[term])
             if weight_sum < 1 - EPSILON:
-                term_count_ecdfs[value].append(ECDF([0], [1], initialized=True))
-                term_freq_ecdfs[value].append(ECDF([0], [1], initialized=True))
-                term_weights[value].append(1 - weight_sum)
+                term_count_ecdfs[term].append(ECDF([0], [1], initialized=True))
+                term_freq_ecdfs[term].append(ECDF([0], [1], initialized=True))
+                term_weights[term].append(1 - weight_sum)
 
-        terms = term_count_ecdfs.keys()
-        if progress_bar:
-            terms = Progress(terms)
-            terms.suffix = suffix
+        assert len(term_count_ecdfs) == len(term_freq_ecdfs) == len(term_weights)
 
-        term_count_ecdf = {}
-        term_freq_ecdf = {}
-        for term in terms:
-            term_count_ecdf[term] = ECDF.reduce(term_count_ecdfs[term], weights=term_weights[term], **kwargs)
-            term_freq_ecdf[term] = ECDF.reduce(term_freq_ecdfs[term], weights=term_weights[term], **kwargs)
+        if processes == 0:
+            terms = term_count_ecdfs.keys()
+            if progress_bar:
+                terms = Progress(terms)
+                terms.suffix = suffix
+
+            term_count_ecdf = {}
+            term_freq_ecdf = {}
+            for term in terms:
+                term_count_ecdf[term] = ECDF.reduce(term_count_ecdfs[term], weights=term_weights[term], **kwargs)
+                term_freq_ecdf[term] = ECDF.reduce(term_freq_ecdfs[term], weights=term_weights[term], **kwargs)
+        else:
+            terms = term_count_ecdfs.keys()
+            term_count_ecdfs = [{'structs': term_count_ecdfs[term], 'weights': term_weights[term]} for term in terms]
+            term_freq_ecdfs = [{'structs': term_freq_ecdfs[term], 'weights': term_weights[term]} for term in terms]
+            if progress_bar:
+                term_count_ecdfs = Progress(term_count_ecdfs)
+                term_count_ecdfs.suffix = suffix
+
+                term_freq_ecdfs = Progress(term_freq_ecdfs)
+                term_freq_ecdfs.suffix = suffix + ' phase 2'
+
+            reduce_wrapper = MpMapFuncWrapper(ECDF.reduce, **kwargs)
+
+            with Pool(processes) as pool:
+                if chunksize is None:
+                    chunksize = int(np.ceil(len(terms)/processes))
+                term_count_ecdf = {
+                    term: ecdf for term, ecdf
+                    in zip(terms, list(pool.imap(reduce_wrapper, term_count_ecdfs, chunksize=chunksize)))
+                }
+                term_freq_ecdf = {
+                    term: ecdf for term, ecdf
+                    in zip(terms, list(pool.imap(reduce_wrapper, term_freq_ecdfs, chunksize=chunksize)))
+                }
 
         return super().reduce(
             structs, weights=weights, term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf, **kwargs
