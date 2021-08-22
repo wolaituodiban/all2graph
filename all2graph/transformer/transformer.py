@@ -1,62 +1,91 @@
-import numpy as np
-import pandas as pd
+from typing import Dict, Tuple
 
+import dgl
+import torch
+
+from ..graph import Graph
 from ..macro import NULL
 from ..meta_graph import MetaGraph
 
 
 class Transformer:
-    def __init__(self, meta_graph: MetaGraph, min_tf=0, min_df=0, min_tf_idf=0, top_tf=None, top_tf_idf=None,
-                 lower=0.05, upper=0.05, split_name=True):
-        self.number_range = {
-            key: (ecdf.meta_data.get_quantiles(lower), ecdf.meta_data.get_quantiles(upper))
-            for key, ecdf in meta_graph.meta_numbers.items()
-            if ecdf.meta_data.mean_var[1] > 0
-        }
-
+    def __init__(self, number_range: Dict[str, Tuple[float, float]], string_mapper: Dict[str, int], split_name: bool):
+        """
+        Graph与dgl.DiGraph的转换器
+        :param number_range: 数值分位数上界和下界
+        :param string_mapper: 字符串编码字典
+        :param split_name: 是否拆分name，默认使用jieba拆分
+        """
+        self.number_range = number_range
+        self.string_mapper = string_mapper
         self.split_name = split_name
-        self.string_mapper = {}
+
+    @classmethod
+    def from_meta_graph(cls, meta_graph: MetaGraph, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
+                        lower=0.05, upper=0.05, split_name=True):
+        """
+
+        :param meta_graph:
+        :param min_df: 字符串最小文档平吕
+        :param max_df: 字符串最大文档频率
+        :param top_k: 选择前k个字符串
+        :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
+        :param lower: 数值分位点下界
+        :param upper: 数值分位点上界
+        :param split_name:
+        """
+        strings = [k for k, df in meta_graph.meta_string.doc_freq().items() if min_df <= df <= max_df]
+        if top_k is not None:
+            if top_method == 'max_tfidf':
+                strings = [(k, v.max) for k, v in meta_graph.meta_string.tf_idf_ecdf(strings).items()]
+            elif top_method == 'mean_tfidf':
+                strings = [(k, v.mean) for k, v in meta_graph.meta_string.tf_idf_ecdf(strings).items()]
+            elif top_method == 'max_tf':
+                strings = [(k, v.max) for k, v in meta_graph.meta_string.term_freq_ecdf.items() if k in strings]
+            elif top_method == 'mean_tf':
+                strings = [(k, v.mean) for k, v in meta_graph.meta_string.term_freq_ecdf.items() if k in strings]
+            elif top_method == 'max_tc':
+                strings = [(k, v.max) for k, v in meta_graph.meta_string.term_count_ecdf.items() if k in strings]
+            elif top_method == 'mean_tc':
+                strings = [(k, v.mean) for k, v in meta_graph.meta_string.term_count_ecdf.items() if k in strings]
+            else:
+                raise ValueError(
+                    "top_method只能是('max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc')其中之一"
+                )
+            strings = sorted(strings, key=lambda x: x[1])
+            strings = [k[0] for k in strings[:top_k]]
+
+        string_mapper = {k: i for i, k in enumerate(strings)}
+
         for name in meta_graph.meta_name:
             if split_name:
                 import jieba
                 for key in jieba.cut(name):
-                    if key not in self.string_mapper:
-                        self.string_mapper[key] = len(self.string_mapper)
-            elif name not in self.string_mapper:
-                self.string_mapper[name] = len(self.string_mapper)
+                    if key not in string_mapper:
+                        string_mapper[key] = len(string_mapper)
+            elif name not in string_mapper:
+                string_mapper[name] = len(string_mapper)
 
-        tf_dict = {}
-        tf_idf_dict = {}
-        mean_num_nodes = meta_graph.meta_string.freq.mean
-        for key, ecdf in meta_graph.meta_string.items():
-            tf = ecdf.mean * mean_num_nodes
-            df = ecdf.get_probs(0)
-            tf_idf = tf / np.log(1 / (1 + df))
-            print(tf, df, tf_idf)
-            if tf >= min_tf and df >= min_df and tf_idf >= min_tf_idf:
-                tf_dict[key] = tf
-                tf_idf_dict[key] = tf_idf
+        if NULL not in string_mapper:
+            string_mapper[NULL] = len(string_mapper)
 
-        if top_tf is not None:
-            tf_dict = pd.Series(tf_dict)
-            tf_dict = tf_dict.sort_values(ascending=False)
-            tf_dict = tf_dict.iloc[:top_tf].to_dict()
-
-        if top_tf_idf is not None:
-            tf_idf_dict = pd.Series(tf_idf_dict)[tf_dict]
-            tf_idf_dict = tf_idf_dict.sort_values(ascending=False)
-            tf_idf_dict = tf_idf_dict.iloc[:top_tf_idf].to_dict()
-
-        for key in meta_graph.meta_string:
-            if key in tf_dict and key in tf_idf_dict and key not in self.string_mapper:
-                self.string_mapper[key] = len(self.string_mapper)
-
-        if NULL not in self.string_mapper:
-            self.string_mapper[NULL] = len(self.string_mapper)
-
-        assert NULL in self.string_mapper
-        assert len(self.string_mapper) == len(set(self.string_mapper.values())), (
-                len(self.string_mapper), len(set(self.string_mapper.values()))
+        assert NULL in string_mapper
+        assert len(string_mapper) == len(set(string_mapper.values())), (
+            len(string_mapper), len(set(string_mapper.values()))
         )
-        assert len(self.string_mapper) == max(list(self.string_mapper.values())) + 1
+        assert len(string_mapper) == max(list(string_mapper.values())) + 1
 
+        number_range = {
+            key: (ecdf.value_ecdf.get_quantiles(lower), ecdf.value_ecdf.get_quantiles(upper))
+            for key, ecdf in meta_graph.meta_numbers.items()
+            if ecdf.value_ecdf.mean_var[1] > 0
+        }
+        return cls(number_range=number_range, string_mapper=string_mapper, split_name=split_name)
+
+    def ag_graph_to_dgl_graph(self, graph: Graph) -> dgl.DGLGraph:
+        # todo
+        pass
+
+    def dgl_graph_to_ag_graph(self, graph: dgl.DGLGraph) -> Graph:
+        # todo
+        pass

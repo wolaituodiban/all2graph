@@ -2,8 +2,10 @@ import json
 import os
 import time
 
+import json_diff
 import numpy as np
 import pandas as pd
+import json_tools
 
 from all2graph.meta_graph import MetaString
 from all2graph.resolver import JsonResolver
@@ -21,8 +23,10 @@ def test_from_data():
         columns=['id', 'value']
     )
     cat = MetaString.from_data(df['id'].unique().shape[0], df['id'], df['value'])
-    assert cat['a'].mean_var == (0.5, 0.25), '{}:{}'.format(cat['a'].to_json(), cat['a'].mean_var)
-    assert cat['b'].mean_var == (1.5, 0.25), '{}'.format(cat['b'].mean_var)
+    assert cat.term_count_ecdf['a'].mean_var == (0.5, 0.25), '{}:{}'.format(
+        cat.term_count_ecdf['a'].to_json(), cat.term_count_ecdf['a'].mean_var)
+    assert cat.term_count_ecdf['b'].mean_var == (1.5, 0.25), '{}'.format(
+        cat.term_count_ecdf['b'].mean_var)
 
 
 def test_not_eq():
@@ -61,7 +65,7 @@ def test_merge():
         df = pd.DataFrame({'index': index, 'value': value})
         cat = MetaString.from_data(df.shape[0], df['index'], df['value'])
         cat2 = MetaString.from_json(json.loads(json.dumps(cat.to_json())))
-        assert cat == cat2, '{}\n{}'.format(
+        assert cat == cat2, '\n{}\n{}'.format(
             cat.to_json(), cat2.to_json()
         )
 
@@ -72,9 +76,13 @@ def test_merge():
     df = pd.concat(dfs)
     cat1 = MetaString.from_data(df.shape[0], df['index'], df['value'])
     cat2 = MetaString.reduce(cats, weights=weights)
-    assert cat1.freq == cat2.freq, '{}\n{}'.format(cat1.freq.probs, cat2.freq.probs)
+    assert cat1.term_count_ecdf == cat2.term_count_ecdf, json_tools.diff(
+        cat1.term_count_ecdf.to_json(), cat2.term_count_ecdf.to_json()
+    )
     for k in cat1:
-        assert cat1[k] == cat2[k], '{}\n{}\n{}'.format(k, cat1[k].quantiles, cat2[k].quantiles)
+        assert cat1.term_freq_ecdf[k] == cat2.term_freq_ecdf[k], '{}\n{}\n{}'.format(
+            k, cat1.term_freq_ecdf[k].to_json(), cat2.term_freq_ecdf[k].to_json()
+        )
 
 
 def speed():
@@ -109,11 +117,9 @@ def speed():
     reduce_time = time.time() - reduce_start_time
 
     print(reduce_time, merge_time)
-    print(meta_string.freq.quantiles)
-    print(meta_string.freq.probs)
-    print(meta_string.freq.get_quantiles([0.25, 0.5, 0.75], fill_value=(0, np.inf)))
     print(len(meta_string))
     print(sum(meta_string.to_discrete().prob.values()))
+    # print(json.dumps({k: v.to_json() for k, v in meta_string.tf_idf_ecdf().items()}, indent=2))
     assert reduce_time < merge_time
 
 

@@ -61,13 +61,13 @@ class MetaGraph(MetaStruct):
             node_df = node_df.drop(drop_nodes)
         node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
         meta_numbers = {}
-        progress = node_df.dropna(subset=['number']).groupby('name', sort=False)
+        number_groups = node_df.dropna(subset=['number']).groupby('name', sort=False)
         if progress_bar:
-            progress = Progress(progress)
-            progress.suffix = 'constructing meta numbers'
-        for name, df in progress:
+            number_groups = Progress(number_groups)
+            number_groups.suffix = 'constructing meta numbers'
+        for name, number_df in number_groups:
             meta_numbers[name] = MetaNumber.from_data(
-                num_samples=num_samples, sample_ids=df.component_id, values=df.number, **kwargs
+                num_samples=num_samples, sample_ids=number_df.component_id, values=number_df.number, **kwargs
             )
 
         # # # # # 生成meta_string # # # # #
@@ -124,8 +124,8 @@ class MetaGraph(MetaStruct):
         for k in progress:
             w_sum = sum(meta_num_w[k])
             if w_sum < 1:
-                meta_numbers[k].freq = ECDF.reduce(
-                    [meta_numbers[k].freq, ECDF([0], [1], initialized=True)],
+                meta_numbers[k].count_ecdf = ECDF.reduce(
+                    [meta_numbers[k].count_ecdf, ECDF([0], [1], initialized=True)],
                     weights=[w_sum, 1-w_sum], **kwargs
                 )
         # # # # # 合并meta_string # # # # #

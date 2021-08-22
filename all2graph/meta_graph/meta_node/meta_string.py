@@ -1,81 +1,139 @@
-from typing import Dict
+from typing import Dict, Union, Iterable
 
 import numpy as np
 import pandas as pd
 from toad.utils.progress import Progress
 
-from .meta_node import MetaNode
+from ...macro import EPSILON
+from ...meta_struct import MetaStruct
 from ...stats import Discrete, ECDF
 
 
-class MetaString(MetaNode):
+def term_count_ecdf_to_doc_freq(term_count: ECDF, inverse=False) -> float:
+    doc_freq = 1 - term_count.get_probs(0)
+    if inverse:
+        if doc_freq == 0:
+            doc_freq += EPSILON
+        return np.log(1/(doc_freq + EPSILON))
+    else:
+        return doc_freq
+
+
+class MetaString(MetaStruct):
     """类别节点"""
-    def __init__(self, freq, meta_data: Dict[str, ECDF], **kwargs):
+    def __init__(self, term_count_ecdf: Dict[str, ECDF], term_freq_ecdf: Dict[str, ECDF], **kwargs):
         """
 
-        :param meta_data: 在sample的维度上，看待每个value的频率分布函数
+        :param term_count_ecdf:
+        :param term_freq_ecdf:
+        :param kwargs:
         """
-        assert len(meta_data) > 0, '频率分布函数不能为空'
-        assert all(isinstance(value, str) for value in meta_data)
-        super().__init__(freq=freq, meta_data=meta_data, **kwargs)
+        assert len(term_count_ecdf) > 0, '频率分布函数不能为空'
+        assert all(isinstance(value, str) for value in term_count_ecdf)
+        assert set(term_count_ecdf) == set(term_freq_ecdf)
+        super().__init__(**kwargs)
+        self.term_count_ecdf = term_count_ecdf
+        self.term_freq_ecdf = term_freq_ecdf
+
+    def __eq__(self, other):
+        return super().__eq__(other)\
+               and self.term_count_ecdf == other.term_count_ecdf\
+               and self.term_freq_ecdf == other.term_freq_ecdf
 
     def __iter__(self):
-        return iter(self.meta_data)
-
-    def __getitem__(self, item):
-        return self.meta_data[item]
+        return iter(self.term_count_ecdf)
 
     def __len__(self):
-        return len(self.meta_data)
+        return len(self.term_count_ecdf)
 
     def keys(self):
-        return self.meta_data.keys()
+        return self.term_count_ecdf.keys()
 
-    def values(self):
-        return self.meta_data.values()
+    def doc_freq(self, item: Union[str, Iterable[str]] = None, inverse=False) -> Union[float, Dict[str, float]]:
+        if item is None:
+            items = self.keys()
+        elif isinstance(item, str):
+            items = [item]
+        else:
+            items = item
+        doc_freq = {k: term_count_ecdf_to_doc_freq(self.term_count_ecdf[k], inverse=inverse) for k in items}
+        if isinstance(item, str):
+            return doc_freq[item]
+        else:
+            return doc_freq
 
-    def items(self):
-        return self.meta_data.items()
+    def tf_idf_ecdf(self, item: Union[str, Iterable[str]] = None) -> Union[ECDF, Dict[str, ECDF]]:
+        idf = self.doc_freq(item, inverse=True)
+        if isinstance(idf, dict):
+            return {
+                k: ECDF(
+                    quantiles=self.term_freq_ecdf[k].quantiles / idf[k],
+                    probs=self.term_freq_ecdf[k].probs,
+                    initialized=True
+                )
+                for k in idf
+            }
+        else:
+            return ECDF(
+                quantiles=self.term_freq_ecdf[item].quantiles / idf,
+                probs=self.term_freq_ecdf[item].probs,
+                initialized=True
+            )
 
     @property
     def max_str_len(self):
-        return max(map(len, self.meta_data))
+        return max(map(len, self.term_count_ecdf))
 
     def to_discrete(self) -> Discrete:
-        return Discrete.from_ecdfs(self.meta_data)
+        return Discrete.from_ecdfs(self.term_count_ecdf)
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output['meta_data'] = {k: v.to_json() for k, v in self.meta_data.items()}
+        output['term_count_ecdf'] = {k: v.to_json() for k, v in self.term_count_ecdf.items()}
+        output['term_freq_ecdf'] = {k: v.to_json() for k, v in self.term_freq_ecdf.items()}
         return output
 
     @classmethod
     def from_json(cls, obj):
         obj = dict(obj)
-        obj['meta_data'] = {k: ECDF.from_json(v) for k, v in obj['meta_data'].items()}
+        obj['term_count_ecdf'] = {k: ECDF.from_json(v) for k, v in obj['term_count_ecdf'].items()}
+        obj['term_freq_ecdf'] = {k: ECDF.from_json(v) for k, v in obj['term_freq_ecdf'].items()}
         return super().from_json(obj)
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, progress_bar=False, suffix='constructing meta string',
                   **kwargs):
-        meta_data = {}
-        df = pd.DataFrame({'id': sample_ids, 'value': values})
-        count_df = df.reset_index().groupby(['id', 'value'], sort=False).count()
+        # # # # # 计算node count
+        node_count_series = pd.value_counts(sample_ids)
 
-        progress = count_df.groupby(level='value', sort=False)
+        # # # # # 计算tf-idf
+        df = pd.DataFrame({'id': sample_ids, 'term': values})
+        df.index.name = 'term_count'
+        term_count_df = df.reset_index().groupby(['id', 'term'], sort=False).count()
+        term_count_df = term_count_df.reset_index()
+
+        term_count_ecdf = {}
+        term_freq_ecdf = {}
+        term_count_groupby = term_count_df.groupby('term', sort=False)
         if progress_bar:
-            progress = Progress(progress)
-            progress.suffix = suffix
-        for value, count in progress:
-            freq = count.values[:, 0]
-            if freq.shape[0] < num_samples:
-                old_freq = freq
-                freq = np.zeros(num_samples)
-                freq[:old_freq.shape[0]] = old_freq
-            meta_data[value] = ECDF.from_data(freq, **kwargs)
-        return super().from_data(
-            num_samples=num_samples, sample_ids=sample_ids, values=values, meta_data=meta_data, **kwargs
-        )
+            term_count_groupby = Progress(term_count_groupby)
+            term_count_groupby.suffix = suffix
+        for value, count_df in term_count_groupby:
+            term_count = count_df['term_count'].values
+            term_freq = term_count / node_count_series[count_df.id].values
+            doc_freq = count_df.shape[0] / num_samples
+            if doc_freq < 1:
+                old_term_count = term_count
+                term_count = np.zeros(num_samples)
+                term_count[:old_term_count.shape[0]] = old_term_count
+
+                old_term_freq = term_freq
+                term_freq = np.zeros(num_samples)
+                term_freq[:old_term_freq.shape[0]] = old_term_freq
+            term_count_ecdf[value] = ECDF.from_data(term_count, **kwargs)
+            term_freq_ecdf[value] = ECDF.from_data(term_freq, **kwargs)
+
+        return super().from_data(term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf, **kwargs)
 
     @classmethod
     def reduce(cls, structs, weights=None, progress_bar=False, suffix='reducing meta string', **kwargs):
@@ -84,30 +142,39 @@ class MetaString(MetaNode):
         else:
             weights = np.array(weights) / sum(weights)
 
-        meta_data = {}
-        meta_data_w = {}
+        # term_count_ecdf和tf_idf_ecdf
+        term_weights = {}
+        term_count_ecdfs = {}
+        term_freq_ecdfs = {}
         for weight, struct in zip(weights, structs):
-            for value, freq in struct.items():
-                if value in meta_data:
-                    meta_data[value].append(freq)
-                    meta_data_w[value].append(weight)
+            for value in struct:
+                if value in term_count_ecdfs:
+                    term_weights[value].append(weight)
+                    term_count_ecdfs[value].append(struct.term_count_ecdf[value])
+                    term_freq_ecdfs[value].append(struct.term_freq_ecdf[value])
                 else:
-                    meta_data[value] = [freq]
-                    meta_data_w[value] = [weight]
+                    term_weights[value] = [weight]
+                    term_count_ecdfs[value] = [struct.term_count_ecdf[value]]
+                    term_freq_ecdfs[value] = [struct.term_freq_ecdf[value]]
 
-        for value in meta_data:
-            weight_sum = sum(meta_data_w[value])
+        for value in term_count_ecdfs:
+            weight_sum = sum(term_weights[value])
             if weight_sum < 1:
-                meta_data[value].append(ECDF([0], [1], initialized=True))
-                meta_data_w[value].append(1 - weight_sum)
+                term_count_ecdfs[value].append(ECDF([0], [1], initialized=True))
+                term_freq_ecdfs[value].append(ECDF([0], [1], initialized=True))
+                term_weights[value].append(1 - weight_sum)
 
-        progress = meta_data.items()
+        terms = term_count_ecdfs.keys()
         if progress_bar:
-            progress = Progress(progress)
-            progress.suffix = suffix
-        meta_data = {
-            value: ECDF.reduce(ecdfs, weights=meta_data_w[value], **kwargs)
-            for value, ecdfs in progress
-        }
+            terms = Progress(terms)
+            terms.suffix = suffix
 
-        return super().reduce(structs, weights=weights, meta_data=meta_data, **kwargs)
+        term_count_ecdf = {}
+        term_freq_ecdf = {}
+        for term in terms:
+            term_count_ecdf[term] = ECDF.reduce(term_count_ecdfs[term], weights=term_weights[term], **kwargs)
+            term_freq_ecdf[term] = ECDF.reduce(term_freq_ecdfs[term], weights=term_weights[term], **kwargs)
+
+        return super().reduce(
+            structs, weights=weights, term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf, **kwargs
+        )

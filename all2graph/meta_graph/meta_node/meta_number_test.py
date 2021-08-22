@@ -41,10 +41,10 @@ def speed():
 
     assert reduce_time < merge_time
     print(reduce_time, merge_time)
-    print(number.freq.quantiles)
-    print(number.freq.probs)
-    print(number.freq.get_quantiles([0.25, 0.5, 0.75], fill_value=(0, np.inf)))
-    print(number.meta_data.get_quantiles([0.25, 0.5, 0.75]))
+    print(number.count_ecdf.quantiles)
+    print(number.count_ecdf.probs)
+    print(number.count_ecdf.get_quantiles([0.25, 0.5, 0.75], fill_value=(0, np.inf)))
+    print(number.value_ecdf.get_quantiles([0.25, 0.5, 0.75]))
 
 
 if __name__ == '__main__':

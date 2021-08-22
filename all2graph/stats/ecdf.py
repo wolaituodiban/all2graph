@@ -75,6 +75,10 @@ class ECDF(Distribution):
         return self.quantiles.shape[0]
 
     @property
+    def max(self):
+        return self.quantiles[-1]
+
+    @property
     def mean(self):
         return np.dot(self.quantiles, np.diff(self.probs, prepend=0))
 

@@ -24,7 +24,7 @@ class MetaEdge(MetaStruct):
         self.succ = succ
 
     def __eq__(self, other):
-        return super().__eq__(other) and self.freq == other.freq and self.succ == other.succ
+        return super().__eq__(other) and self.freq == other.count_ecdf and self.succ == other.succ
 
     def to_json(self) -> dict:
         output = super().to_json()
@@ -63,6 +63,6 @@ class MetaEdge(MetaStruct):
     @classmethod
     def reduce(cls, structs, **kwargs):
         # todo 没有考虑succ
-        freq = ECDF.reduce([struct.freq for struct in structs], **kwargs)
+        freq = ECDF.reduce([struct.count_ecdf for struct in structs], **kwargs)
         kwargs[cls.FREQ] = freq
         return super().reduce(structs, **kwargs)
