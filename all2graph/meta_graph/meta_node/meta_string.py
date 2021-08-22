@@ -159,7 +159,7 @@ class MetaString(MetaStruct):
 
         for value in term_count_ecdfs:
             weight_sum = sum(term_weights[value])
-            if weight_sum < 1:
+            if weight_sum < 1 - EPSILON:
                 term_count_ecdfs[value].append(ECDF([0], [1], initialized=True))
                 term_freq_ecdfs[value].append(ECDF([0], [1], initialized=True))
                 term_weights[value].append(1 - weight_sum)

@@ -1,4 +1,6 @@
 from typing import Dict, List, Union, Set, Iterable
+
+import jieba
 from toad.utils.progress import Progress
 from ..graph import Graph
 from .resolver import Resolver
@@ -14,6 +16,7 @@ class JsonResolver(Resolver):
             r_list_inner_degree=-1,
             local_index_names: Set[str] = None,
             global_index_names: Set[str] = None,
+            segmentation=False
     ):
         """
 
@@ -31,6 +34,7 @@ class JsonResolver(Resolver):
         self.r_list_inner_degree = r_list_inner_degree
         self.local_index_names = local_index_names
         self.global_index_names = global_index_names
+        self.segmentation = segmentation
 
     def insert_component(
             self,
@@ -93,9 +97,19 @@ class JsonResolver(Resolver):
                         graph=graph, component_id=component_id, name=k, value=v, preds=preds + [node_id],
                         local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
                     )
-        elif isinstance(value, list):
+        elif isinstance(value, list) or (self.segmentation and isinstance(value, str)):
             node_ids = []
-            for v in value:
+            if isinstance(value, str):
+                temp_value = [v.lower() for v in jieba.cut(value)]
+                # 修改之前插入的value
+                if len(temp_value) == 1:
+                    graph.values[preds[-1]] = temp_value[0]
+                    return
+                else:
+                    graph.values[preds[-1]] = []
+            else:
+                temp_value = value
+            for v in temp_value:
                 node_id = graph.insert_node(component_id, name, v)
 
                 new_preds = preds[-self.list_pred_degree:]
@@ -108,11 +122,12 @@ class JsonResolver(Resolver):
                     new_preds += [node_id] * (len(new_succs) - len(new_preds))
 
                 graph.insert_edges(new_preds, new_succs)
-                self.insert_component(
-                    graph=graph, component_id=component_id, name=name, value=v, preds=preds + [node_id],
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
-                )
                 node_ids.append(node_id)
+                if isinstance(value, list):
+                    self.insert_component(
+                        graph=graph, component_id=component_id, name=name, value=v, preds=preds + [node_id],
+                        local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
+                    )
 
     def resolve(
             self,

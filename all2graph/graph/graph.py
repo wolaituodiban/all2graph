@@ -3,14 +3,38 @@ from typing import Dict, List, Union
 import numpy as np
 import pandas as pd
 
+from ..meta_struct import MetaStruct
 
-class Graph:
-    def __init__(self):
-        self.component_ids: List[int] = []
-        self.names: List[str] = []
-        self.values: List[Union[Dict, List, str, int, float, None]] = []
-        self.preds: List[int] = []
-        self.succs: List[int] = []
+
+class Graph(MetaStruct):
+    def __init__(self, components_ids=None, names=None, values=None, preds=None, succs=None):
+        super().__init__(initialized=True)
+        self.component_ids: List[int] = components_ids or []
+        self.names: List[str] = names or []
+        self.values: List[Union[Dict, List, str, int, float, None]] = values or []
+        self.preds: List[int] = preds or []
+        self.succs: List[int] = succs or []
+
+    def __eq__(self, other):
+        return super().__eq__(other)\
+               and self.component_ids == other.component_ids\
+               and self.names == other.names\
+               and self.values == other.values\
+               and self.preds == other.preds\
+               and self.succs == other.succs
+
+    def to_json(self) -> dict:
+        output = super().to_json()
+        output['component_ids'] = self.component_ids
+        output['names'] = self.names
+        output['values'] = self.values
+        output['preds'] = self.preds
+        output['succs'] = self.succs
+        return output
+
+    @classmethod
+    def from_json(cls, obj: dict):
+        return super().from_json(obj)
 
     @property
     def num_nodes(self):
@@ -79,3 +103,18 @@ class Graph:
             meta_df.append(component_df)
         meta_df = pd.concat(meta_df)
         return meta_df
+
+    @classmethod
+    def from_data(cls, **kwargs):
+        raise NotImplementedError
+
+    @classmethod
+    def reduce(cls, structs, **kwargs):
+        component_ids = [struct.component_ids for struct in structs]
+        names = [struct.names for struct in structs]
+        values = [struct.values for struct in structs]
+        preds = [struct.preds for struct in structs]
+        succs = [struct.succs for struct in structs]
+        return super().reduce(
+            structs, component_ids=component_ids, names=names, values=values, preds=preds, succs=succs, **kwargs
+        )

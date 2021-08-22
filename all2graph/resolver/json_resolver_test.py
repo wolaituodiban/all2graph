@@ -82,15 +82,28 @@ def speed():
     assert np.unique(json_graph.component_ids).shape[0] == df.shape[0]
     print(json_graph.num_nodes, json_graph.num_edges)
     print(np.unique(json_graph.names))
+    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph.values))))
 
     json_graph2, global_index_mapper, _ = JsonResolver(
         dict_pred_degree=0, list_pred_degree=0, list_inner_degree=0, r_list_inner_degree=0, global_index_names={'name'},
+        segmentation=False
     ).resolve('graph', list(map(json.loads, df.json)), progress_bar=True)
     assert len(global_index_mapper) > 0
     assert np.unique(json_graph2.component_ids).shape[0] == df.shape[0]
     assert json_graph2.num_nodes < json_graph.num_nodes
     print(json_graph2.num_nodes, json_graph2.num_edges)
     print(np.unique(json_graph2.names))
+    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph2.values))))
+
+    json_graph3, global_index_mapper, _ = JsonResolver(
+        flatten_dict=True, global_index_names={'name'}, segmentation=True
+    ).resolve('graph', list(map(json.loads, df.json)), progress_bar=True)
+
+    assert len(global_index_mapper) > 0
+    assert np.unique(json_graph2.component_ids).shape[0] == df.shape[0]
+    assert json_graph2.num_nodes < json_graph3.num_nodes
+    print(json_graph3.num_nodes, json_graph3.num_edges)
+    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph3.values))))
 
 
 if __name__ == '__main__':

@@ -7,7 +7,7 @@ from toad.utils.progress import Progress
 from .meta_node import MetaNumber, MetaString
 from ..graph import Graph
 from ..meta_struct import MetaStruct
-from ..macro import NULL, TRUE, FALSE
+from ..macro import NULL, TRUE, FALSE, EPSILON
 from ..stats import ECDF
 
 
@@ -60,11 +60,14 @@ class MetaGraph(MetaStruct):
         if drop_nodes is not None:
             node_df = node_df.drop(drop_nodes)
         node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
-        meta_numbers = {}
-        number_groups = node_df.dropna(subset=['number']).groupby('name', sort=False)
+        number_df = node_df[np.isfinite(node_df.number)]
+
+        number_groups = number_df.groupby('name', sort=False)
         if progress_bar:
             number_groups = Progress(number_groups)
             number_groups.suffix = 'constructing meta numbers'
+
+        meta_numbers = {}
         for name, number_df in number_groups:
             meta_numbers[name] = MetaNumber.from_data(
                 num_samples=num_samples, sample_ids=number_df.component_id, values=number_df.number, **kwargs
@@ -123,7 +126,7 @@ class MetaGraph(MetaStruct):
             progress.suffix = 'reducing meta numbers phase 2'
         for k in progress:
             w_sum = sum(meta_num_w[k])
-            if w_sum < 1:
+            if w_sum < 1 - EPSILON:
                 meta_numbers[k].count_ecdf = ECDF.reduce(
                     [meta_numbers[k].count_ecdf, ECDF([0], [1], initialized=True)],
                     weights=[w_sum, 1-w_sum], **kwargs

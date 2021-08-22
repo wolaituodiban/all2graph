@@ -9,20 +9,20 @@ from ..meta_graph import MetaGraph
 
 
 class Transformer:
-    def __init__(self, number_range: Dict[str, Tuple[float, float]], string_mapper: Dict[str, int], split_name: bool):
+    def __init__(self, number_range: Dict[str, Tuple[float, float]], string_mapper: Dict[str, int], segmentation: bool):
         """
         Graph与dgl.DiGraph的转换器
         :param number_range: 数值分位数上界和下界
         :param string_mapper: 字符串编码字典
-        :param split_name: 是否拆分name，默认使用jieba拆分
+        :param segmentation: 是否拆分name，默认使用jieba拆分
         """
         self.number_range = number_range
         self.string_mapper = string_mapper
-        self.split_name = split_name
+        self.segmentation = segmentation
 
     @classmethod
     def from_meta_graph(cls, meta_graph: MetaGraph, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                        lower=0.05, upper=0.05, split_name=True):
+                        lower=0.05, upper=0.05, segmentation=True):
         """
 
         :param meta_graph:
@@ -32,7 +32,7 @@ class Transformer:
         :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
         :param lower: 数值分位点下界
         :param upper: 数值分位点上界
-        :param split_name:
+        :param segmentation: 是否对name分词
         """
         strings = [k for k, df in meta_graph.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:
@@ -58,9 +58,10 @@ class Transformer:
         string_mapper = {k: i for i, k in enumerate(strings)}
 
         for name in meta_graph.meta_name:
-            if split_name:
+            if segmentation:
                 import jieba
                 for key in jieba.cut(name):
+                    key = key.lower()
                     if key not in string_mapper:
                         string_mapper[key] = len(string_mapper)
             elif name not in string_mapper:
@@ -80,7 +81,7 @@ class Transformer:
             for key, ecdf in meta_graph.meta_numbers.items()
             if ecdf.value_ecdf.mean_var[1] > 0
         }
-        return cls(number_range=number_range, string_mapper=string_mapper, split_name=split_name)
+        return cls(number_range=number_range, string_mapper=string_mapper, split_name=segmentation)
 
     def ag_graph_to_dgl_graph(self, graph: Graph) -> dgl.DGLGraph:
         # todo
