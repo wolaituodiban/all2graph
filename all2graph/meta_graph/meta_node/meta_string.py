@@ -4,8 +4,8 @@ import numpy as np
 import pandas as pd
 from toad.utils.progress import Progress
 
+from .meta_node import MetaNode
 from ...macro import EPSILON
-from ...meta_struct import MetaStruct
 from ...stats import Discrete, ECDF
 
 
@@ -19,7 +19,7 @@ def term_count_ecdf_to_doc_freq(term_count: ECDF, inverse=False) -> float:
         return doc_freq
 
 
-class MetaString(MetaStruct):
+class MetaString(MetaNode):
     """类别节点"""
     def __init__(self, term_count_ecdf: Dict[str, ECDF], term_freq_ecdf: Dict[str, ECDF], **kwargs):
         """

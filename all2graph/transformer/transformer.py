@@ -22,7 +22,7 @@ class Transformer:
 
     @classmethod
     def from_meta_graph(cls, meta_graph: MetaGraph, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                        lower=0.05, upper=0.05, segmentation=True):
+                        lower=0.05, upper=0.95, segmentation=True):
         """
 
         :param meta_graph:
@@ -81,7 +81,7 @@ class Transformer:
             for key, ecdf in meta_graph.meta_numbers.items()
             if ecdf.value_ecdf.mean_var[1] > 0
         }
-        return cls(number_range=number_range, string_mapper=string_mapper, split_name=segmentation)
+        return cls(number_range=number_range, string_mapper=string_mapper, segmentation=segmentation)
 
     def ag_graph_to_dgl_graph(self, graph: Graph) -> dgl.DGLGraph:
         # todo

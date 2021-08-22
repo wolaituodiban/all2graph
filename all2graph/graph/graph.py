@@ -110,6 +110,10 @@ class Graph(MetaStruct):
 
     @classmethod
     def reduce(cls, structs, **kwargs):
+        raise NotImplementedError
+
+    @classmethod
+    def merge(cls, structs, **kwargs):
         component_ids = [struct.component_ids for struct in structs]
         names = [struct.names for struct in structs]
         values = [struct.values for struct in structs]

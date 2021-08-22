@@ -3,11 +3,11 @@ import json
 import time
 import pandas as pd
 from toad.utils.progress import Progress
-from all2graph.resolver import JsonResolver
-from all2graph.meta_graph import MetaGraph
+from all2graph import MetaGraph
+from all2graph.json import JsonResolver
 
 
-def test():
+def speed():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
@@ -16,15 +16,15 @@ def test():
 
     start_time1 = time.time()
     resolver = JsonResolver(
-        flatten_dict=True, local_index_names={'name'}, segmentation=True
+        root_name='graph', flatten_dict=True, local_index_names={'name'}, segmentation=True
     )
     graph, global_index_mapper, local_index_mappers = resolver.resolve(
-        'graph', list(map(json.loads, df.json)), progress_bar=True
+        list(map(json.loads, df.json)), progress_bar=True
     )
     index_ids = list(global_index_mapper.values())
     for mapper in local_index_mappers:
         index_ids += list(mapper.values())
-    meta_graph = MetaGraph.from_data(graph, drop_nodes=index_ids, num_bins=None, progress_bar=True)
+    meta_graph = MetaGraph.from_data(graph, index_nodes=index_ids, num_bins=None, progress_bar=True)
     used_time1 = time.time() - start_time1
     print(meta_graph.meta_name.keys())
     with open(os.path.join(path, 'test_data', 'meta_graph.json'), 'w') as file:
@@ -35,11 +35,11 @@ def test():
     chunks = list(pd.read_csv(csv_path, chunksize=1000))
     start_time2 = time.time()
     for chunk in Progress(chunks):
-        graph, global_index_mapper, local_index_mappers = resolver.resolve('graph', list(map(json.loads, chunk.json)))
+        graph, global_index_mapper, local_index_mappers = resolver.resolve(list(map(json.loads, chunk.json)))
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
-        meta_graphs.append(MetaGraph.from_data(graph, drop_nodes=index_ids, num_bins=None))
+        meta_graphs.append(MetaGraph.from_data(graph, index_nodes=index_ids, num_bins=None))
     used_time2 = time.time() - start_time2
 
     print('开始reduce')
@@ -55,4 +55,4 @@ def test():
 
 
 if __name__ == '__main__':
-    test()
+    speed()

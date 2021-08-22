@@ -13,7 +13,7 @@ def test():
     trans = Transformer.from_meta_graph(
         meta_graph, min_df=0.01, max_df=0.99, top_k=100, top_method='max_tfidf', segmentation=True
     )
-    print(trans.string_mapper.keys())
+    print(trans.string_mapper)
 
 
 if __name__ == '__main__':

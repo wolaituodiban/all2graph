@@ -1,11 +1,11 @@
 import numpy as np
 import pandas as pd
 
-from ...meta_struct import MetaStruct
+from .meta_node import MetaNode
 from ...stats import ECDF
 
 
-class MetaNumber(MetaStruct):
+class MetaNumber(MetaNode):
     def __init__(self, count_ecdf: ECDF, value_ecdf: ECDF, **kwargs):
         """
 

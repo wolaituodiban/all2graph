@@ -1,14 +1,20 @@
+import sys
 from typing import Dict, List, Union, Set, Iterable
 
-import jieba
+try:
+    import jieba
+except ImportError:
+    jieba = None
+import toad
 from toad.utils.progress import Progress
-from ..graph import Graph
-from .resolver import Resolver
+from all2graph.graph import Graph
+from all2graph.resolver.resolver import Resolver
 
 
 class JsonResolver(Resolver):
     def __init__(
             self,
+            root_name,
             flatten_dict=False,
             dict_pred_degree=1,
             list_pred_degree=1,
@@ -20,13 +26,17 @@ class JsonResolver(Resolver):
     ):
         """
 
+        :param root_name:
         :param flatten_dict:
         :param dict_pred_degree:
         :param list_pred_degree:
         :param list_inner_degree:
         :param r_list_inner_degree:
         :param local_index_names:
+        :param global_index_names:
+        :param segmentation:
         """
+        super().__init__(root_name=root_name)
         self.flatten_dict = flatten_dict
         self.dict_pred_degree = dict_pred_degree
         self.list_pred_degree = list_pred_degree
@@ -131,21 +141,21 @@ class JsonResolver(Resolver):
 
     def resolve(
             self,
-            root_name: str,
             jsons: Iterable[Union[Dict, List]],
-            progress_bar=False,
+            progress_bar: bool = False,
     ) -> (Graph, dict, List[dict]):
         graph = Graph()
         global_index_mapper = {}
         local_index_mappers = []
-        process = jsons
-        if progress_bar:
-            process = Progress(jsons)
-            process.suffix = 'resolving json'
-        for i, value in enumerate(process):
+        if progress_bar and not isinstance(jsons, Progress):
+            jsons = Progress(jsons)
+            jsons.suffix = 'resolving json'
+            if toad.version.__version__ <= '0.0.65' and jsons.size is None:
+                jsons.size = sys.maxsize
+        for i, value in enumerate(jsons):
             local_index_mapper = {}
             self.insert_component(
-                graph=graph, component_id=i, name=root_name, value=value, preds=None,
+                graph=graph, component_id=i, name=self.root_name, value=value, preds=None,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
             )
             local_index_mappers.append(local_index_mapper)

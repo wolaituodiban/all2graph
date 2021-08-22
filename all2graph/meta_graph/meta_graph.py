@@ -46,7 +46,7 @@ class MetaGraph(MetaStruct):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, graph: Graph, drop_nodes=None, progress_bar=False, **kwargs):
+    def from_data(cls, graph: Graph, index_nodes=None, progress_bar=False, **kwargs):
         node_df = graph.node_df()
         num_samples = node_df.component_id.unique().shape[0]
 
@@ -57,8 +57,8 @@ class MetaGraph(MetaStruct):
         )
 
         # # # # # 生成meta_numbers # # # # #
-        if drop_nodes is not None:
-            node_df = node_df.drop(drop_nodes)
+        if index_nodes is not None:
+            node_df = node_df.drop(index_nodes)
         node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
         number_df = node_df[np.isfinite(node_df.number)]
 
