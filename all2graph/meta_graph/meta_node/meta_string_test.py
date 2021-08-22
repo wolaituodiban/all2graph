@@ -2,13 +2,12 @@ import json
 import os
 import time
 
-import json_diff
 import numpy as np
 import pandas as pd
 import json_tools
 
-from all2graph.meta_graph import MetaString
-from all2graph.resolver import JsonResolver
+from all2graph import MetaString
+from all2graph.json import JsonResolver
 from toad.utils.progress import Progress
 
 

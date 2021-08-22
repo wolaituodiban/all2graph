@@ -1,7 +1,7 @@
 from typing import Dict, Tuple
 
-import dgl
-import torch
+# import dgl
+# import torch
 
 from ..graph import Graph
 from ..macro import NULL
@@ -83,10 +83,10 @@ class Transformer:
         }
         return cls(number_range=number_range, string_mapper=string_mapper, segmentation=segmentation)
 
-    def ag_graph_to_dgl_graph(self, graph: Graph) -> dgl.DGLGraph:
-        # todo
-        pass
-
-    def dgl_graph_to_ag_graph(self, graph: dgl.DGLGraph) -> Graph:
-        # todo
-        pass
+    # def ag_graph_to_dgl_graph(self, graph: Graph) -> dgl.DGLGraph:
+    #     # todo
+    #     pass
+    #
+    # def dgl_graph_to_ag_graph(self, graph: dgl.DGLGraph) -> Graph:
+    #     # todo
+    #     pass

@@ -64,7 +64,7 @@ def test_compress():
     # !!!本测试用于检验压缩算法的精度
     num_loops = 100
     num_samples = 1000
-    bins = [512, 256, 128, 64, 32, 16, 8]
+    bins = [512, 256, 128, 64, 32, 16]
     probs = np.arange(0, 1, 0.01)[1:]
     # beta
     print('beta')
