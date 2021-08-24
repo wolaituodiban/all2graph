@@ -1,3 +1,4 @@
+import os
 from multiprocessing import Pool
 from typing import Dict, Union, Iterable
 
@@ -195,7 +196,7 @@ class MetaString(MetaNode):
 
             with Pool(processes) as pool:
                 if chunksize is None:
-                    chunksize = int(np.ceil(len(terms)/processes))
+                    chunksize = int(np.ceil(len(terms)/(processes or os.cpu_count())))
                 term_count_ecdf = {
                     term: ecdf for term, ecdf
                     in zip(terms, list(pool.imap(reduce_wrapper, term_count_ecdfs, chunksize=chunksize)))

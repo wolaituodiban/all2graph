@@ -77,7 +77,7 @@ class Transformer:
         assert len(string_mapper) == max(list(string_mapper.values())) + 1
 
         number_range = {
-            key: (ecdf.value_ecdf.get_quantiles(lower), ecdf.value_ecdf.get_quantiles(upper))
+            key: (float(ecdf.value_ecdf.get_quantiles(lower)), float(ecdf.value_ecdf.get_quantiles(upper)))
             for key, ecdf in meta_graph.meta_numbers.items()
             if ecdf.value_ecdf.mean_var[1] > 0
         }
