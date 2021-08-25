@@ -4,7 +4,6 @@ import time
 
 import numpy as np
 import pandas as pd
-import json_tools
 
 from all2graph import MetaString
 from all2graph.json import JsonResolver

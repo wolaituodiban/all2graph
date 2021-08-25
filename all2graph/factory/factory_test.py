@@ -5,7 +5,7 @@ import time
 import numpy as np
 import pandas as pd
 from all2graph import Factory, MetaGraph
-from all2graph.json import JsonPreProcessor, JsonResolver
+from all2graph.json import JsonPathTree, JsonResolver
 
 
 def test():
@@ -14,9 +14,9 @@ def test():
     path = os.path.dirname(path)
     csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
 
-    preprocessor = JsonPreProcessor('json')
+    preprocessor = JsonPathTree('json')
     resolver = JsonResolver(
-        root_name=preprocessor.root_name, flatten_dict=True, local_index_names={'name'}, segmentation=True
+        root_name=preprocessor.json_col, flatten_dict=True, local_index_names={'name'}, segmentation=True
     )
 
     # 工厂封装模式

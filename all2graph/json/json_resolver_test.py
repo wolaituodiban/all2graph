@@ -66,7 +66,7 @@ def test_complicated_situation():
     }
     jg1, *_ = JsonResolver('input', flatten_dict=True, dict_pred_degree=0, list_pred_degree=0, list_inner_degree=2,
                            r_list_inner_degree=1).resolve([inputs])
-    assert jg1.num_nodes == 10 and jg1.num_edges == 34, '\n{}\n{}\n{}\n{}'.format(
+    assert jg1.num_nodes == 8 and jg1.num_edges == 27, '\n{}\n{}\n{}\n{}'.format(
         jg1.names, jg1.values, jg1.preds, jg1.succs
     )
 

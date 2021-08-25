@@ -108,17 +108,18 @@ class JsonResolver(Resolver):
                         local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
                     )
         elif isinstance(value, list) or (self.segmentation and isinstance(value, str)):
-            node_ids = []
             if isinstance(value, str):
                 temp_value = [v.lower() for v in jieba.cut(value)]
                 # 修改之前插入的value
-                if len(temp_value) == 1:
-                    graph.values[preds[-1]] = temp_value[0]
-                    return
-                else:
-                    graph.values[preds[-1]] = []
+                graph.values[preds[-1]] = []
             else:
                 temp_value = value
+
+            if len(temp_value) == 1:
+                graph.values[preds[-1]] = temp_value[0]
+                return
+
+            node_ids = []
             for v in temp_value:
                 node_id = graph.insert_node(component_id, name, v)
 
