@@ -134,7 +134,7 @@ class RecursiveDescent(JsonPathNode):
         return output
 
     def update(self, obj, processed_objs: list):
-        return processed_objs[0]
+        return obj
 
     def is_duplicate(self, other) -> bool:
         return type(self) == type(other)
