@@ -2,13 +2,13 @@ from typing import Dict
 
 import numpy as np
 import pandas as pd
-from toad.utils.progress import Progress
 
 from .meta_node import MetaNumber, MetaString
 from ..graph import Graph
 from ..meta_struct import MetaStruct
 from ..macro import NULL, TRUE, FALSE, EPSILON
 from ..stats import ECDF
+from ..utils import progress_wrapper
 
 
 class MetaGraph(MetaStruct):
@@ -63,10 +63,7 @@ class MetaGraph(MetaStruct):
         number_df = node_df[np.isfinite(node_df.number)]
 
         number_groups = number_df.groupby('name', sort=False)
-        if progress_bar:
-            number_groups = Progress(number_groups)
-            number_groups.suffix = 'constructing meta numbers'
-
+        number_groups = progress_wrapper(number_groups, disable=not progress_bar, suffix='constructing meta numbers')
         meta_numbers = {}
         for name, number_df in number_groups:
             meta_numbers[name] = MetaNumber.from_data(
@@ -111,19 +108,13 @@ class MetaGraph(MetaStruct):
                     meta_numbers[k].append(v)
                     meta_num_w[k].append(w)
 
-        progress = meta_numbers.items()
-        if progress_bar:
-            progress = Progress(progress)
-            progress.suffix = 'reducing meta numbers'
+        progress = progress_wrapper(meta_numbers.items(), disable=not progress_bar, suffix='reducing meta numbers')
         meta_numbers = {
             k: MetaNumber.reduce(v, weights=meta_num_w[k], **kwargs) for k, v in progress
         }
 
         # 分布补0
-        progress = meta_numbers
-        if progress_bar:
-            progress = Progress(progress)
-            progress.suffix = 'reducing meta numbers phase 2'
+        progress = progress_wrapper(meta_numbers, disable=not progress_bar, suffix='reducing meta numbers phase 2')
         for k in progress:
             w_sum = sum(meta_num_w[k])
             if w_sum < 1 - EPSILON:

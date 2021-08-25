@@ -1,12 +1,9 @@
-import sys
 from multiprocessing import Pool
 from typing import Callable, Iterable, Tuple, List
 
 import pandas as pd
-import toad
-from toad.utils.progress import Progress
 
-from ..utils import dataframe_chunk_iter
+from ..utils import dataframe_chunk_iter, progress_wrapper
 from ..meta_graph import MetaGraph
 from ..resolver import Resolver
 
@@ -41,22 +38,14 @@ class Factory:
         weights = []
         if processes == 0:
             results = map(self._produce_meta_graph, data)
-            if progress_bar and not isinstance(data, Progress):
-                results = Progress(results)
-                if toad.version.__version__ <= '0.0.65' and results.size is None:
-                    results.size = sys.maxsize
-                results.suffix = suffix
+            results = progress_wrapper(results, disable=not progress_bar, suffix=suffix)
             for meta_graph, weight in results:
                 meta_graphs.append(meta_graph)
                 weights.append(weight)
         else:
             with Pool(processes) as pool:
                 results = pool.imap(self._produce_meta_graph, data)
-                if progress_bar and not isinstance(data, Progress):
-                    results = Progress(results)
-                    if toad.version.__version__ <= '0.0.65' and results.size is None:
-                        results.size = sys.maxsize
-                    results.suffix = suffix
+                results = progress_wrapper(results, disable=not progress_bar, suffix=suffix)
                 for meta_graph, weight in results:
                     meta_graphs.append(meta_graph)
                     weights.append(weight)

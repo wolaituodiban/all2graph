@@ -4,12 +4,11 @@ from typing import Dict, Union, Iterable
 
 import numpy as np
 import pandas as pd
-from toad.utils.progress import Progress
 
 from .meta_node import MetaNode
 from ...macro import EPSILON
 from ...stats import Discrete, ECDF
-from ...utils import MpMapFuncWrapper
+from ...utils import MpMapFuncWrapper, progress_wrapper
 
 
 def term_count_ecdf_to_doc_freq(term_count: ECDF, inverse=False) -> float:
@@ -118,9 +117,7 @@ class MetaString(MetaNode):
         term_count_ecdf = {}
         term_freq_ecdf = {}
         term_count_groupby = term_count_df.groupby('term', sort=False)
-        if progress_bar:
-            term_count_groupby = Progress(term_count_groupby)
-            term_count_groupby.suffix = suffix
+        term_count_groupby = progress_wrapper(term_count_groupby, disable=not progress_bar, suffix=suffix)
         for value, count_df in term_count_groupby:
             term_count = count_df['term_count'].values
             term_freq = term_count / node_count_series[count_df.id].values
@@ -171,26 +168,18 @@ class MetaString(MetaNode):
         assert len(term_count_ecdfs) == len(term_freq_ecdfs) == len(term_weights)
 
         if processes == 0:
-            terms = term_count_ecdfs.keys()
-            if progress_bar:
-                terms = Progress(terms)
-                terms.suffix = suffix
-
             term_count_ecdf = {}
             term_freq_ecdf = {}
-            for term in terms:
+            for term in progress_wrapper(term_count_ecdfs.keys(), disable=not progress_bar, suffix=suffix):
                 term_count_ecdf[term] = ECDF.reduce(term_count_ecdfs[term], weights=term_weights[term], **kwargs)
                 term_freq_ecdf[term] = ECDF.reduce(term_freq_ecdfs[term], weights=term_weights[term], **kwargs)
         else:
             terms = term_count_ecdfs.keys()
             term_count_ecdfs = [{'structs': term_count_ecdfs[term], 'weights': term_weights[term]} for term in terms]
             term_freq_ecdfs = [{'structs': term_freq_ecdfs[term], 'weights': term_weights[term]} for term in terms]
-            if progress_bar:
-                term_count_ecdfs = Progress(term_count_ecdfs)
-                term_count_ecdfs.suffix = suffix
 
-                term_freq_ecdfs = Progress(term_freq_ecdfs)
-                term_freq_ecdfs.suffix = suffix + ' phase 2'
+            term_count_ecdfs = progress_wrapper(term_count_ecdfs, disable=not progress_bar, suffix=suffix)
+            term_freq_ecdfs = progress_wrapper(term_freq_ecdfs, disable=not progress_bar, suffix=suffix + ' phase 2')
 
             reduce_wrapper = MpMapFuncWrapper(ECDF.reduce, **kwargs)
 

@@ -6,9 +6,9 @@ try:
 except ImportError:
     jieba = None
 import toad
-from toad.utils.progress import Progress
-from all2graph.graph import Graph
-from all2graph.resolver.resolver import Resolver
+from ..utils import progress_wrapper
+from ..graph import Graph
+from ..resolver import Resolver
 
 
 class JsonResolver(Resolver):
@@ -109,7 +109,7 @@ class JsonResolver(Resolver):
                     )
         elif isinstance(value, list) or (self.segmentation and isinstance(value, str)):
             if isinstance(value, str):
-                temp_value = [v.lower() for v in jieba.cut(value)]
+                temp_value = [v for v in jieba.cut(value.lower())]
                 # 修改之前插入的value
                 graph.values[preds[-1]] = []
             else:
@@ -148,11 +148,7 @@ class JsonResolver(Resolver):
         graph = Graph()
         global_index_mapper = {}
         local_index_mappers = []
-        if progress_bar and not isinstance(jsons, Progress):
-            jsons = Progress(jsons)
-            jsons.suffix = 'resolving json'
-            if toad.version.__version__ <= '0.0.65' and jsons.size is None:
-                jsons.size = sys.maxsize
+        jsons = progress_wrapper(jsons, disable=not progress_bar, suffix='resolving json')
         for i, value in enumerate(jsons):
             local_index_mapper = {}
             self.insert_component(

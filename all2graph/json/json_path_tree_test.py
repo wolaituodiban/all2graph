@@ -3,27 +3,10 @@ import pandas as pd
 
 from all2graph.json import JsonPathTree, GetAttr, SplitString, TimeProcessor, Delete, Lower
 from all2graph.json.json_node_processors import JsonNodeProcessor
+from all2graph.utils import progress_wrapper
 
 
-def test_parsing():
-    json_path_tree = JsonPathTree(
-        'json',
-        processors=[
-            ("$.firstname", JsonNodeProcessor()),
-            ("$['firstname']", JsonNodeProcessor()),
-            ("$..['type']", JsonNodeProcessor()),
-            ("$[*]", JsonNodeProcessor()),
-            ("$.*", JsonNodeProcessor()),
-            ("$['phoneNumber']..['type']", JsonNodeProcessor()),
-            ("$['phoneNumber'][0].number", JsonNodeProcessor()),
-            ("$.*", JsonNodeProcessor()),
-        ]
-    )
-    print(json_path_tree)
-
-
-def test():
-    data = {
+data = {
         'SMALL_LOAN': [
             {
                 'ord_no': 'CH202007281033864',
@@ -60,13 +43,15 @@ def test():
             }
         ]
     }
-    data = pd.DataFrame(
-        {
-            'json': [json.dumps(data)],
-            'crt_dte': '2020-10-09'
-        }
-    )
+data = pd.DataFrame(
+    {
+        'json': [json.dumps(data)],
+        'crt_dte': '2020-10-09'
+    }
+)
 
+
+def test():
     json_path_tree = JsonPathTree(
         'json',
         sample_time_col='crt_dte',
@@ -127,6 +112,28 @@ def test():
     print(json_path_tree)
 
 
+def speed():
+    df = pd.concat([data] * 10000)
+    json_path_tree = JsonPathTree(
+        'json',
+        sample_time_col='crt_dte',
+        sample_time_format='%Y-%m-%d',
+        processors=[
+            ('$', GetAttr('SMALL_LOAN')),
+            ('$.*', TimeProcessor('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', TimeProcessor('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', TimeProcessor('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
+            ('$.*.bsy_typ', Lower()),
+            ('$.*.ded_typ', Lower()),
+            ('$.*.bsy_typ', SplitString('_')),
+            ('$.*.ded_typ', SplitString('_')),
+            ('$.*', Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
+        ]
+    )
+    for _ in progress_wrapper(json_path_tree(df), size=df.shape[0]):
+        pass
+
+
 if __name__ == '__main__':
-    test_parsing()
     test()
+    speed()
