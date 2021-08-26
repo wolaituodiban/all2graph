@@ -26,6 +26,11 @@ class JsonPathNode(JsonNodeProcessor):
         :param kwargs:
         :return:
         """
+        if len(self.childs_or_processors) == 0:
+            output = self.get(obj)
+            if len(output) == 1:
+                output = output[0]
+            return output
         processed_objs = []
         for child_obj in self.get(obj):
             for child_or_processor in self.childs_or_processors:
@@ -227,9 +232,10 @@ ALL_JSON_PATH_NODE_CLASSES: Dict[str, JsonPathNode] = {
 }
 
 
-def insert_node(root_node: JsonPathNode, json_path: str, processor: JsonNodeProcessor):
+def insert_node(root_node: JsonPathNode, json_path: str, processor: JsonNodeProcessor = None):
     if json_path in ('$', '$.'):
-        root_node.childs_or_processors.append(processor)
+        if processor is not None:
+            root_node.childs_or_processors.append(processor)
     else:
         for cls in ALL_JSON_PATH_NODE_CLASSES.values():
             try:
@@ -250,14 +256,14 @@ class JsonPathTree(JsonPathNode):
     """
 
     def __init__(self, json_col, sample_time_col=None, sample_time_format=None,
-                 processors: List[Tuple[str, JsonNodeProcessor]] = None):
+                 processors: List[Union[Tuple[str], Tuple[str, JsonNodeProcessor]]] = None):
         super().__init__()
         self.json_col = json_col
         self.sample_time_col = sample_time_col
         self.sample_time_format = sample_time_format
         if processors is not None:
-            for json_path, processor in processors:
-                insert_node(self, json_path, processor)
+            for args in processors:
+                insert_node(self, *args)
 
     def get(self, obj) -> list:
         return [obj]

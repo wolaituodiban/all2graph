@@ -1,8 +1,9 @@
 import json
+from datetime import datetime
+
 import pandas as pd
 
-from all2graph.json import JsonPathTree, GetAttr, SplitString, TimeProcessor, Delete, Lower
-from all2graph.json.json_node_processors import JsonNodeProcessor
+from all2graph.json import JsonPathTree, SplitString, TimeProcessor, Delete, Lower
 from all2graph.utils import progress_wrapper
 
 
@@ -51,13 +52,48 @@ data = pd.DataFrame(
 )
 
 
+def preprocessor(df):
+    for row in df[['crt_dte', 'json']].itertuples():
+        crt_dte = datetime.strptime(row[1], '%Y-%m-%d')
+        obj = json.loads(row[2])['SMALL_LOAN']
+        for item in obj:
+            if 'crt_tim' in item:
+                crt_tim = datetime.strptime(item['crt_tim'], '%Y-%m-%d %H:%M:%S')
+                crt_tim_diff = crt_dte - crt_tim
+                item['crt_tim_diff_day'] = crt_tim_diff.days + int(crt_tim_diff.seconds > 0)
+                item['crt_tim_day'] = crt_tim.day
+                item['crt_tim_hour'] = crt_tim.hour
+                item['crt_tim_weekday'] = crt_tim.weekday()
+                del item['crt_tim']
+            else:
+                rep_tim = datetime.strptime(item['rep_tim'], '%Y-%m-%d %H:%M:%S')
+                rep_tim_diff = crt_dte - rep_tim
+                item['rep_tim_diff_day'] = rep_tim_diff.days + int(rep_tim_diff.seconds > 0)
+                item['rep_tim_day'] = rep_tim.day
+                item['rep_tim_hour'] = rep_tim.hour
+                item['rep_tim_weekday'] = rep_tim.weekday()
+
+                rep_dte = datetime.strptime(item['rep_dte'], '%Y-%m-%d')
+                rep_dte_diff = crt_dte - rep_dte
+                item['rep_dte_diff_day'] = rep_dte_diff.days + int(rep_dte_diff.seconds > 0)
+                item['rep_dte_day'] = rep_dte.day
+                item['rep_dte_weekday'] = rep_dte.weekday()
+                del item['rep_tim'], item['rep_dte']
+            del item['prc_amt'], item['adt_lmt'], item['avb_lmt']
+
+            item['bsy_typ'] = [s.lower() for s in item['bsy_typ'].split('_')]
+            if 'ded_typ' in item:
+                item['ded_typ'] = [s.lower() for s in item['ded_typ'].split('_')]
+        yield obj
+
+
 def test():
     json_path_tree = JsonPathTree(
         'json',
         sample_time_col='crt_dte',
         sample_time_format='%Y-%m-%d',
         processors=[
-            ('$', GetAttr('SMALL_LOAN')),
+            ('$.SMALL_LOAN',),
             ('$.*', TimeProcessor('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
             ('$.*', TimeProcessor('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
             ('$.*', TimeProcessor('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
@@ -68,47 +104,7 @@ def test():
             ('$.*', Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
         ]
     )
-    assert list(json_path_tree(data)) == [
-        [
-            {
-                'ord_no': 'CH202007281033864',
-                'bsy_typ': ['cash'],
-                'avb_lmt_rat': 0.0,
-                'crt_tim_diff_day': 73,
-                'crt_tim_day': 28,
-                'crt_tim_hour': 16,
-                'crt_tim_weekday': 1
-            },
-            {
-                'ord_no': 'CH202007281033864',
-                'bsy_typ': ['cash'],
-                'stg_no': '1',
-                'ded_typ': ['auto', 'deduct'],
-                'avb_lmt_rat': 0.079703,
-                'rep_tim_diff_day': 42,
-                'rep_tim_day': 28,
-                'rep_tim_hour': 8,
-                'rep_tim_weekday': 4,
-                'rep_dte_diff_day': 42,
-                'rep_dte_day': 28,
-                'rep_dte_weekday': 4
-            },
-            {
-                'ord_no': 'CH202007281033864',
-                'bsy_typ': ['cash'],
-                'stg_no': '2',
-                'ded_typ': ['manual', 'repay'],
-                'avb_lmt_rat': 0.160022,
-                'rep_tim_diff_day': 11,
-                'rep_tim_day': 28,
-                'rep_tim_hour': 10,
-                'rep_tim_weekday': 0,
-                'rep_dte_diff_day': 11,
-                'rep_dte_day': 28,
-                'rep_dte_weekday': 0
-            }
-        ]
-    ], list(json_path_tree(data))
+    assert list(json_path_tree(data)) == list(preprocessor(data)), list(json_path_tree(data))
     print(json_path_tree)
 
 
@@ -119,7 +115,7 @@ def speed():
         sample_time_col='crt_dte',
         sample_time_format='%Y-%m-%d',
         processors=[
-            ('$', GetAttr('SMALL_LOAN')),
+            ('$.SMALL_LOAN',),
             ('$.*', TimeProcessor('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
             ('$.*', TimeProcessor('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
             ('$.*', TimeProcessor('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
@@ -130,7 +126,11 @@ def speed():
             ('$.*', Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
         ]
     )
+    print(json_path_tree)
     for _ in progress_wrapper(json_path_tree(df), size=df.shape[0]):
+        pass
+
+    for _ in progress_wrapper(preprocessor(df), size=df.shape[0]):
         pass
 
 

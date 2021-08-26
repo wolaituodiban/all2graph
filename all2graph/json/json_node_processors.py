@@ -19,7 +19,9 @@ class TimeProcessor(JsonNodeProcessor):
         super().__init__()
         self.name = name
         self.format = _format
-        self.units = units
+        self.units = {
+            unit: '{}_{}'.format(self.name, unit) for unit in units
+        }
 
     def __call__(self, obj, sample_time: datetime = None, **kwargs):
         if self.name in obj:
@@ -32,11 +34,11 @@ class TimeProcessor(JsonNodeProcessor):
             if sample_time is not None:
                 diff = sample_time - time
                 obj['{}_diff_day'.format(self.name)] = diff.days + int(diff.seconds > 0)
-            for unit in self.units:
+            for unit, feat_name in self.units.items():
                 if unit == 'weekday':
-                    obj['{}_{}'.format(self.name, unit)] = time.weekday()
+                    obj[feat_name] = time.weekday()
                 elif hasattr(time, unit):
-                    obj['{}_{}'.format(self.name, unit)] = getattr(time, unit)
+                    obj[feat_name] = getattr(time, unit)
         return obj
 
 
@@ -50,18 +52,6 @@ class Delete(JsonNodeProcessor):
             if name in obj:
                 del obj[name]
         return obj
-
-
-class GetAttr(JsonNodeProcessor):
-    def __init__(self, name):
-        super().__init__()
-        self.name = name
-
-    def __call__(self, obj, **kwargs):
-        if self.name in obj:
-            return obj[self.name]
-        else:
-            return None
 
 
 class Sorted(JsonNodeProcessor):
