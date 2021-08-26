@@ -11,7 +11,7 @@ class JsonNodeProcessor:
         raise NotImplementedError
 
     def __repr__(self):
-        return self.__class__.__name__
+        return '{}()'.format(self.__class__.__name__)
 
 
 class TimeProcessor(JsonNodeProcessor):
@@ -41,6 +41,9 @@ class TimeProcessor(JsonNodeProcessor):
                     obj[feat_name] = getattr(time, unit)
         return obj
 
+    def __repr__(self):
+        return '{}(name={}, units={})'.format(self.__class__.__name__, self.name, list(self.units))
+
 
 class Delete(JsonNodeProcessor):
     def __init__(self, names):
@@ -52,6 +55,9 @@ class Delete(JsonNodeProcessor):
             if name in obj:
                 del obj[name]
         return obj
+
+    def __repr__(self):
+        return '{}(names={})'.format(self.__class__.__name__, self.names)
 
 
 class Sorted(JsonNodeProcessor):
@@ -67,7 +73,7 @@ class Sorted(JsonNodeProcessor):
             return sorted(obj, reverse=self.reverse)
 
 
-class SplitString(JsonNodeProcessor):
+class Split(JsonNodeProcessor):
     def __init__(self, sep, maxsplit=-1):
         super().__init__()
         self.sep = sep
@@ -78,6 +84,9 @@ class SplitString(JsonNodeProcessor):
             return obj.split(sep=self.sep, maxsplit=self.maxsplit)
         else:
             return obj
+
+    def __repr__(self):
+        return "{}(sep='{}', maxsplit={})".format(self.__class__.__name__, self.sep, self.maxsplit)
 
 
 class Lower(JsonNodeProcessor):

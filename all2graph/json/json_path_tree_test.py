@@ -3,7 +3,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from all2graph.json import JsonPathTree, SplitString, TimeProcessor, Delete, Lower
+from all2graph.json import JsonPathTree, Split, TimeProcessor, Delete, Lower
 from all2graph.utils import progress_wrapper
 
 
@@ -99,13 +99,16 @@ def test():
             ('$.*', TimeProcessor('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
             ('$.*.bsy_typ', Lower()),
             ('$.*.ded_typ', Lower()),
-            ('$.*.bsy_typ', SplitString('_')),
-            ('$.*.ded_typ', SplitString('_')),
+            ('$.*.bsy_typ', Split('_')),
+            ('$.*.ded_typ', Split('_')),
             ('$.*', Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
         ]
     )
-    assert list(json_path_tree(data)) == list(preprocessor(data)), list(json_path_tree(data))
     print(json_path_tree)
+    standard_answer = list(preprocessor(data))
+    print(json.dumps(standard_answer, indent=2))
+    assert list(json_path_tree(data)) == standard_answer, list(json_path_tree(data))
+
 
 
 def speed():
@@ -121,8 +124,8 @@ def speed():
             ('$.*', TimeProcessor('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
             ('$.*.bsy_typ', Lower()),
             ('$.*.ded_typ', Lower()),
-            ('$.*.bsy_typ', SplitString('_')),
-            ('$.*.ded_typ', SplitString('_')),
+            ('$.*.bsy_typ', Split('_')),
+            ('$.*.ded_typ', Split('_')),
             ('$.*', Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
         ]
     )

@@ -9,3 +9,4 @@ notebooks
 *.json
 *.c
 *.pyd
+.dgl

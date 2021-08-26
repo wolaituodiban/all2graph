@@ -7,9 +7,9 @@ from ..meta_struct import MetaStruct
 
 
 class Graph(MetaStruct):
-    def __init__(self, components_ids=None, names=None, values=None, preds=None, succs=None):
+    def __init__(self, component_ids=None, names=None, values=None, preds=None, succs=None):
         super().__init__(initialized=True)
-        self.component_ids: List[int] = components_ids or []
+        self.component_ids: List[int] = component_ids or []
         self.names: List[str] = names or []
         self.values: List[Union[Dict, List, str, int, float, None]] = values or []
         self.preds: List[int] = preds or []
@@ -82,27 +82,32 @@ class Graph(MetaStruct):
         """
         分别返回节点dataframe和边dataframe
         """
-        node_df = node_df or self.node_df()
+        if node_df is None:
+            node_df = self.node_df()
         edge_df = pd.DataFrame(
             {
-                'component_id': node_df.component_id.iloc[self.preds],
+                'component_id': node_df.component_id.iloc[self.preds].values,
                 'pred': self.preds,
-                'pred_name': node_df.name.iloc[self.preds],
+                'pred_name': node_df.name.iloc[self.preds].values,
                 'succ': self.succs,
-                'succ_name': node_df.name.iloc[self.succs]
+                'succ_name': node_df.name.iloc[self.succs].values
             }
         )
-        edge_df = edge_df.merge(node_df, left_on='succ', right_index=True, how='left')
         return edge_df
 
-    def meta_df(self, node_df: pd.DataFrame = None, edge_df: pd.DataFrame = None) -> pd.DataFrame:
-        edge_df = edge_df or self.edge_df(node_df)
-        meta_df = []
-        for component_id, component_df in edge_df.groupby('component_id'):
-            component_df = component_df[['pred_name', 'succ_name']].drop_duplicates()
-            meta_df.append(component_df)
-        meta_df = pd.concat(meta_df)
-        return meta_df
+    def meta_node_df(self, node_df: pd.DataFrame = None) -> pd.DataFrame:
+        if node_df is None:
+            node_df = self.node_df()
+        df = node_df[['component_id', 'name']].drop_duplicates()
+        df['meta_node_id'] = np.arange(0, df.shape[0], 1)
+        return df
+
+    def meta_edge_df(self, node_df: pd.DataFrame = None, edge_df: pd.DataFrame = None) -> pd.DataFrame:
+        if edge_df is None:
+            edge_df = self.edge_df(node_df)
+        df = edge_df[['component_id', 'pred_name', 'succ_name']].drop_duplicates()
+        df['meta_edge_id'] = np.arange(0, df.shape[0], 1)
+        return df
 
     @classmethod
     def from_data(cls, **kwargs):
