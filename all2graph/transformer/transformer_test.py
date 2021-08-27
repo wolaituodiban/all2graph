@@ -40,7 +40,7 @@ def test():
     print(dgl_graph)
 
     # 验证_gen_dgl_meta_graph的正确性
-    rc_meta_node_df = pd.DataFrame(dict(dgl_meta_graph.ndata))
+    rc_meta_node_df = pd.DataFrame({k: v.numpy() for k, v in dgl_meta_graph.ndata.items()})
     rc_meta_node_df['name'] = rc_meta_node_df['name'].map(trans.reverse_string_mapper)
     pred, succ = dgl_meta_graph.edges()
     rc_meta_edge_df = pd.DataFrame({'pred_meta_node_id': pred, 'succ_meta_node_id': succ})

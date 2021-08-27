@@ -177,10 +177,10 @@ class Transformer:
         return dgl_meta_graph, dgl_graph
 
     def graph_from_dgl(self, meta_graph: dgl.DGLGraph, graph: dgl.DGLGraph) -> Graph:
-        node_df = pd.DataFrame(dict(graph.ndata))
-        node_df['component_id'] = meta_graph.ndata['component_id'][node_df['meta_node_id']]
+        node_df = pd.DataFrame({k: v.numpy() for k, v in graph.ndata.items()})
+        node_df['component_id'] = meta_graph.ndata['component_id'][node_df['meta_node_id']].numpy()
 
-        node_df['name'] = meta_graph.ndata['name'][node_df['meta_node_id']]
+        node_df['name'] = meta_graph.ndata['name'][node_df['meta_node_id']].numpy()
         if self.name_segmentation:
             raise NotImplementedError
         else:
