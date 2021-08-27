@@ -19,7 +19,7 @@ class Transformer:
         :param string_mapper: 字符串编码字典
         :param name_segmentation: 是否拆分name，默认使用jieba拆分
         """
-        self.number_range = number_range
+        self.range_df = pd.DataFrame(number_range, index=['lower', 'upper']).T
         self.string_mapper = string_mapper
         self.name_segmentation = name_segmentation
 
@@ -92,23 +92,21 @@ class Transformer:
 
     def _gen_dgl_meta_graph(self, meta_node_df: pd.DataFrame, meta_edge_df: pd.DataFrame) -> dgl.DGLGraph:
         # 构造dgl meta graph
-        meta_node_df = meta_node_df.set_index(['component_id', 'name'])
-        meta_edge_df['pred_meta_node_id'] = meta_node_df.loc[
-            meta_edge_df[['component_id', 'pred_name']].to_records(index=False).tolist(), 'meta_node_id'
-        ].values
-        meta_edge_df['succ_meta_node_id'] = meta_node_df.loc[
-            meta_edge_df[['component_id', 'succ_name']].to_records(index=False).tolist(), 'meta_node_id'
-        ].values
+        meta_edge_df = meta_edge_df.merge(
+            meta_node_df, left_on=['component_id', 'pred_name'], right_on=['component_id', 'name'], how='left'
+        )
+        meta_edge_df = meta_edge_df.merge(
+            meta_node_df, left_on=['component_id', 'succ_name'], right_on=['component_id', 'name'], how='left'
+        )
         graph = dgl.graph(
             data=(
-                torch.tensor(meta_edge_df['pred_meta_node_id'].values, dtype=torch.long),
-                torch.tensor(meta_edge_df['pred_meta_node_id'].values, dtype=torch.long)
+                torch.tensor(meta_edge_df['meta_node_id_x'].values, dtype=torch.long),
+                torch.tensor(meta_edge_df['meta_node_id_y'].values, dtype=torch.long)
             ),
             num_nodes=meta_node_df.shape[0],
         )
 
         # 元图点特征
-        meta_node_df = meta_node_df.reset_index()
         graph.ndata['component_id'] = torch.tensor(meta_node_df['component_id'].values, dtype=torch.long)
         if self.name_segmentation:
             raise NotImplementedError
@@ -130,32 +128,35 @@ class Transformer:
         )
 
         # 图边特征
-        meta_edge_df = meta_edge_df.set_index(['component_id', 'pred_name', 'succ_name'])
-        edge_df['meta_edge_id'] = meta_edge_df.loc[
-            edge_df[meta_edge_df.index.names].to_records(index=False).tolist(), 'meta_edge_id'
-        ].values
-        graph.edata['meta_edge_id'] = torch.tensor(edge_df['meta_edge_id'].values, dtype=torch.long)
+        graph.edata['meta_edge_id'] = torch.tensor(
+            edge_df.merge(
+                meta_edge_df, on=['component_id', 'pred_name', 'succ_name'], how='left'
+            )['meta_edge_id'].values,
+            dtype=torch.long
+        )
 
         # 图点特征
-        meta_node_df = meta_node_df.set_index(['component_id', 'name'])
-        node_df['meta_node_id'] = meta_node_df.loc[
-            node_df[meta_node_df.index.names].to_records(index=False).tolist(), 'meta_node_id'
-        ].values
-        graph.ndata['meta_node_id'] = torch.tensor(node_df['meta_node_id'].values, dtype=torch.long)
+        graph.ndata['meta_node_id'] = torch.tensor(
+            node_df.merge(meta_node_df, on=['component_id', 'name'], how='left')['meta_node_id'].values,
+            dtype=torch.long
+        )
 
         # 图数值特征
-        range_df = pd.DataFrame(self.number_range, index=['lower', 'upper']).T
-        mask = node_df['name'].isin(range_df.index)
-        node_df.loc[mask, range_df.columns] = range_df.loc[node_df.loc[mask, 'name']].values
+        node_df = node_df.merge(self.range_df, left_on='name', right_index=True, how='left')
         node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
         node_df['number'] = np.clip(node_df.number, node_df.lower, node_df.upper)
         node_df['number'] = (node_df['number'] - node_df.lower) / (node_df.upper - node_df.lower)
         graph.ndata['number'] = torch.tensor(node_df['number'].values, dtype=torch.float32)
 
         # 图字符特征
-        node_df.loc[[not isinstance(x, str) for x in node_df.value], 'value'] = NULL
-        node_df['value'] = node_df['value'].map(self.string_mapper).fillna(self.string_mapper[NULL])
-        graph.ndata['value'] = torch.tensor(node_df['value'].values, dtype=torch.long)
+        graph.ndata['value'] = torch.tensor(
+            node_df['value'].apply(
+                lambda x: self.string_mapper[x]
+                if isinstance(x, str) and x in self.string_mapper
+                else self.string_mapper[NULL]
+            ).values,
+            dtype=torch.long
+        )
         return graph
 
     def graph_to_dgl(self, graph: Graph) -> Tuple[dgl.DGLGraph, dgl.DGLGraph]:
@@ -176,22 +177,17 @@ class Transformer:
         return dgl_meta_graph, dgl_graph
 
     def graph_from_dgl(self, meta_graph: dgl.DGLGraph, graph: dgl.DGLGraph) -> Graph:
+        node_df = pd.DataFrame(dict(graph.ndata))
+        node_df['component_id'] = meta_graph.ndata['component_id'][node_df['meta_node_id']]
+
+        node_df['name'] = meta_graph.ndata['name'][node_df['meta_node_id']]
         if self.name_segmentation:
             raise NotImplementedError
         else:
-            node_df = pd.DataFrame(
-                {
-                    'component_id': meta_graph.ndata['component_id'][graph.ndata['meta_node_id']],
-                    'name': meta_graph.ndata['name'][graph.ndata['meta_node_id']],
-                    'number': graph.ndata['number'],
-                    'value': graph.ndata['value'],
-                }
-            )
-        node_df['name'] = node_df['name'].map(self.reverse_string_mapper)
-        node_df['value'] = node_df['value'].map(self.reverse_string_mapper)
+            node_df['name'] = node_df['name'].map(self.reverse_string_mapper)
 
-        range_df = pd.DataFrame(self.number_range, index=['lower', 'upper']).T
-        node_df = node_df.merge(range_df, left_on=['name'], right_index=True, how='left')
+        node_df['value'] = node_df['value'].map(self.reverse_string_mapper)
+        node_df = node_df.merge(self.range_df, left_on=['name'], right_index=True, how='left')
         node_df['number'] = (node_df['number'] + node_df['lower']) * (node_df['upper'] - node_df['lower'])
         node_df.loc[node_df['number'].notna(), 'value'] = node_df.loc[node_df['number'].notna(), 'number']
 
