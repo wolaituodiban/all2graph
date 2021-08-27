@@ -92,21 +92,23 @@ class Transformer:
 
     def _gen_dgl_meta_graph(self, meta_node_df: pd.DataFrame, meta_edge_df: pd.DataFrame) -> dgl.DGLGraph:
         # 构造dgl meta graph
-        meta_edge_df = meta_edge_df.merge(
-            meta_node_df, left_on=['component_id', 'pred_name'], right_on=['component_id', 'name'], how='left'
-        )
-        meta_edge_df = meta_edge_df.merge(
-            meta_node_df, left_on=['component_id', 'succ_name'], right_on=['component_id', 'name'], how='left'
-        )
+        meta_node_df = meta_node_df.set_index(['component_id', 'name'])
+        meta_edge_df['pred_meta_node_id'] = meta_node_df.loc[
+            meta_edge_df[['component_id', 'pred_name']].to_records(index=False).tolist(), 'meta_node_id'
+        ].values
+        meta_edge_df['succ_meta_node_id'] = meta_node_df.loc[
+            meta_edge_df[['component_id', 'succ_name']].to_records(index=False).tolist(), 'meta_node_id'
+        ].values
         graph = dgl.graph(
             data=(
-                torch.tensor(meta_edge_df['meta_node_id_x'].values, dtype=torch.long),
-                torch.tensor(meta_edge_df['meta_node_id_y'].values, dtype=torch.long)
+                torch.tensor(meta_edge_df['pred_meta_node_id'].values, dtype=torch.long),
+                torch.tensor(meta_edge_df['pred_meta_node_id'].values, dtype=torch.long)
             ),
             num_nodes=meta_node_df.shape[0],
         )
 
         # 元图点特征
+        meta_node_df = meta_node_df.reset_index()
         graph.ndata['component_id'] = torch.tensor(meta_node_df['component_id'].values, dtype=torch.long)
         if self.name_segmentation:
             raise NotImplementedError
@@ -119,7 +121,6 @@ class Transformer:
 
     def _gen_dgl_graph(self, node_df, edge_df, meta_node_df, meta_edge_df) -> dgl.DGLGraph:
         # 构造dgl graph
-        edge_df = edge_df.merge(meta_edge_df, on=['component_id', 'pred_name', 'succ_name'], how='left')
         graph = dgl.graph(
             data=(
                 torch.tensor(edge_df.pred.values, dtype=torch.long),
@@ -129,16 +130,23 @@ class Transformer:
         )
 
         # 图边特征
+        meta_edge_df = meta_edge_df.set_index(['component_id', 'pred_name', 'succ_name'])
+        edge_df['meta_edge_id'] = meta_edge_df.loc[
+            edge_df[meta_edge_df.index.names].to_records(index=False).tolist(), 'meta_edge_id'
+        ].values
         graph.edata['meta_edge_id'] = torch.tensor(edge_df['meta_edge_id'].values, dtype=torch.long)
 
         # 图点特征
-        node_df = node_df.merge(meta_node_df, on=['component_id', 'name'])
+        meta_node_df = meta_node_df.set_index(['component_id', 'name'])
+        node_df['meta_node_id'] = meta_node_df.loc[
+            node_df[meta_node_df.index.names].to_records(index=False).tolist(), 'meta_node_id'
+        ].values
         graph.ndata['meta_node_id'] = torch.tensor(node_df['meta_node_id'].values, dtype=torch.long)
 
         # 图数值特征
         range_df = pd.DataFrame(self.number_range, index=['lower', 'upper']).T
-        node_df = node_df.merge(range_df, left_on=['name'], right_index=True, how='left')
-        node_df.loc[node_df['lower'].isna(), 'number'] = np.nan
+        mask = node_df['name'].isin(range_df.index)
+        node_df.loc[mask, range_df.columns] = range_df.loc[node_df.loc[mask, 'name']].values
         node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
         node_df['number'] = np.clip(node_df.number, node_df.lower, node_df.upper)
         node_df['number'] = (node_df['number'] - node_df.lower) / (node_df.upper - node_df.lower)
