@@ -53,7 +53,7 @@ class MetaGraph(MetaStruct):
         # # # # # 生成meta_name # # # # #
         meta_name = MetaString.from_data(
             num_samples=num_samples, sample_ids=node_df.component_id, values=node_df.name, progress_bar=progress_bar,
-            suffix='constructing meta name', **kwargs
+            postfix='constructing meta name', **kwargs
         )
 
         # # # # # 生成meta_numbers # # # # #
@@ -63,7 +63,7 @@ class MetaGraph(MetaStruct):
         number_df = node_df[np.isfinite(node_df.number)]
 
         number_groups = number_df.groupby('name', sort=False)
-        number_groups = progress_wrapper(number_groups, disable=not progress_bar, suffix='constructing meta numbers')
+        number_groups = progress_wrapper(number_groups, disable=not progress_bar, postfix='constructing meta numbers')
         meta_numbers = {}
         for name, number_df in number_groups:
             meta_numbers[name] = MetaNumber.from_data(
@@ -108,13 +108,13 @@ class MetaGraph(MetaStruct):
                     meta_numbers[k].append(v)
                     meta_num_w[k].append(w)
 
-        progress = progress_wrapper(meta_numbers.items(), disable=not progress_bar, suffix='reducing meta numbers')
+        progress = progress_wrapper(meta_numbers.items(), disable=not progress_bar, postfix='reducing meta numbers')
         meta_numbers = {
             k: MetaNumber.reduce(v, weights=meta_num_w[k], **kwargs) for k, v in progress
         }
 
         # 分布补0
-        progress = progress_wrapper(meta_numbers, disable=not progress_bar, suffix='reducing meta numbers phase 2')
+        progress = progress_wrapper(meta_numbers, disable=not progress_bar, postfix='reducing meta numbers phase 2')
         for k in progress:
             w_sum = sum(meta_num_w[k])
             if w_sum < 1 - EPSILON:
@@ -129,7 +129,7 @@ class MetaGraph(MetaStruct):
         # # # # # 合并meta_name # # # # #
         meta_name = MetaString.reduce(
             [struct.meta_name for struct in structs], weights=weights, progress_bar=progress_bar,
-            suffix='reducing meta name', **kwargs
+            postfix='reducing meta name', **kwargs
         )
         return super().reduce(
             structs, weights=weights, meta_numbers=meta_numbers, meta_string=meta_string, meta_name=meta_name, **kwargs

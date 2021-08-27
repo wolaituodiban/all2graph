@@ -1,15 +1,28 @@
 import sys
-import toad
-from toad.utils.progress import Progress
+
+try:
+    from tqdm import tqdm
+
+    def progress_wrapper(iterable, total=None, disable=False, postfix=None, **kwargs):
+        return tqdm(iterable, total=total, disable=disable, postfix=postfix, **kwargs)
 
 
-def progress_wrapper(iterable, size=None, disable=False, suffix=None):
-    if disable or isinstance(iterable, Progress):
-        return iterable
-    else:
-        output = Progress(iterable, size=size)
-        if suffix is not None:
-            output.suffix = suffix
-        if toad.version.__version__ <= '0.0.65' and output.size is None:
-            output.size = sys.maxsize
-        return output
+except ImportError:
+    try:
+        import toad
+        from toad.utils.progress import Progress
+
+        def progress_wrapper(iterable, total=None, disable=False, postfix=None):
+            if disable or isinstance(iterable, Progress):
+                return iterable
+            else:
+                output = Progress(iterable, size=total)
+                if postfix is not None:
+                    output.suffix = postfix
+                if toad.version.__version__ <= '0.0.65' and output.size is None:
+                    output.size = sys.maxsize
+                return output
+
+    except ImportError:
+        def progress_wrapper(iterable, **kwargs):
+            return iterable

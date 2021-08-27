@@ -1,9 +1,12 @@
 import json
+import sys
+import time
 from datetime import datetime
 
 import pandas as pd
+from tqdm import tqdm
 
-from all2graph.json import JsonPathTree, Split, TimeProcessor, Delete, Lower
+from all2graph.json import JsonPathTree, Split, Timestamp, Delete, Lower
 from all2graph.utils import progress_wrapper
 
 
@@ -94,9 +97,9 @@ def test():
         sample_time_format='%Y-%m-%d',
         processors=[
             ('$.SMALL_LOAN',),
-            ('$.*', TimeProcessor('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
-            ('$.*', TimeProcessor('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
-            ('$.*', TimeProcessor('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
+            ('$.*', Timestamp('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', Timestamp('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', Timestamp('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
             ('$.*.bsy_typ', Lower()),
             ('$.*.ded_typ', Lower()),
             ('$.*.bsy_typ', Split('_')),
@@ -110,7 +113,6 @@ def test():
     assert list(json_path_tree(data)) == standard_answer, list(json_path_tree(data))
 
 
-
 def speed():
     df = pd.concat([data] * 10000)
     json_path_tree = JsonPathTree(
@@ -119,9 +121,9 @@ def speed():
         sample_time_format='%Y-%m-%d',
         processors=[
             ('$.SMALL_LOAN',),
-            ('$.*', TimeProcessor('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
-            ('$.*', TimeProcessor('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
-            ('$.*', TimeProcessor('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
+            ('$.*', Timestamp('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', Timestamp('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', Timestamp('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
             ('$.*.bsy_typ', Lower()),
             ('$.*.ded_typ', Lower()),
             ('$.*.bsy_typ', Split('_')),
@@ -129,14 +131,27 @@ def speed():
             ('$.*', Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
         ]
     )
-    print(json_path_tree)
-    for _ in progress_wrapper(json_path_tree(df), size=df.shape[0]):
+    start_time = time.time()
+    for _ in progress_wrapper(json_path_tree(df), total=df.shape[0]):
         pass
+    print(time.time() - start_time)
 
-    for _ in progress_wrapper(preprocessor(df), size=df.shape[0]):
+    start_time = time.time()
+    for _ in tqdm(json_path_tree(df), total=df.shape[0], file=sys.stdout):
         pass
+    print(time.time() - start_time)
+
+    start_time = time.time()
+    for _ in progress_wrapper(preprocessor(df), total=df.shape[0]):
+        pass
+    print(time.time() - start_time)
+
+    start_time = time.time()
+    for _ in tqdm(preprocessor(df), total=df.shape[0], file=sys.stdout):
+        pass
+    print(time.time() - start_time)
 
 
 if __name__ == '__main__':
-    test()
+    # test()
     speed()

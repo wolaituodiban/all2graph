@@ -103,7 +103,7 @@ class MetaString(MetaNode):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, num_samples, sample_ids, values, progress_bar=False, suffix='constructing meta string',
+    def from_data(cls, num_samples, sample_ids, values, progress_bar=False, postfix='constructing meta string',
                   **kwargs):
         # # # # # 计算node count
         node_count_series = pd.value_counts(sample_ids)
@@ -117,7 +117,7 @@ class MetaString(MetaNode):
         term_count_ecdf = {}
         term_freq_ecdf = {}
         term_count_groupby = term_count_df.groupby('term', sort=False)
-        term_count_groupby = progress_wrapper(term_count_groupby, disable=not progress_bar, suffix=suffix)
+        term_count_groupby = progress_wrapper(term_count_groupby, disable=not progress_bar, postfix=postfix)
         for value, count_df in term_count_groupby:
             term_count = count_df['term_count'].values
             term_freq = term_count / node_count_series[count_df.id].values
@@ -136,7 +136,7 @@ class MetaString(MetaNode):
         return super().from_data(term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf, **kwargs)
 
     @classmethod
-    def reduce(cls, structs, weights=None, progress_bar=False, suffix='reducing meta string',
+    def reduce(cls, structs, weights=None, progress_bar=False, postfix='reducing meta string',
                processes=0, chunksize=None, **kwargs):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
@@ -170,7 +170,7 @@ class MetaString(MetaNode):
         if processes == 0:
             term_count_ecdf = {}
             term_freq_ecdf = {}
-            for term in progress_wrapper(term_count_ecdfs.keys(), disable=not progress_bar, suffix=suffix):
+            for term in progress_wrapper(term_count_ecdfs.keys(), disable=not progress_bar, postfix=postfix):
                 term_count_ecdf[term] = ECDF.reduce(term_count_ecdfs[term], weights=term_weights[term], **kwargs)
                 term_freq_ecdf[term] = ECDF.reduce(term_freq_ecdfs[term], weights=term_weights[term], **kwargs)
         else:
@@ -178,8 +178,8 @@ class MetaString(MetaNode):
             term_count_ecdfs = [{'structs': term_count_ecdfs[term], 'weights': term_weights[term]} for term in terms]
             term_freq_ecdfs = [{'structs': term_freq_ecdfs[term], 'weights': term_weights[term]} for term in terms]
 
-            term_count_ecdfs = progress_wrapper(term_count_ecdfs, disable=not progress_bar, suffix=suffix)
-            term_freq_ecdfs = progress_wrapper(term_freq_ecdfs, disable=not progress_bar, suffix=suffix + ' phase 2')
+            term_count_ecdfs = progress_wrapper(term_count_ecdfs, disable=not progress_bar, postfix=postfix)
+            term_freq_ecdfs = progress_wrapper(term_freq_ecdfs, disable=not progress_bar, postfix=postfix + ' phase 2')
 
             reduce_wrapper = MpMapFuncWrapper(ECDF.reduce, **kwargs)
 

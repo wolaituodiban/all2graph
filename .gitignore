@@ -10,3 +10,4 @@ notebooks
 *.c
 *.pyd
 .dgl
+/build

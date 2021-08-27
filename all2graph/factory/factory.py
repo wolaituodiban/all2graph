@@ -26,7 +26,7 @@ class Factory:
 
     def produce(
             self, data: Iterable[pd.DataFrame], chunksize=64, read_csv_kwargs=None, meta_graph_kwargs=None,
-            progress_bar=False, suffix='reading csv', processes=0,
+            progress_bar=False, postfix='reading csv', processes=0,
     ) -> MetaGraph:
 
         read_csv_kwargs = read_csv_kwargs or {}
@@ -38,14 +38,14 @@ class Factory:
         weights = []
         if processes == 0:
             results = map(self._produce_meta_graph, data)
-            results = progress_wrapper(results, disable=not progress_bar, suffix=suffix)
+            results = progress_wrapper(results, disable=not progress_bar, postfix=postfix)
             for meta_graph, weight in results:
                 meta_graphs.append(meta_graph)
                 weights.append(weight)
         else:
             with Pool(processes) as pool:
                 results = pool.imap(self._produce_meta_graph, data)
-                results = progress_wrapper(results, disable=not progress_bar, suffix=suffix)
+                results = progress_wrapper(results, disable=not progress_bar, postfix=postfix)
                 for meta_graph, weight in results:
                     meta_graphs.append(meta_graph)
                     weights.append(weight)
