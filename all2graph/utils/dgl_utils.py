@@ -1,6 +1,7 @@
 import platform
-
-if 'linux' in platform.system().lower():
+system = platform.system()
+print('system: {}'.format(system))
+if 'windows' not in platform.system().lower():
     import os
     import json
     print(os.environ)

@@ -59,11 +59,15 @@ class Graph(MetaStruct):
             patch_id: int,
             name: str,
             value: Union[Dict, List, str, int, float, None],
+            self_loop: bool
     ) -> int:
         node_id = len(self.names)
         self.component_ids.append(patch_id)
         self.names.append(name)
         self.values.append(value)
+        if self_loop:
+            self.preds.append(node_id)
+            self.succs.append(node_id)
         return node_id
 
     def node_df(self) -> pd.DataFrame:

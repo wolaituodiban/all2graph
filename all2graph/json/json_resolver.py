@@ -21,19 +21,21 @@ class JsonResolver(Resolver):
             r_list_inner_degree=-1,
             local_index_names: Set[str] = None,
             global_index_names: Set[str] = None,
-            segmentation=False
+            segmentation=False,
+            self_loop=False,
     ):
         """
 
         :param root_name:
         :param flatten_dict:
-        :param dict_pred_degree:
-        :param list_pred_degree:
-        :param list_inner_degree:
-        :param r_list_inner_degree:
+        :param dict_pred_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
+        :param list_pred_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
+        :param list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
+        :param r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
         :param local_index_names:
         :param global_index_names:
         :param segmentation:
+        :param self_loop:
         """
         super().__init__(root_name=root_name)
         self.flatten_dict = flatten_dict
@@ -44,6 +46,7 @@ class JsonResolver(Resolver):
         self.local_index_names = local_index_names
         self.global_index_names = global_index_names
         self.segmentation = segmentation
+        self.self_loop = self_loop
 
     def insert_dict(
             self,
@@ -59,7 +62,7 @@ class JsonResolver(Resolver):
                 if v in local_index_mapper:
                     node_id = local_index_mapper[v]
                 else:
-                    node_id = graph.insert_node(component_id, k, v)
+                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     local_index_mapper[v] = node_id
                 new_preds = preds
                 new_succs = [node_id] * len(preds)
@@ -68,7 +71,7 @@ class JsonResolver(Resolver):
                 if v in global_index_mapper:
                     node_id = global_index_mapper[v]
                 else:
-                    node_id = graph.insert_node(component_id, k, v)
+                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     global_index_mapper[v] = node_id
                 new_preds = preds
                 new_succs = [node_id] * len(preds)
@@ -79,7 +82,7 @@ class JsonResolver(Resolver):
                     local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
                 )
             else:
-                node_id = graph.insert_node(component_id, k, v)
+                node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                 new_preds = preds[-self.dict_pred_degree:]
                 new_succs = [node_id] * len(new_preds)
                 graph.insert_edges(new_preds, new_succs)
@@ -98,8 +101,10 @@ class JsonResolver(Resolver):
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int]
     ):
+        recursive_flag = True
         if isinstance(value, str):
-            temp_value = [v for v in jieba.cut(value.lower())]
+            recursive_flag = False
+            temp_value = [v for v in jieba.cut(value)]
             # 修改之前插入的value
             graph.values[preds[-1]] = []
         else:
@@ -111,7 +116,7 @@ class JsonResolver(Resolver):
 
         node_ids = []
         for v in temp_value:
-            node_id = graph.insert_node(component_id, name, v)
+            node_id = graph.insert_node(component_id, name, v, self_loop=self.self_loop)
 
             new_preds = preds[-self.list_pred_degree:]
             if self.list_inner_degree >= 0:
@@ -124,7 +129,7 @@ class JsonResolver(Resolver):
 
             graph.insert_edges(new_preds, new_succs)
             node_ids.append(node_id)
-            if isinstance(value, list):
+            if recursive_flag:
                 self.insert_component(
                     graph=graph, component_id=component_id, name=name, value=v, preds=preds + [node_id],
                     local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
@@ -152,7 +157,7 @@ class JsonResolver(Resolver):
         :return:
         """
         if preds is None:
-            node_id = graph.insert_node(component_id, name, value)
+            node_id = graph.insert_node(component_id, name, value, self_loop=self.self_loop)
             self.insert_component(
                 graph=graph, component_id=component_id, name=name, value=value, preds=[node_id],
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
