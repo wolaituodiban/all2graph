@@ -1,3 +1,4 @@
+import sys
 from datetime import datetime
 from .json_operator import JsonOperator
 
@@ -17,7 +18,7 @@ class Timestamp(JsonOperator):
             try:
                 time = datetime.strptime(date_string, self.format)
             except ValueError:
-                # todo 写个warning
+                print('{}不满足{}格式'.format(date_string, self.format), file=sys.stderr)
                 return None
             if sample_time is not None:
                 diff = sample_time - time

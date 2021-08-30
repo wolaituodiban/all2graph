@@ -1,4 +1,3 @@
-from functools import lru_cache
 from typing import Dict, Tuple, List
 
 import jieba
