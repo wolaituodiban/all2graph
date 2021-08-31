@@ -1,7 +1,6 @@
 from typing import Dict, List, Union, Tuple
 
 import numpy as np
-import pandas as pd
 
 from ..meta_struct import MetaStruct
 
@@ -9,11 +8,14 @@ from ..meta_struct import MetaStruct
 class Graph(MetaStruct):
     def __init__(self, component_ids=None, names=None, values=None, preds=None, succs=None):
         super().__init__(initialized=True)
-        self.component_ids: List[int] = component_ids or []
-        self.names: List[str] = names or []
-        self.values: List[Union[Dict, List, str, int, float, None]] = values or []
-        self.preds: List[int] = preds or []
-        self.succs: List[int] = succs or []
+        self.component_ids: List[int] = list(component_ids or [])
+        self.names: List[str] = list(names or [])
+        self.values: List[Union[Dict, List, str, int, float, None]] = list(values or [])
+        self.preds: List[int] = list(preds or [])
+        self.succs: List[int] = list(succs or [])
+
+        assert len(self.component_ids) == len(self.names) == len(self.values)
+        assert len(self.preds) == len(self.succs)
 
     def __eq__(self, other):
         return super().__eq__(other)\
@@ -38,12 +40,10 @@ class Graph(MetaStruct):
 
     @property
     def num_nodes(self):
-        assert len(self.names) == len(self.values)
         return len(self.names)
 
     @property
     def num_edges(self):
-        assert len(self.preds) == len(self.succs)
         return len(self.preds)
 
     @property
@@ -70,64 +70,36 @@ class Graph(MetaStruct):
             self.succs.append(node_id)
         return node_id
 
-    def meta_nodes(self) -> Tuple[np.ndarray, np.ndarray]:
-        """
+    def meta_node_info(self) -> Tuple[
+        List[int], Dict[Tuple[int, str], int], List[int], List[str]
+    ]:
+        meta_node_ids: List[int] = []
+        meta_node_id_mapper: Dict[Tuple[int, str], int] = {}
+        meta_node_component_ids: List[int] = []
+        meta_node_names: List[str] = []
+        for i, name in zip(self.component_ids, self.names):
+            if (i, name) not in meta_node_id_mapper:
+                meta_node_id_mapper[(i, name)] = len(meta_node_id_mapper)
+                meta_node_component_ids.append(i)
+                meta_node_names.append(name)
+            meta_node_ids.append(meta_node_id_mapper[(i, name)])
+        return meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_names
 
-        :return: np.ndarray, np.ndarray
-            元点点分片编号(component_id)，元点的名字(name)
-        """
-        df = pd.DataFrame([self.component_ids, self.names]).drop_duplicates()
-        return df[0].values, df[1].values
-
-    def meta_edges(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        edge_component_ids = [self.component_ids[i] for i in self.preds]
-        edge_pred_names = [self.component_ids[i] for i in self.preds]
-        edge_succ_names = [self.component_ids[i] for i in self.succs]
-        df = pd.DataFrame([edge_component_ids, edge_pred_names, edge_succ_names]).drop_duplicates()
-        return df[0].values, df[1].values, df[2].values
-
-    def node_df(self) -> pd.DataFrame:
-        """
-        将节点信息以dataframe的形式返回
-        """
-        return pd.DataFrame(
-            {
-                'component_id': self.component_ids,
-                'name': self.names,
-                'value': self.values,
-            }
-        )
-
-    def edge_df(self, node_df: pd.DataFrame = None) -> pd.DataFrame:
-        """
-        分别返回节点dataframe和边dataframe
-        """
-        if node_df is None:
-            node_df = self.node_df()
-        edge_df = pd.DataFrame(
-            {
-                'component_id': node_df.component_id.iloc[self.preds].values,
-                'pred': self.preds,
-                'pred_name': node_df.name.iloc[self.preds].values,
-                'succ': self.succs,
-                'succ_name': node_df.name.iloc[self.succs].values
-            }
-        )
-        return edge_df
-
-    def meta_node_df(self, node_df: pd.DataFrame = None) -> pd.DataFrame:
-        if node_df is None:
-            node_df = self.node_df()
-        df = node_df[['component_id', 'name']].drop_duplicates()
-        df['meta_node_id'] = np.arange(0, df.shape[0], 1)
-        return df
-
-    def meta_edge_df(self, node_df: pd.DataFrame = None, edge_df: pd.DataFrame = None) -> pd.DataFrame:
-        if edge_df is None:
-            edge_df = self.edge_df(node_df)
-        df = edge_df[['component_id', 'pred_name', 'succ_name']].drop_duplicates()
-        df['meta_edge_id'] = np.arange(0, df.shape[0], 1)
-        return df
+    def meta_edge_info(self, meta_node_id_mapper: Dict[Tuple[int, str], int]) -> Tuple[
+        List[int], List[int], List[int]
+    ]:
+        meta_edge_ids: List[int] = []
+        meta_edge_id_mapper: Dict[Tuple[int, str, str], int] = {}
+        pred_meta_node_ids: List[int] = []
+        succ_meta_node_ids: List[int] = []
+        for pred, succ in zip(self.preds, self.succs):
+            component_id, pred_name, succ_name = self.component_ids[pred], self.names[pred], self.names[succ]
+            if (component_id, pred_name, succ_name) not in meta_edge_id_mapper:
+                meta_edge_id_mapper[(component_id, pred_name, succ_name)] = len(meta_edge_id_mapper)
+                pred_meta_node_ids.append(meta_node_id_mapper[(component_id, pred_name)])
+                succ_meta_node_ids.append(meta_node_id_mapper[(component_id, succ_name)])
+            meta_edge_ids.append(meta_edge_id_mapper[(component_id, pred_name, succ_name)])
+        return meta_edge_ids, pred_meta_node_ids, succ_meta_node_ids
 
     @classmethod
     def from_data(cls, **kwargs):

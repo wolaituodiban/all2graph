@@ -52,7 +52,7 @@ class Transformer(MetaStruct):
     def reverse_string_mapper(self):
         return {v: k for k, v in self.string_mapper.items()}
 
-    def encode(self, item):
+    def encode(self, item) -> int:
         item = str(item).lower()
         if item in self.string_mapper:
             return self.string_mapper[item]
@@ -103,84 +103,59 @@ class Transformer(MetaStruct):
         names = list(meta_graph.meta_name)
         return cls(number_range=number_range, strings=strings, names=names, segment_name=segment_name)
 
-    def _gen_dgl_meta_graph(self, meta_node_df: pd.DataFrame, meta_edge_df: pd.DataFrame) -> dgl.DGLGraph:
-        meta_edge_df = meta_edge_df.merge(
-            meta_node_df, left_on=['component_id', 'pred_name'], right_on=['component_id', 'name'], how='left'
-        )
-        meta_edge_df = meta_edge_df.merge(
-            meta_node_df, left_on=['component_id', 'succ_name'], right_on=['component_id', 'name'], how='left'
-        )
-
+    def _gen_dgl_meta_graph(
+            self, component_ids: List[int], names: List[str], preds: List[int], succs: List[int]
+    ) -> dgl.DGLGraph:
         if isinstance(self.names, dict):
             from ..json import JsonResolver
             resolver = JsonResolver(root_name=META, list_inner_degree=0)
-            aug_graph = Graph(component_ids=meta_node_df['component_id'].tolist(), names=[META]*meta_node_df.shape[0],
-                              values=[META]*meta_node_df.shape[0], preds=meta_edge_df['meta_node_id_x'].tolist(),
-                              succs=meta_edge_df['meta_node_id_y'].tolist())
-            for row in meta_node_df.itertuples():
-                component_id, name, meta_node_id = row[1:]
+            temps = [META] * len(names)
+            aug_graph = Graph(component_ids=component_ids, names=temps, values=temps, preds=preds, succs=succs)
+            for meta_node_id, name in enumerate(names):
                 if name not in self.names:
                     continue
                 resolver.insert_array(graph=aug_graph, component_id=-1, name=META, value=self.names[name],
                                       preds=[meta_node_id], local_index_mapper={}, global_index_mapper={})
-            meta_node_df = aug_graph.node_df()
-            meta_node_df['name'] = meta_node_df['value']
-            meta_edge_df = aug_graph.edge_df(node_df=meta_node_df)
-            meta_edge_df[['meta_node_id_x', 'meta_node_id_y']] = meta_edge_df[['pred', 'succ']]
+            component_ids = aug_graph.component_ids
+            names = aug_graph.values
+            preds = aug_graph.preds
+            succs = aug_graph.succs
 
         # 构造dgl meta graph
         graph = dgl.graph(
-            data=(
-                torch.tensor(meta_edge_df['meta_node_id_x'].values, dtype=torch.long),
-                torch.tensor(meta_edge_df['meta_node_id_y'].values, dtype=torch.long)
-            ),
-            num_nodes=meta_node_df.shape[0],
+            data=(torch.tensor(preds, dtype=torch.long), torch.tensor(succs, dtype=torch.long)),
+            num_nodes=len(component_ids),
         )
 
         # 元图点特征
-        graph.ndata['component_id'] = torch.tensor(meta_node_df['component_id'].values, dtype=torch.long)
-        graph.ndata['name'] = torch.tensor(
-            meta_node_df['name'].apply(self.encode).values,
-            dtype=torch.long
-        )
+        graph.ndata['component_id'] = torch.tensor(component_ids, dtype=torch.long)
+        graph.ndata['name'] = torch.tensor(list(map(self.encode, names)), dtype=torch.long)
         return graph
 
-    def _gen_dgl_graph(self, node_df, edge_df, meta_node_df, meta_edge_df) -> dgl.DGLGraph:
+    def _gen_dgl_graph(self, component_ids: List[int], names: List[str], values: List[str], meta_node_ids: List[int],
+                       preds: List[int], succs: List[int], meta_edge_ids: List[int]) -> dgl.DGLGraph:
         # 构造dgl graph
         graph = dgl.graph(
-            data=(
-                torch.tensor(edge_df.pred.values, dtype=torch.long),
-                torch.tensor(edge_df.succ.values, dtype=torch.long)
-            ),
-            num_nodes=node_df.shape[0]
+            data=(torch.tensor(preds, dtype=torch.long), torch.tensor(succs, dtype=torch.long)),
+            num_nodes=len(component_ids)
         )
 
         # 图边特征
-        graph.edata['meta_edge_id'] = torch.tensor(
-            edge_df.merge(
-                meta_edge_df, on=['component_id', 'pred_name', 'succ_name'], how='left'
-            )['meta_edge_id'].values,
-            dtype=torch.long
-        )
+        graph.edata['meta_edge_id'] = torch.tensor(meta_edge_ids, dtype=torch.long)
 
         # 图点特征
-        graph.ndata['meta_node_id'] = torch.tensor(
-            node_df.merge(meta_node_df, on=['component_id', 'name'], how='left')['meta_node_id'].values,
-            dtype=torch.long
-        )
+        graph.ndata['meta_node_id'] = torch.tensor(meta_node_ids, dtype=torch.long)
 
         # 图数值特征
-        node_df = node_df.merge(self.range_df, left_on='name', right_index=True, how='left')
-        node_df['number'] = pd.to_numeric(node_df.value, errors='coerce')
-        node_df['number'] = np.clip(node_df.number, node_df.lower, node_df.upper)
-        node_df['number'] = (node_df['number'] - node_df.lower) / (node_df.upper - node_df.lower)
-        graph.ndata['number'] = torch.tensor(node_df['number'].values, dtype=torch.float32)
+        number_df = pd.DataFrame({'number': values, 'name': names})
+        number_df = number_df.merge(self.range_df, left_on='name', right_index=True, how='left')
+        number_df['number'] = pd.to_numeric(number_df.number, errors='coerce')
+        number_df['number'] = np.clip(number_df.number, number_df.lower, number_df.upper)
+        number_df['number'] = (number_df['number'] - number_df.lower) / (number_df.upper - number_df.lower)
+        graph.ndata['number'] = torch.tensor(number_df['number'].values, dtype=torch.float32)
 
         # 图字符特征
-        graph.ndata['value'] = torch.tensor(
-            node_df['value'].apply(self.encode).values,
-            dtype=torch.long
-        )
+        graph.ndata['value'] = torch.tensor(list(map(self.encode, values)), dtype=torch.long)
         return graph
 
     def graph_to_dgl(self, graph: Graph) -> Tuple[dgl.DGLGraph, dgl.DGLGraph]:
@@ -189,14 +164,14 @@ class Transformer(MetaStruct):
         :param graph:
         :return:
         """
-        node_df = graph.node_df()
-        edge_df = graph.edge_df(node_df=node_df)
-        meta_node_df = graph.meta_node_df(node_df=node_df)
-        meta_edge_df = graph.meta_edge_df(node_df=node_df, edge_df=edge_df)
+        meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_names = graph.meta_node_info()
+        meta_edge_ids, pred_meta_node_ids, succ_meta_node_ids = graph.meta_edge_info(meta_node_id_mapper)
 
-        dgl_meta_graph = self._gen_dgl_meta_graph(meta_node_df=meta_node_df, meta_edge_df=meta_edge_df)
+        dgl_meta_graph = self._gen_dgl_meta_graph(component_ids=meta_node_component_ids, names=meta_node_names,
+                                                  preds=pred_meta_node_ids, succs=succ_meta_node_ids)
         dgl_graph = self._gen_dgl_graph(
-            node_df=node_df, edge_df=edge_df, meta_node_df=meta_node_df, meta_edge_df=meta_edge_df
+            component_ids=graph.component_ids, names=graph.names, values=graph.values, meta_node_ids=meta_node_ids,
+            meta_edge_ids=meta_edge_ids, preds=graph.preds, succs=graph.succs
         )
         return dgl_meta_graph, dgl_graph
 

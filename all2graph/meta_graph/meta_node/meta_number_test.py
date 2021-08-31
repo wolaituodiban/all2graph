@@ -20,7 +20,13 @@ def speed():
     num_samples = json_graph.num_components
 
     groups = []
-    node_df = json_graph.node_df()
+    node_df = pd.DataFrame(
+        {
+            'component_id': json_graph.component_ids,
+            'name': json_graph.names,
+            'value': json_graph.values,
+        }
+    )
     for name, group in node_df.groupby('name'):
         group['value'] = pd.to_numeric(group['value'], errors='coerce')
         if group['value'].notna().any():

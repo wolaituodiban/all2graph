@@ -47,7 +47,13 @@ class MetaGraph(MetaStruct):
 
     @classmethod
     def from_data(cls, graph: Graph, index_nodes=None, progress_bar=False, **kwargs):
-        node_df = graph.node_df()
+        node_df = pd.DataFrame(
+            {
+                'component_id': graph.component_ids,
+                'name': graph.names,
+                'value': graph.values,
+            }
+        )
         num_samples = node_df.component_id.unique().shape[0]
 
         # # # # # 生成meta_name # # # # #
