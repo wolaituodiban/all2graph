@@ -68,7 +68,7 @@ class Factory:
         if self.index_col is not None and self.index_col in chunk:
             file_name = chunk[self.index_col].iloc[0]
         else:
-            file_name = time.asctime()
+            file_name = time.time()
         file_path = os.path.join(self.save_path, '{}.dgl.graph'.format(file_name))
         labels = {}
         for col in self.label_cols:
