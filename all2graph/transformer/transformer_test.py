@@ -19,7 +19,7 @@ with open(meta_graph_path, 'r') as file:
 
 
 def test_init():
-    Transformer.from_meta_graph(
+    Transformer.from_data(
         meta_graph, min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf', segment_name=False
     )
 
@@ -37,7 +37,7 @@ graph, global_index_mapper, local_index_mappers = resolver.resolve(
 
 
 def test_non_segment():
-    trans = Transformer.from_meta_graph(
+    trans = Transformer.from_data(
         meta_graph, segment_name=False
     )
 
@@ -83,11 +83,11 @@ def test_non_segment():
 
 
 def test_segment():
-    trans1 = Transformer.from_meta_graph(meta_graph, segment_name=False)
+    trans1 = Transformer.from_data(meta_graph, segment_name=False)
     with Timer('non_segment'):
         dgl_meta_graph1, dgl_graph1 = trans1.graph_to_dgl(graph)
 
-    trans2 = Transformer.from_meta_graph(meta_graph, segment_name=True)
+    trans2 = Transformer.from_data(meta_graph, segment_name=True)
     with Timer('segment'):
         dgl_meta_graph2, dgl_graph2 = trans2.graph_to_dgl(graph)
 

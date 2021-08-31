@@ -22,12 +22,13 @@ def test():
     # 工厂封装模式
     start_time1 = time.time()
     factory = Factory(
-        resolver=resolver, preprocessor=preprocessor,
-        min_df=0.01, max_df=0.99, top_k=100, top_method='max_tfidf', segmentation=True
+        resolver=resolver, preprocessor=preprocessor, transformer_config=dict(
+            min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf', segment_name=False,
+        )
     )
     processes = os.cpu_count()
 
-    meta_graph2 = factory.produce(
+    meta_graph2 = factory.produce_meta_graph(
         csv_path, chunksize=int(np.ceil(10000/processes)), progress_bar=True, processes=processes,
     )
     used_time1 = time.time() - start_time1

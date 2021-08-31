@@ -1,6 +1,5 @@
 from typing import Dict, Tuple, List
 
-import jieba
 import numpy as np
 import pandas as pd
 import torch
@@ -9,9 +8,10 @@ from ..graph import Graph
 from ..macro import NULL, PRESERVED_WORDS, META
 from ..meta_graph import MetaGraph
 from ..utils.dgl_utils import dgl
+from ..meta_struct import MetaStruct
 
 
-class Transformer:
+class Transformer(MetaStruct):
     def __init__(self, number_range: Dict[str, Tuple[float, float]], strings: list,
                  names: List[str], segment_name=False):
         """
@@ -20,10 +20,12 @@ class Transformer:
         :param strings: 字符串编码字典
         :param names: 如果是dict，那么dict的元素必须是list，代表name的分词
         """
+        super().__init__(initialized=True)
         self.range_df = pd.DataFrame(number_range, index=['lower', 'upper']).T
 
         all_words = PRESERVED_WORDS + strings
         if segment_name:
+            import jieba
             self.names = {}
             for name in names:
                 name_cut = jieba.lcut(name)
@@ -58,8 +60,8 @@ class Transformer:
             return self.string_mapper[NULL]
 
     @classmethod
-    def from_meta_graph(cls, meta_graph: MetaGraph, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                        lower=0.05, upper=0.95, segment_name=True):
+    def from_data(cls, meta_graph: MetaGraph, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
+                  lower=0.05, upper=0.95, segment_name=False):
         """
 
         :param meta_graph:
@@ -198,6 +200,8 @@ class Transformer:
         )
         return dgl_meta_graph, dgl_graph
 
+    __call__ = graph_to_dgl
+
     def graph_from_dgl(self, meta_graph: dgl.DGLGraph, graph: dgl.DGLGraph) -> Graph:
         reverse_string_mapper = self.reverse_string_mapper
 
@@ -237,3 +241,17 @@ class Transformer:
             preds=preds.numpy().tolist(),
             succs=succs.numpy().tolist()
         )
+
+    def __eq__(self, other):
+        raise NotImplementedError
+
+    def to_json(self) -> dict:
+        raise NotImplementedError
+
+    @classmethod
+    def from_json(cls, obj: dict):
+        raise NotImplementedError
+
+    @classmethod
+    def reduce(cls, structs, weights=None, **kwargs):
+        raise NotImplementedError

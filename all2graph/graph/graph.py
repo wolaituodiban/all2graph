@@ -1,4 +1,4 @@
-from typing import Dict, List, Union
+from typing import Dict, List, Union, Tuple
 
 import numpy as np
 import pandas as pd
@@ -69,6 +69,22 @@ class Graph(MetaStruct):
             self.preds.append(node_id)
             self.succs.append(node_id)
         return node_id
+
+    def meta_nodes(self) -> Tuple[np.ndarray, np.ndarray]:
+        """
+
+        :return: np.ndarray, np.ndarray
+            元点点分片编号(component_id)，元点的名字(name)
+        """
+        df = pd.DataFrame([self.component_ids, self.names]).drop_duplicates()
+        return df[0].values, df[1].values
+
+    def meta_edges(self) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+        edge_component_ids = [self.component_ids[i] for i in self.preds]
+        edge_pred_names = [self.component_ids[i] for i in self.preds]
+        edge_succ_names = [self.component_ids[i] for i in self.succs]
+        df = pd.DataFrame([edge_component_ids, edge_pred_names, edge_succ_names]).drop_duplicates()
+        return df[0].values, df[1].values, df[2].values
 
     def node_df(self) -> pd.DataFrame:
         """

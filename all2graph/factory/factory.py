@@ -1,19 +1,22 @@
 from multiprocessing import Pool
-from typing import Callable, Iterable, Tuple, List
+from typing import Callable, Iterable, Tuple, List, Union
 
 import pandas as pd
 
-from ..utils import dataframe_chunk_iter, progress_wrapper
 from ..meta_graph import MetaGraph
 from ..resolver import Resolver
+from ..transformer import Transformer
+from ..utils import dataframe_chunk_iter, progress_wrapper
 
 
 class Factory:
-    def __init__(self, resolver: Resolver, preprocessor: Callable[[pd.DataFrame], Iterable], **kwargs):
+    def __init__(self, preprocessor: Callable[[pd.DataFrame], Iterable], resolver: Resolver,
+                 meta_graph_config: dict = None, transformer_config: dict = None, ):
         self.preprocessor = preprocessor
         self.resolver = resolver
-        self.transformer_config = kwargs
-        self.meta_graph_config = None
+        self.meta_graph_config = meta_graph_config or {}
+        self.transformer_config = transformer_config or {}
+        self.transformer: Union[Transformer, None] = None
 
     def _produce_meta_graph(self, chunk: pd.DataFrame) -> Tuple[MetaGraph, int]:
         data = self.preprocessor(chunk)
@@ -24,16 +27,13 @@ class Factory:
         meta_graph = MetaGraph.from_data(graph, index_nodes=index_ids, progress_bar=False, **self.meta_graph_config)
         return meta_graph, chunk.shape[0]
 
-    def produce(
-            self, data: Iterable[pd.DataFrame], chunksize=64, read_csv_kwargs=None, meta_graph_kwargs=None,
-            progress_bar=False, postfix='reading csv', processes=0,
+    def produce_meta_graph(
+            self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], chunksize=64, progress_bar=False,
+            postfix='reading csv', processes=0, **kwargs
     ) -> MetaGraph:
-
-        read_csv_kwargs = read_csv_kwargs or {}
         if isinstance(data, (str, pd.DataFrame)):
-            data = dataframe_chunk_iter(data, chunksize=chunksize, **read_csv_kwargs)
+            data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
 
-        self.meta_graph_config = meta_graph_kwargs or {}
         meta_graphs: List[MetaGraph] = []
         weights = []
         if processes == 0:
@@ -53,4 +53,8 @@ class Factory:
         meta_graph = MetaGraph.reduce(
             meta_graphs, weights=weights, progress_bar=progress_bar, processes=processes, **self.meta_graph_config
         )
+        self.transformer = Transformer.from_data(meta_graph, **self.transformer_config)
         return meta_graph
+
+    def save_graphs(self, ):
+        pass
