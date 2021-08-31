@@ -7,3 +7,5 @@ class Resolver:
 
     def resolve(self, data: Iterable, progress_bar: bool = False):
         raise NotImplementedError
+
+    __call__ = resolve

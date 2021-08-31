@@ -178,21 +178,22 @@ class MetaString(MetaNode):
             term_count_ecdfs = [{'structs': term_count_ecdfs[term], 'weights': term_weights[term]} for term in terms]
             term_freq_ecdfs = [{'structs': term_freq_ecdfs[term], 'weights': term_weights[term]} for term in terms]
 
-            term_count_ecdfs = progress_wrapper(term_count_ecdfs, disable=not progress_bar, postfix=postfix)
-            term_freq_ecdfs = progress_wrapper(term_freq_ecdfs, disable=not progress_bar, postfix=postfix + ' phase 2')
-
             reduce_wrapper = MpMapFuncWrapper(ECDF.reduce, **kwargs)
 
             with Pool(processes) as pool:
                 if chunksize is None:
                     chunksize = int(np.ceil(len(terms)/(processes or os.cpu_count())))
                 term_count_ecdf = {
-                    term: ecdf for term, ecdf
-                    in zip(terms, list(pool.imap(reduce_wrapper, term_count_ecdfs, chunksize=chunksize)))
+                    term: ecdf for term, ecdf in progress_wrapper(
+                        zip(terms, pool.imap(reduce_wrapper, term_count_ecdfs, chunksize=chunksize)),
+                        disable=not progress_bar, postfix=postfix, total=len(term_count_ecdfs)
+                    )
                 }
                 term_freq_ecdf = {
-                    term: ecdf for term, ecdf
-                    in zip(terms, list(pool.imap(reduce_wrapper, term_freq_ecdfs, chunksize=chunksize)))
+                    term: ecdf for term, ecdf in progress_wrapper(
+                        zip(terms, pool.imap(reduce_wrapper, term_freq_ecdfs, chunksize=chunksize)),
+                        disable=not progress_bar, postfix=postfix + ' phase 2', total=len(term_freq_ecdfs)
+                    )
                 }
 
         return super().reduce(

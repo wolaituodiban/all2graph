@@ -1,5 +1,6 @@
 import os
 import json
+import shutil
 import time
 
 import numpy as np
@@ -50,6 +51,13 @@ def test():
     assert used_time1 < used_time2
     with open(os.path.join(path, 'test_data', 'meta_graph.json'), 'w') as file:
         json.dump(meta_graph1.to_json(), file)
+
+    # 测试保存文件
+    save_path = os.path.join(path, 'test_data', 'graphs')
+    if os.path.exists(save_path):
+        shutil.rmtree(save_path)
+    os.mkdir(save_path)
+    factory.save_graphs(csv_path, save_path, chunksize=64, progress_bar=True, processes=None)
 
 
 if __name__ == '__main__':

@@ -9,5 +9,5 @@ notebooks
 *.json
 *.c
 *.pyd
-.dgl
+*.dgl*
 /build

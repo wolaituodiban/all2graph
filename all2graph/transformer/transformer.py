@@ -21,7 +21,7 @@ class Transformer(MetaStruct):
         :param names: 如果是dict，那么dict的元素必须是list，代表name的分词
         """
         super().__init__(initialized=True)
-        self.range_df = pd.DataFrame(number_range, index=['lower', 'upper']).T
+        self.number_range = number_range
 
         all_words = PRESERVED_WORDS + strings
         if segment_name:
@@ -51,6 +51,10 @@ class Transformer(MetaStruct):
     @property
     def reverse_string_mapper(self):
         return {v: k for k, v in self.string_mapper.items()}
+
+    @property
+    def range_df(self):
+        return pd.DataFrame(self.number_range, index=['lower', 'upper']).T
 
     def encode(self, item) -> int:
         item = str(item).lower()
@@ -147,12 +151,18 @@ class Transformer(MetaStruct):
         graph.ndata['meta_node_id'] = torch.tensor(meta_node_ids, dtype=torch.long)
 
         # 图数值特征
-        number_df = pd.DataFrame({'number': values, 'name': names})
-        number_df = number_df.merge(self.range_df, left_on='name', right_index=True, how='left')
-        number_df['number'] = pd.to_numeric(number_df.number, errors='coerce')
-        number_df['number'] = np.clip(number_df.number, number_df.lower, number_df.upper)
-        number_df['number'] = (number_df['number'] - number_df.lower) / (number_df.upper - number_df.lower)
-        graph.ndata['number'] = torch.tensor(number_df['number'].values, dtype=torch.float32)
+        number_range = []
+        for name in names:
+            if name in self.number_range:
+                number_range.append(self.number_range[name])
+            else:
+                number_range.append((np.nan, np.nan))
+        number_range = np.array(number_range)
+
+        number = pd.to_numeric(values, errors='coerce')
+        number = np.clip(number, number_range[:, 0], number_range[:, 1])
+        number = (number - number_range[:, 0]) / (number_range[:, 1] - number_range[:, 0])
+        graph.ndata['number'] = torch.tensor(number, dtype=torch.float32)
 
         # 图字符特征
         graph.ndata['value'] = torch.tensor(list(map(self.encode, values)), dtype=torch.long)
