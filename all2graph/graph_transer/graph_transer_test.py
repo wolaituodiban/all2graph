@@ -4,8 +4,8 @@ import pandas as pd
 import torch
 import all2graph as ag
 from all2graph import MetaGraph, EPSILON, NULL
-from all2graph.json import JsonResolver
-from all2graph.transformer import Transformer
+from all2graph.json import JsonParser
+from all2graph.graph_transer import GraphTranser
 from all2graph.utils import Timer
 
 
@@ -19,7 +19,7 @@ with open(meta_graph_path, 'r') as file:
 
 
 def test_init():
-    Transformer.from_data(
+    GraphTranser.from_data(
         meta_graph, min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf', segment_name=False
     )
 
@@ -27,17 +27,17 @@ def test_init():
 csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
 df = pd.read_csv(csv_path, nrows=64)
 
-resolver = JsonResolver(
+parser = JsonParser(
     root_name='json', flatten_dict=True, local_index_names={'name'}, segmentation=True, self_loop=True,
     list_inner_degree=1
 )
-graph, global_index_mapper, local_index_mappers = resolver.resolve(
+graph, global_index_mapper, local_index_mappers = parser.parse(
     list(map(json.loads, df.json)), progress_bar=True
 )
 
 
 def test_non_segment():
-    trans = Transformer.from_data(
+    trans = GraphTranser.from_data(
         meta_graph, segment_name=False
     )
 
@@ -73,11 +73,11 @@ def test_non_segment():
 
 
 def test_segment():
-    trans1 = Transformer.from_data(meta_graph, segment_name=False)
+    trans1 = GraphTranser.from_data(meta_graph, segment_name=False)
     with Timer('non_segment'):
         dgl_meta_graph1, dgl_graph1 = trans1.graph_to_dgl(graph)
 
-    trans2 = Transformer.from_data(meta_graph, segment_name=True)
+    trans2 = GraphTranser.from_data(meta_graph, segment_name=True)
     with Timer('segment'):
         dgl_meta_graph2, dgl_graph2 = trans2.graph_to_dgl(graph)
     print(dgl_meta_graph2)

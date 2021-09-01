@@ -5,8 +5,8 @@ import time
 
 import numpy as np
 import pandas as pd
-from all2graph import Factory, MetaGraph
-from all2graph.json import JsonPathTree, JsonResolver
+from all2graph import MetaGraph, JsonPathTree, JsonParser
+from all2graph.factory import Factory
 
 
 def test():
@@ -16,14 +16,14 @@ def test():
     csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
 
     preprocessor = JsonPathTree('json')
-    resolver = JsonResolver(
+    json_parser = JsonParser(
         root_name=preprocessor.json_col, flatten_dict=True, local_index_names={'name'}, segmentation=True
     )
 
     # 工厂封装模式
     start_time1 = time.time()
     factory = Factory(
-        resolver=resolver, preprocessor=preprocessor, transformer_config=dict(
+        data_parser=json_parser, preprocessor=preprocessor, graph_transer_config=dict(
             min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf', segment_name=False,
         )
     )
@@ -37,7 +37,7 @@ def test():
     # 原生模式
     start_time2 = time.time()
     df = pd.read_csv(csv_path)
-    graph, global_index_mapper, local_index_mappers = resolver.resolve(
+    graph, global_index_mapper, local_index_mappers = json_parser.parse(
         preprocessor(df), progress_bar=True
     )
     index_ids = list(global_index_mapper.values())

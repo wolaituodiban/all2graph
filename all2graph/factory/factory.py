@@ -6,27 +6,27 @@ import pandas as pd
 import torch
 
 from ..meta_graph import MetaGraph
-from ..resolver import Resolver
-from ..transformer import Transformer
+from ..data_parser import DataParser
+from ..graph_transer import GraphTranser
 from ..utils import progress_wrapper
 from ..utils.pd_utils import dataframe_chunk_iter
 from ..utils.dgl_utils import dgl
 
 
 class Factory:
-    def __init__(self, preprocessor: Callable[[pd.DataFrame], Iterable], resolver: Resolver,
-                 meta_graph_config: dict = None, transformer_config: dict = None):
+    def __init__(self, preprocessor: Callable[[pd.DataFrame], Iterable], data_parser: DataParser,
+                 meta_graph_config: dict = None, graph_transer_config: dict = None):
         self.preprocessor = preprocessor
-        self.resolver = resolver
+        self.data_parser = data_parser
         self.meta_graph_config = meta_graph_config or {}
-        self.transformer_config = transformer_config or {}
-        self.transformer: Union[Transformer, None] = None
+        self.graph_transer_config = graph_transer_config or {}
+        self.graph_transer: Union[GraphTranser, None] = None
         self.label_cols = None
         self.save_path = None
 
     def _produce_meta_graph(self, chunk: pd.DataFrame) -> Tuple[MetaGraph, int]:
         data = self.preprocessor(chunk)
-        graph, global_index_mapper, local_index_mappers = self.resolver.resolve(data, progress_bar=False)
+        graph, global_index_mapper, local_index_mappers = self.data_parser.parse(data, progress_bar=False)
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
@@ -57,13 +57,13 @@ class Factory:
         meta_graph = MetaGraph.reduce(
             meta_graphs, weights=weights, progress_bar=progress_bar, processes=processes, **self.meta_graph_config
         )
-        self.transformer = Transformer.from_data(meta_graph, **self.transformer_config)
+        self.graph_transer = GraphTranser.from_data(meta_graph, **self.graph_transer_config)
         return meta_graph
 
     def _save_graph(self, chunk: pd.DataFrame):
         data = self.preprocessor(chunk)
-        graph, *_ = self.resolver.resolve(data, progress_bar=False)
-        dgl_meta_graph, dgl_graph = self.transformer.graph_to_dgl(graph)
+        graph, *_ = self.data_parser.parse(data, progress_bar=False)
+        dgl_meta_graph, dgl_graph = self.graph_transer.graph_to_dgl(graph)
         file_path = os.path.join(self.save_path, '{}.dgl.graph'.format(chunk.index[0]))
         labels = {}
         for col in self.label_cols:

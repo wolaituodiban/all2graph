@@ -7,10 +7,10 @@ except ImportError:
 
 from ..utils import progress_wrapper
 from ..graph import Graph
-from ..resolver import Resolver
+from ..data_parser import DataParser
 
 
-class JsonResolver(Resolver):
+class JsonParser(DataParser):
     def __init__(
             self,
             root_name,
@@ -173,7 +173,7 @@ class JsonResolver(Resolver):
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
             )
 
-    def resolve(
+    def parse(
             self,
             jsons: Iterable[Union[Dict, List]],
             progress_bar: bool = False,

@@ -12,7 +12,7 @@ from ..utils.dgl_utils import dgl
 from ..meta_struct import MetaStruct
 
 
-class Transformer(MetaStruct):
+class GraphTranser(MetaStruct):
     def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list,
                  names: List[str], segment_name=False):
         """
@@ -114,15 +114,15 @@ class Transformer(MetaStruct):
             self, component_ids: List[int], names: List[str], preds: List[int], succs: List[int]
     ) -> dgl.DGLGraph:
         if isinstance(self.names, dict):
-            from ..json import JsonResolver
-            resolver = JsonResolver(root_name=META, list_inner_degree=0)
+            from ..json import JsonParser
+            json_parser = JsonParser(root_name=META, list_inner_degree=0)
             temps = [META] * len(names)
             aug_graph = Graph(component_ids=component_ids, names=temps, values=temps, preds=preds, succs=succs)
             for meta_node_id, name in enumerate(names):
                 if name not in self.names:
                     continue
-                resolver.insert_array(graph=aug_graph, component_id=-1, name=META, value=self.names[name],
-                                      preds=[meta_node_id], local_index_mapper={}, global_index_mapper={})
+                json_parser.insert_array(graph=aug_graph, component_id=-1, name=META, value=self.names[name],
+                                         preds=[meta_node_id], local_index_mapper={}, global_index_mapper={})
             component_ids = aug_graph.component_ids
             names = aug_graph.values
             preds = aug_graph.preds

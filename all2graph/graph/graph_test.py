@@ -1,7 +1,7 @@
 import os
 import json
 import pandas as pd
-from all2graph.json import JsonResolver
+from all2graph.json import JsonParser
 
 path = os.path.dirname(__file__)
 path = os.path.dirname(path)
@@ -9,11 +9,11 @@ path = os.path.dirname(path)
 csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
 node_df = pd.read_csv(csv_path, nrows=64)
 
-resolver = JsonResolver(
+parser = JsonParser(
     root_name='json', flatten_dict=True, local_index_names={'name'}, segmentation=True, self_loop=True,
     list_inner_degree=1
 )
-graph, global_index_mapper, local_index_mappers = resolver.resolve(
+graph, global_index_mapper, local_index_mappers = parser.parse(
     list(map(json.loads, node_df.json)), progress_bar=True
 )
 

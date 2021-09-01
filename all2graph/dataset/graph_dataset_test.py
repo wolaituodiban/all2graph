@@ -3,7 +3,7 @@ import numpy as np
 import time
 from torch.utils.data import DataLoader
 import all2graph as ag
-from all2graph.data import GraphDataset
+from all2graph.dataset import GraphDataset
 from all2graph.utils import progress_wrapper
 
 import platform

@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from all2graph import MetaString
-from all2graph.json import JsonResolver
+from all2graph.json import JsonParser
 from toad.utils.progress import Progress
 import json_tools
 
@@ -91,7 +91,7 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph, *_ = JsonResolver('graph', flatten_dict=True).resolve(list(map(json.loads, df.json)))
+    json_graph, *_ = JsonParser('graph', flatten_dict=True).parse(list(map(json.loads, df.json)))
 
     num_samples = json_graph.num_components
 

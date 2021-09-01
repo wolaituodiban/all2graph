@@ -21,7 +21,7 @@ setup(
     install_requires=[
         # 'toad',
         # 'dgl',
-        'networkx',
+        # 'networkx',
         'pandas',
         'numpy',
         'scipy',
