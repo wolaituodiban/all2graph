@@ -43,6 +43,10 @@ def test_non_segment():
 
     with Timer('graph_to_dgl'):
         dgl_meta_graph, dgl_graph = trans.graph_to_dgl(graph)
+    notnan = torch.bitwise_not(torch.isnan(dgl_graph.ndata[ag.NUMBERS]))
+    assert notnan.any()
+    assert (dgl_graph.ndata[ag.NUMBERS][notnan] < 1 + EPSILON).all()
+    assert (dgl_graph.ndata[ag.NUMBERS][notnan] > 0 - EPSILON).all()
     print(dgl_meta_graph)
     print(dgl_graph)
 
@@ -76,6 +80,9 @@ def test_segment():
     print(dgl_meta_graph2)
     print(dgl_graph2)
 
+    notnan = torch.bitwise_not(torch.isnan(dgl_graph1.ndata[ag.NUMBERS]))
+    assert notnan.any()
+    assert torch.max(torch.abs(dgl_graph1.ndata[ag.NUMBERS][notnan] - dgl_graph2.ndata[ag.NUMBERS][notnan])) <= EPSILON
     assert (dgl_graph1.ndata[ag.META_NODE_IDS] == dgl_graph2.ndata[ag.META_NODE_IDS]).all()
     assert (dgl_graph1.ndata[ag.VALUES] == dgl_graph2.ndata[ag.VALUES]).all()
     assert torch.max(torch.abs(dgl_graph1.ndata[ag.VALUES] - dgl_graph2.ndata[ag.VALUES])) <= EPSILON

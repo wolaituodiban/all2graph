@@ -6,23 +6,23 @@ import torch
 
 from ..graph import Graph
 from ..macro import NULL, PRESERVED_WORDS, META, COMPONENT_IDS, META_NODE_IDS, META_EDGE_IDS, NAMES, VALUES, NUMBERS
-from ..meta_graph import MetaGraph
+from ..meta_graph import MetaGraph, MetaNumber
+
 from ..utils.dgl_utils import dgl
 from ..meta_struct import MetaStruct
 
 
 class Transformer(MetaStruct):
-    def __init__(self, number_range: Dict[str, Tuple[float, float]], strings: list,
+    def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list,
                  names: List[str], segment_name=False):
         """
         Graph与dgl.DiGraph的转换器
-        :param number_range: 数值分位数上界和下界
+        :param meta_numbers: 数值分布
         :param strings: 字符串编码字典
         :param names: 如果是dict，那么dict的元素必须是list，代表name的分词
         """
         super().__init__(initialized=True)
-        # todo 修改为按照累计分布概率归一化
-        self.number_range = number_range
+        self.meta_numbers = meta_numbers
 
         all_words = PRESERVED_WORDS + strings
         if segment_name:
@@ -53,9 +53,11 @@ class Transformer(MetaStruct):
     def reverse_string_mapper(self):
         return {v: k for k, v in self.string_mapper.items()}
 
-    @property
-    def range_df(self):
-        return pd.DataFrame(self.number_range, index=['lower', 'upper']).T
+    def get_quantiles(self, name, p, **kwargs):
+        return self.meta_numbers[name].value_ecdf.get_quantiles(p, **kwargs)
+
+    def get_probs(self, name, q, **kwargs):
+        return self.meta_numbers[name].value_ecdf.get_probs(q, **kwargs)
 
     def encode(self, item) -> int:
         item = str(item).lower()
@@ -66,7 +68,7 @@ class Transformer(MetaStruct):
 
     @classmethod
     def from_data(cls, meta_graph: MetaGraph, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  lower=0.05, upper=0.95, segment_name=False):
+                  segment_name=False):
         """
 
         :param meta_graph:
@@ -74,8 +76,6 @@ class Transformer(MetaStruct):
         :param max_df: 字符串最大文档频率
         :param top_k: 选择前k个字符串
         :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
-        :param lower: 数值分位点下界
-        :param upper: 数值分位点上界
         :param segment_name: 是否对name分词
         """
         strings = [k for k, df in meta_graph.meta_string.doc_freq().items() if min_df <= df <= max_df]
@@ -99,14 +99,10 @@ class Transformer(MetaStruct):
             strings = sorted(strings, key=lambda x: x[1])
             strings = [k[0] for k in strings[:top_k]]
 
-        number_range = {
-            key: (float(ecdf.value_ecdf.get_quantiles(lower)), float(ecdf.value_ecdf.get_quantiles(upper)))
-            for key, ecdf in meta_graph.meta_numbers.items()
-            if ecdf.value_ecdf.mean_var[1] > 0
-        }
+        meta_numbers = {key: ecdf for key, ecdf in meta_graph.meta_numbers.items() if ecdf.value_ecdf.mean_var[1] > 0}
 
         names = list(meta_graph.meta_name)
-        return cls(number_range=number_range, strings=strings, names=names, segment_name=segment_name)
+        return cls(meta_numbers=meta_numbers, strings=strings, names=names, segment_name=segment_name)
 
     def _gen_dgl_meta_graph(
             self, component_ids: List[int], names: List[str], preds: List[int], succs: List[int]
@@ -155,18 +151,13 @@ class Transformer(MetaStruct):
         graph.ndata[META_NODE_IDS] = torch.tensor(meta_node_ids, dtype=torch.long)
 
         # 图数值特征
-        number_range = []
-        for name in names:
-            if name in self.number_range:
-                number_range.append(self.number_range[name])
-            else:
-                number_range.append((np.nan, np.nan))
-        number_range = np.array(number_range)
-
-        number = pd.to_numeric(values, errors='coerce')
-        number = np.clip(number, number_range[:, 0], number_range[:, 1])
-        number = (number - number_range[:, 0]) / (number_range[:, 1] - number_range[:, 0])
-        graph.ndata[NUMBERS] = torch.tensor(number, dtype=torch.float32)
+        numbers = pd.to_numeric(values, errors='coerce')
+        unique_names, inverse_indices = np.unique(names, return_inverse=True)
+        masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
+        for i in range(unique_names.shape[0]):
+            if unique_names[i] in self.meta_numbers:
+                numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]])
+        graph.ndata[NUMBERS] = torch.tensor(numbers, dtype=torch.float32)
 
         # 图字符特征
         graph.ndata[VALUES] = torch.tensor(list(map(self.encode, values)), dtype=torch.long)
@@ -218,8 +209,13 @@ class Transformer(MetaStruct):
             node_df[NAMES] = node_df[NAMES].map(self.reverse_string_mapper)
 
         node_df[VALUES] = node_df[VALUES].map(self.reverse_string_mapper)
-        node_df = node_df.merge(self.range_df, left_on=[NAMES], right_index=True, how='left')
-        node_df[NUMBERS] = (node_df[NUMBERS] + node_df['lower']) * (node_df['upper'] - node_df['lower'])
+
+        unique_names, inverse_indices = np.unique(node_df[NAMES], return_inverse=True)
+        masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
+        for i in range(unique_names.shape[0]):
+            if unique_names[i] in self.meta_numbers:
+                node_df.loc[masks[:, i], NUMBERS] = self.get_quantiles(unique_names[i], node_df.loc[masks[:, i], NUMBERS])
+
         node_df.loc[node_df[NUMBERS].notna(), VALUES] = node_df.loc[node_df[NUMBERS].notna(), NUMBERS]
 
         preds, succs = graph.edges()
