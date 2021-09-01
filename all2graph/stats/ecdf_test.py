@@ -3,7 +3,6 @@ import json
 import os
 import numpy as np
 import pandas as pd
-from all2graph.macro import EPSILON
 from all2graph.stats import ECDF
 
 

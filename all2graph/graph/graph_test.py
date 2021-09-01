@@ -2,7 +2,6 @@ import os
 import json
 import pandas as pd
 from all2graph.json import JsonResolver
-from all2graph.utils import Timer
 
 path = os.path.dirname(__file__)
 path = os.path.dirname(path)

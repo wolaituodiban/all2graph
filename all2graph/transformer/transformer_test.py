@@ -54,10 +54,13 @@ def test_non_segment():
     reverse_string_mapper = trans.reverse_string_mapper
     meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_names = graph.meta_node_info()
     assert meta_node_component_ids == dgl_meta_graph.ndata[ag.COMPONENT_IDS].numpy().tolist()
-    assert [x.lower() for x in meta_node_names] == [reverse_string_mapper[int(x)] for x in dgl_meta_graph.ndata[ag.NAMES]]
+    assert [x.lower() for x in meta_node_names] == [
+        reverse_string_mapper[int(x)] for x in dgl_meta_graph.ndata[ag.NAMES]
+    ]
 
     # 验证_gen_dgl_graph的正确性
-    rc_graph = trans.graph_from_dgl(dgl_meta_graph, dgl_graph)
+    with Timer('graph_from_dgl'):
+        rc_graph = trans.graph_from_dgl(dgl_meta_graph, dgl_graph)
     assert graph.component_ids == rc_graph.component_ids
     assert graph.preds == rc_graph.preds
     assert graph.succs == rc_graph.succs
@@ -95,7 +98,8 @@ def test_segment():
             == dgl_meta_graph2.ndata[ag.COMPONENT_IDS][:dgl_meta_graph1.num_nodes()]).all()
     assert (dgl_meta_graph2.ndata[ag.NAMES] != trans2.encode(NULL)).all()
 
-    rc_graph = trans2.graph_from_dgl(meta_graph=dgl_meta_graph2, graph=dgl_graph2)
+    with Timer('graph_from_dgl'):
+        rc_graph = trans2.graph_from_dgl(meta_graph=dgl_meta_graph2, graph=dgl_graph2)
     assert rc_graph.names == [x.lower() for x in graph.names]
 
 
