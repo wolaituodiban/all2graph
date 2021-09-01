@@ -2,11 +2,11 @@ import os
 import json
 import pandas as pd
 import torch
+import all2graph as ag
 from all2graph import MetaGraph, EPSILON, NULL
 from all2graph.json import JsonResolver
 from all2graph.transformer import Transformer
 from all2graph.utils import Timer
-import json_tools
 
 
 path = os.path.dirname(__file__)
@@ -49,8 +49,8 @@ def test_non_segment():
     # 验证_gen_dgl_meta_graph的正确性
     reverse_string_mapper = trans.reverse_string_mapper
     meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_names = graph.meta_node_info()
-    assert meta_node_component_ids == dgl_meta_graph.ndata['component_id'].numpy().tolist()
-    assert [x.lower() for x in meta_node_names] == [reverse_string_mapper[int(x)] for x in dgl_meta_graph.ndata['name']]
+    assert meta_node_component_ids == dgl_meta_graph.ndata[ag.COMPONENT_IDS].numpy().tolist()
+    assert [x.lower() for x in meta_node_names] == [reverse_string_mapper[int(x)] for x in dgl_meta_graph.ndata[ag.NAMES]]
 
     # 验证_gen_dgl_graph的正确性
     rc_graph = trans.graph_from_dgl(dgl_meta_graph, dgl_graph)
@@ -76,17 +76,17 @@ def test_segment():
     print(dgl_meta_graph2)
     print(dgl_graph2)
 
-    assert (dgl_graph1.ndata['meta_node_id'] == dgl_graph2.ndata['meta_node_id']).all()
-    assert (dgl_graph1.ndata['value'] == dgl_graph2.ndata['value']).all()
-    assert torch.max(torch.abs(dgl_graph1.ndata['value'] - dgl_graph2.ndata['value'])) <= EPSILON
+    assert (dgl_graph1.ndata[ag.META_NODE_IDS] == dgl_graph2.ndata[ag.META_NODE_IDS]).all()
+    assert (dgl_graph1.ndata[ag.VALUES] == dgl_graph2.ndata[ag.VALUES]).all()
+    assert torch.max(torch.abs(dgl_graph1.ndata[ag.VALUES] - dgl_graph2.ndata[ag.VALUES])) <= EPSILON
     assert dgl_graph1.edges[0] == dgl_graph2.edges[0]
     assert dgl_graph1.edges[1] == dgl_graph2.edges[1]
 
-    assert (dgl_meta_graph1.ndata['component_id']
-            == dgl_meta_graph2.ndata['component_id'][:dgl_meta_graph1.num_nodes()]).all()
-    assert (dgl_meta_graph1.ndata['component_id']
-            == dgl_meta_graph2.ndata['component_id'][:dgl_meta_graph1.num_nodes()]).all()
-    assert (dgl_meta_graph2.ndata['name'] != trans2.encode(NULL)).all()
+    assert (dgl_meta_graph1.ndata[ag.COMPONENT_IDS]
+            == dgl_meta_graph2.ndata[ag.COMPONENT_IDS][:dgl_meta_graph1.num_nodes()]).all()
+    assert (dgl_meta_graph1.ndata[ag.COMPONENT_IDS]
+            == dgl_meta_graph2.ndata[ag.COMPONENT_IDS][:dgl_meta_graph1.num_nodes()]).all()
+    assert (dgl_meta_graph2.ndata[ag.NAMES] != trans2.encode(NULL)).all()
 
     rc_graph = trans2.graph_from_dgl(meta_graph=dgl_meta_graph2, graph=dgl_graph2)
     assert rc_graph.names == [x.lower() for x in graph.names]

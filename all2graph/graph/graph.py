@@ -2,6 +2,7 @@ from typing import Dict, List, Union, Tuple
 
 import numpy as np
 
+from ..macro import COMPONENT_IDS, NAMES, VALUES
 from ..meta_struct import MetaStruct
 
 
@@ -27,9 +28,9 @@ class Graph(MetaStruct):
 
     def to_json(self) -> dict:
         output = super().to_json()
-        output['component_ids'] = self.component_ids
-        output['names'] = self.names
-        output['values'] = self.values
+        output[COMPONENT_IDS] = self.component_ids
+        output[NAMES] = self.names
+        output[VALUES] = self.values
         output['preds'] = self.preds
         output['succs'] = self.succs
         return output

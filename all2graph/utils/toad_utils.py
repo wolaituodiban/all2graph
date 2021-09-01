@@ -3,8 +3,8 @@ import sys
 try:
     from tqdm import tqdm
 
-    def progress_wrapper(iterable, total=None, disable=False, postfix=None, **kwargs):
-        return tqdm(iterable, total=total, disable=disable, postfix=postfix, **kwargs)
+    def progress_wrapper(iterable, total=None, disable=False, postfix=None, file=sys.stdout, **kwargs):
+        return tqdm(iterable, total=total, disable=disable, postfix=postfix, file=file, **kwargs)
 
 
 except ImportError:
@@ -12,7 +12,7 @@ except ImportError:
         import toad
         from toad.utils.progress import Progress
 
-        def progress_wrapper(iterable, total=None, disable=False, postfix=None):
+        def progress_wrapper(iterable, total=None, disable=False, postfix=None, **kwargs):
             if disable or isinstance(iterable, Progress):
                 return iterable
             else:

@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 
 from ..graph import Graph
-from ..macro import NULL, PRESERVED_WORDS, META
+from ..macro import NULL, PRESERVED_WORDS, META, COMPONENT_IDS, META_NODE_IDS, META_EDGE_IDS, NAMES, VALUES, NUMBERS
 from ..meta_graph import MetaGraph
 from ..utils.dgl_utils import dgl
 from ..meta_struct import MetaStruct
@@ -21,6 +21,7 @@ class Transformer(MetaStruct):
         :param names: 如果是dict，那么dict的元素必须是list，代表name的分词
         """
         super().__init__(initialized=True)
+        # todo 修改为按照累计分布概率归一化
         self.number_range = number_range
 
         all_words = PRESERVED_WORDS + strings
@@ -130,10 +131,12 @@ class Transformer(MetaStruct):
             data=(torch.tensor(preds, dtype=torch.long), torch.tensor(succs, dtype=torch.long)),
             num_nodes=len(component_ids),
         )
+        graph.edata[META_EDGE_IDS] = torch.arange(0, graph.num_edges(), 1, dtype=torch.long)
 
         # 元图点特征
-        graph.ndata['component_id'] = torch.tensor(component_ids, dtype=torch.long)
-        graph.ndata['name'] = torch.tensor(list(map(self.encode, names)), dtype=torch.long)
+        graph.ndata[COMPONENT_IDS] = torch.tensor(component_ids, dtype=torch.long)
+        graph.ndata[META_NODE_IDS] = torch.arange(0, len(component_ids), 1, dtype=torch.long)
+        graph.ndata[NAMES] = torch.tensor(list(map(self.encode, names)), dtype=torch.long)
         return graph
 
     def _gen_dgl_graph(self, component_ids: List[int], names: List[str], values: List[str], meta_node_ids: List[int],
@@ -145,10 +148,11 @@ class Transformer(MetaStruct):
         )
 
         # 图边特征
-        graph.edata['meta_edge_id'] = torch.tensor(meta_edge_ids, dtype=torch.long)
+        graph.edata[META_EDGE_IDS] = torch.tensor(meta_edge_ids, dtype=torch.long)
 
         # 图点特征
-        graph.ndata['meta_node_id'] = torch.tensor(meta_node_ids, dtype=torch.long)
+        graph.ndata[COMPONENT_IDS] = torch.tensor(component_ids, dtype=torch.long)
+        graph.ndata[META_NODE_IDS] = torch.tensor(meta_node_ids, dtype=torch.long)
 
         # 图数值特征
         number_range = []
@@ -162,10 +166,10 @@ class Transformer(MetaStruct):
         number = pd.to_numeric(values, errors='coerce')
         number = np.clip(number, number_range[:, 0], number_range[:, 1])
         number = (number - number_range[:, 0]) / (number_range[:, 1] - number_range[:, 0])
-        graph.ndata['number'] = torch.tensor(number, dtype=torch.float32)
+        graph.ndata[NUMBERS] = torch.tensor(number, dtype=torch.float32)
 
         # 图字符特征
-        graph.ndata['value'] = torch.tensor(list(map(self.encode, values)), dtype=torch.long)
+        graph.ndata[VALUES] = torch.tensor(list(map(self.encode, values)), dtype=torch.long)
         return graph
 
     def graph_to_dgl(self, graph: Graph) -> Tuple[dgl.DGLGraph, dgl.DGLGraph]:
@@ -191,38 +195,38 @@ class Transformer(MetaStruct):
         reverse_string_mapper = self.reverse_string_mapper
 
         node_df = pd.DataFrame({k: v.numpy() for k, v in graph.ndata.items()})
-        node_df['component_id'] = meta_graph.ndata['component_id'][node_df['meta_node_id']].numpy()
+        node_df[COMPONENT_IDS] = meta_graph.ndata[COMPONENT_IDS][node_df[META_NODE_IDS]].numpy()
         if isinstance(self.names, dict):
-            nx_meta_graph = dgl.to_networkx(meta_graph, node_attrs=['name', 'component_id'])
+            nx_meta_graph = dgl.to_networkx(meta_graph, node_attrs=[NAMES, COMPONENT_IDS])
             name_mapper: Dict[int, str] = {}
             for node, node_attr in nx_meta_graph.nodes.items():
-                if node_attr['component_id'] < 0:
+                if node_attr[COMPONENT_IDS] < 0:
                     continue
-                name = reverse_string_mapper[int(node_attr['name'])]
+                name = reverse_string_mapper[int(node_attr[NAMES])]
                 if name != META:
                     name_mapper[node] = name
                 else:
-                    succs = [succ for succ in nx_meta_graph.succ[node] if nx_meta_graph.nodes[succ]['component_id'] < 0]
+                    succs = [succ for succ in nx_meta_graph.succ[node] if nx_meta_graph.nodes[succ][COMPONENT_IDS] < 0]
                     succs_degree = nx_meta_graph.degree(succs)
                     succs_degree = sorted(succs_degree, key=lambda x: x[1], reverse=True)
                     name_mapper[node] = ''.join(
-                        [reverse_string_mapper[int(nx_meta_graph.nodes[succ]['name'])] for succ, _ in succs_degree]
+                        [reverse_string_mapper[int(nx_meta_graph.nodes[succ][NAMES])] for succ, _ in succs_degree]
                     )
-            node_df['name'] = node_df['meta_node_id'].map(name_mapper)
+            node_df[NAMES] = node_df[META_NODE_IDS].map(name_mapper)
         else:
-            node_df['name'] = meta_graph.ndata['name'][node_df['meta_node_id']].numpy()
-            node_df['name'] = node_df['name'].map(self.reverse_string_mapper)
+            node_df[NAMES] = meta_graph.ndata[NAMES][node_df[META_NODE_IDS]].numpy()
+            node_df[NAMES] = node_df[NAMES].map(self.reverse_string_mapper)
 
-        node_df['value'] = node_df['value'].map(self.reverse_string_mapper)
-        node_df = node_df.merge(self.range_df, left_on=['name'], right_index=True, how='left')
-        node_df['number'] = (node_df['number'] + node_df['lower']) * (node_df['upper'] - node_df['lower'])
-        node_df.loc[node_df['number'].notna(), 'value'] = node_df.loc[node_df['number'].notna(), 'number']
+        node_df[VALUES] = node_df[VALUES].map(self.reverse_string_mapper)
+        node_df = node_df.merge(self.range_df, left_on=[NAMES], right_index=True, how='left')
+        node_df[NUMBERS] = (node_df[NUMBERS] + node_df['lower']) * (node_df['upper'] - node_df['lower'])
+        node_df.loc[node_df[NUMBERS].notna(), VALUES] = node_df.loc[node_df[NUMBERS].notna(), NUMBERS]
 
         preds, succs = graph.edges()
         return Graph(
-            component_ids=node_df['component_id'].tolist(),
-            names=node_df['name'].tolist(),
-            values=node_df['value'].tolist(),
+            component_ids=node_df[COMPONENT_IDS].tolist(),
+            names=node_df[NAMES].tolist(),
+            values=node_df[VALUES].tolist(),
             preds=preds.numpy().tolist(),
             succs=succs.numpy().tolist()
         )

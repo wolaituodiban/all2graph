@@ -9,7 +9,8 @@ import torch
 from ..meta_graph import MetaGraph
 from ..resolver import Resolver
 from ..transformer import Transformer
-from ..utils import dataframe_chunk_iter, progress_wrapper
+from ..utils import progress_wrapper
+from ..utils.pd_utils import dataframe_chunk_iter
 from ..utils.dgl_utils import dgl
 
 
@@ -22,7 +23,6 @@ class Factory:
         self.transformer_config = transformer_config or {}
         self.transformer: Union[Transformer, None] = None
         self.label_cols = None
-        self.index_col = None
         self.save_path = None
 
     def _produce_meta_graph(self, chunk: pd.DataFrame) -> Tuple[MetaGraph, int]:
@@ -65,11 +65,7 @@ class Factory:
         data = self.preprocessor(chunk)
         graph, *_ = self.resolver.resolve(data, progress_bar=False)
         dgl_meta_graph, dgl_graph = self.transformer.graph_to_dgl(graph)
-        if self.index_col is not None and self.index_col in chunk:
-            file_name = chunk[self.index_col].iloc[0]
-        else:
-            file_name = time.time()
-        file_path = os.path.join(self.save_path, '{}.dgl.graph'.format(file_name))
+        file_path = os.path.join(self.save_path, '{}.dgl.graph'.format(chunk.index[0]))
         labels = {}
         for col in self.label_cols:
             if col in chunk:
@@ -77,10 +73,9 @@ class Factory:
         dgl.save_graphs(file_path, [dgl_meta_graph, dgl_graph], labels=labels)
         return file_path
 
-    def save_graphs(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], save_path, label_cols=None, index_col=None,
+    def save_graphs(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], save_path, label_cols=None,
                     chunksize=64, progress_bar=False, postfix='saving graphs', processes=0, **kwargs):
         self.label_cols = label_cols or []
-        self.index_col = index_col
         self.save_path = save_path
         if isinstance(data, (str, pd.DataFrame)):
             data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
