@@ -49,7 +49,7 @@ def test():
     print(used_time1, used_time2)
     assert meta_graph1 == meta_graph2
     assert used_time1 < used_time2
-    with open(os.path.join(path, 'test_data', 'meta_graph.json'), 'w') as file:
+    with open(os.path.join(path, 'test_data', 'meta.json'), 'w') as file:
         json.dump(meta_graph1.to_json(), file)
 
     # 测试保存文件

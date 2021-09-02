@@ -4,9 +4,8 @@ import pandas as pd
 import torch
 import all2graph as ag
 from all2graph import MetaGraph, EPSILON, NULL
-from all2graph.json import JsonParser
-from all2graph.graph_transer import GraphTranser
-from all2graph.utils import Timer
+from all2graph import JsonParser, Timer
+from all2graph.graph.graph_transer import GraphTranser
 
 
 path = os.path.dirname(__file__)

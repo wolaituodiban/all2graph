@@ -6,7 +6,7 @@ import torch
 
 from ..graph import Graph
 from ..macro import NULL, PRESERVED_WORDS, META, COMPONENT_IDS, META_NODE_IDS, META_EDGE_IDS, NAMES, VALUES, NUMBERS
-from ..meta_graph import MetaGraph, MetaNumber
+from ..meta import MetaGraph, MetaNumber
 
 from ..utils.dgl_utils import dgl
 from ..meta_struct import MetaStruct

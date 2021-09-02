@@ -3,9 +3,9 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from ..macro import COMPONENT_IDS, META_NODE_IDS, META_EDGE_IDS
-from ..utils.dgl_utils import dgl
-from ..utils import progress_wrapper
+from all2graph.macro import COMPONENT_IDS, META_NODE_IDS, META_EDGE_IDS
+from all2graph.utils.dgl_utils import dgl
+from all2graph.utils import progress_wrapper
 
 
 class GraphDataset(Dataset):

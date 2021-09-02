@@ -7,7 +7,7 @@ except ImportError:
 
 from ..utils import progress_wrapper
 from ..graph import Graph
-from ..data_parser import DataParser
+from ..data import DataParser
 
 
 class JsonParser(DataParser):

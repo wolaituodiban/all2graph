@@ -5,9 +5,9 @@ from typing import Callable, Iterable, Tuple, List, Union
 import pandas as pd
 import torch
 
-from ..meta_graph import MetaGraph
-from ..data_parser import DataParser
-from ..graph_transer import GraphTranser
+from ..meta import MetaGraph
+from ..data import DataParser
+from ..graph.graph_transer import GraphTranser
 from ..utils import progress_wrapper
 from ..utils.pd_utils import dataframe_chunk_iter
 from ..utils.dgl_utils import dgl

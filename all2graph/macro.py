@@ -13,3 +13,5 @@ META_EDGE_IDS = 'meta_edge_ids'
 NAMES = 'names'
 NUMBERS = 'numbers'
 VALUES = 'values'
+
+del json
