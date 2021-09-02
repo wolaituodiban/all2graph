@@ -26,20 +26,27 @@ class GraphDataset(Dataset):
             if partitions == 1:
                 self.paths.append((path, None))
             else:
-                remain_number = num_components % partitions
-                if remain_number != 0:
-                    padding = [np.nan] * (partitions - remain_number)
-                    unique_component_ids = np.concatenate([unique_component_ids, padding])
-                    num_components = unique_component_ids.shape[0]
-                if shuffle:
-                    rank = np.argsort(np.random.random(num_components))
-                    unique_component_ids = unique_component_ids[rank]
-                for ids in np.split(unique_component_ids, partitions):
-                    ids = ids[np.bitwise_not(np.isnan(ids))]
-                    ids = np.sort(ids)
-                    ids = torch.tensor(ids, dtype=torch.long)
-                    if ids.shape[0] > 0:
-                        self.paths.append((path, ids))
+                for ids in self.split_index(unique_component_ids, partitions, shuffle):
+                    self.paths.append((path, torch.tensor(ids, dtype=torch.long)))
+
+    @staticmethod
+    def split_index(indices, partitions, shuffle):
+        num = indices.shape[0]
+        remain_number = num % partitions
+        if remain_number != 0:
+            padding = [np.nan] * (partitions - remain_number)
+            indices = np.concatenate([indices, padding])
+            num = indices.shape[0]
+        if shuffle:
+            rank = np.argsort(np.random.random(num))
+            indices = indices[rank]
+        splits = []
+        for ids in np.split(indices, partitions):
+            ids = ids[np.bitwise_not(np.isnan(ids))]
+            if ids.shape[0] > 0:
+                ids = np.sort(ids)
+                splits.append(ids)
+        return splits
 
     def __len__(self):
         return len(self.paths)

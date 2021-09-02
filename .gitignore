@@ -3,7 +3,7 @@
 __pycache__
 notebooks
 .ipynb_checkpoints
-*.csv
+*.csv*
 *.zip
 .DS_Store
 *.json
@@ -11,3 +11,4 @@ notebooks
 *.pyd
 *.dgl*
 /build
+*.pkl

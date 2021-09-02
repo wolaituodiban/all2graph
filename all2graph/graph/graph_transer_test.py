@@ -1,5 +1,6 @@
 import os
 import json
+import pickle
 import pandas as pd
 import torch
 import all2graph as ag
@@ -100,6 +101,9 @@ def test_segment():
     with Timer('graph_from_dgl'):
         rc_graph = trans2.graph_from_dgl(meta_graph=dgl_meta_graph2, graph=dgl_graph2)
     assert rc_graph.names == [x.lower() for x in graph.names]
+
+    with open(os.path.join(path, 'test_data/graph_trans.pkl'), 'bw') as file:
+        pickle.dump(trans2, file)
 
 
 if __name__ == '__main__':
