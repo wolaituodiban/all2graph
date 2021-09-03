@@ -157,7 +157,8 @@ class GraphTranser(MetaStruct):
         graph.ndata[META_NODE_IDS] = torch.tensor(meta_node_ids, dtype=torch.long)
 
         # 图数值特征
-        numbers = pd.to_numeric(values, errors='coerce')
+        # 特殊情况：values = [[]]，此时需要先转成pandas.Series
+        numbers = pd.to_numeric(pd.Series(values).values, errors='coerce')
         unique_names, inverse_indices = np.unique(names, return_inverse=True)
         masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
         for i in range(unique_names.shape[0]):

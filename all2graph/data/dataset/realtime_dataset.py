@@ -25,7 +25,7 @@ class RealtimeDataset(GraphDataset):
         partitions = int(partitions)
         self.paths = []
         for path in progress_wrapper(paths, disable=disable, postfix='checking files'):
-            df = pd.read_csv(path, error_bad_lines=False, warn_bad_lines=False, **self.kwargs)
+            df = pd.read_csv(path, **self.kwargs)
 
             if partitions == 1:
                 self.paths.append((path, None))
@@ -39,14 +39,14 @@ class RealtimeDataset(GraphDataset):
 
     def __getitem__(self, item):
         path, row_num = self.paths[item]
-        df = pd.read_csv(path, error_bad_lines=False, warn_bad_lines=False, **self.kwargs)
+        df = pd.read_csv(path, **self.kwargs)
         if row_num is not None:
             df = df.iloc[row_num]
         iterable = self.preprocessor(df)
         graph, *_ = self.data_parser.parse(iterable, False)
         meta_graph, graph = self.graph_transer.graph_to_dgl(graph)
         labels = {
-            col: torch.tensor(pd.to_numeric(df[col], errors='coerce'), dtype=torch.float32) for col in self.label_cols
-            if col in df
+            col: torch.tensor(pd.to_numeric(df[col].values, errors='coerce'), dtype=torch.float32)
+            for col in self.label_cols if col in df
         }
         return meta_graph, graph, labels

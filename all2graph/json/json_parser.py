@@ -181,7 +181,7 @@ class JsonParser(DataParser):
         graph = Graph()
         global_index_mapper = {}
         local_index_mappers = []
-        jsons = progress_wrapper(jsons, disable=not progress_bar, postfix='resolving json')
+        jsons = progress_wrapper(jsons, disable=not progress_bar, postfix='parsing json')
         for i, value in enumerate(jsons):
             local_index_mapper = {}
             self.insert_component(

@@ -68,7 +68,7 @@ class Factory:
         labels = {}
         for col in self.label_cols:
             if col in chunk:
-                labels[col] = torch.tensor(pd.to_numeric(chunk[col], errors='coerce'), dtype=torch.float32)
+                labels[col] = torch.tensor(pd.to_numeric(chunk[col].values, errors='coerce'), dtype=torch.float32)
         dgl.save_graphs(file_path, [dgl_meta_graph, dgl_graph], labels=labels)
         return file_path
 
