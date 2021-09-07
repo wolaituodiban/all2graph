@@ -1,24 +1,16 @@
-from typing import Callable, Iterable
-
 import numpy as np
 import pandas as pd
-import torch
 
 from .graph_dataset import GraphDataset
-from ..data_parser import DataParser
-from ...graph.graph_transer import GraphTranser
+from ...factory import Factory
 from ...utils import progress_wrapper
 
 
 class RealtimeDataset(GraphDataset):
-    def __init__(self, paths, preprocessor: Callable[[pd.DataFrame], Iterable], data_parser: DataParser,
-                 graph_transer: GraphTranser, label_cols=None, partitions=1, shuffle=False, disable=True, **kwargs):
+    def __init__(self, paths, factory: Factory, partitions=1, shuffle=False, disable=True, **kwargs):
         super().__init__([])
         self.paths = paths
-        self.preprocessor = preprocessor
-        self.data_parser = data_parser
-        self.graph_transer = graph_transer
-        self.label_cols = list(label_cols or [])
+        self.factory = factory
 
         self.kwargs = kwargs
 
@@ -42,11 +34,4 @@ class RealtimeDataset(GraphDataset):
         df = pd.read_csv(path, **self.kwargs)
         if row_num is not None:
             df = df.iloc[row_num]
-        iterable = self.preprocessor(df)
-        graph, *_ = self.data_parser.parse(iterable, False)
-        meta_graph, graph = self.graph_transer.graph_to_dgl(graph)
-        labels = {
-            col: torch.tensor(pd.to_numeric(df[col].values, errors='coerce'), dtype=torch.float32)
-            for col in self.label_cols if col in df
-        }
-        return meta_graph, graph, labels
+        return self.factory.product_graphs(df)

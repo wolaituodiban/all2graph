@@ -7,11 +7,11 @@ FALSE = json.dumps([False])[1:-1]
 META = 'meta'
 PRESERVED_WORDS = [NULL, TRUE, FALSE, META]
 
-COMPONENT_IDS = 'component_ids'
-META_NODE_IDS = 'meta_node_ids'
-META_EDGE_IDS = 'meta_edge_ids'
-NAMES = 'names'
-NUMBERS = 'numbers'
-VALUES = 'values'
+COMPONENT_ID = 'component_id'
+META_NODE_ID = 'meta_node_id'
+META_EDGE_ID = 'meta_edge_id'
+NAME = 'name'
+NUMBER = 'number'
+VALUE = 'value'
 
 del json

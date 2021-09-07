@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 
 from ..graph import Graph
-from ..macro import NULL, PRESERVED_WORDS, META, COMPONENT_IDS, META_NODE_IDS, META_EDGE_IDS, NAMES, VALUES, NUMBERS
+from ..macro import NULL, PRESERVED_WORDS, META, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, NAME, VALUE, NUMBER
 from ..meta import MetaGraph, MetaNumber
 
 from ..utils.dgl_utils import dgl
@@ -133,12 +133,12 @@ class GraphTranser(MetaStruct):
             data=(torch.tensor(preds, dtype=torch.long), torch.tensor(succs, dtype=torch.long)),
             num_nodes=len(component_ids),
         )
-        graph.edata[META_EDGE_IDS] = torch.arange(0, graph.num_edges(), 1, dtype=torch.long)
+        graph.edata[META_EDGE_ID] = torch.arange(0, graph.num_edges(), 1, dtype=torch.long)
 
         # 元图点特征
-        graph.ndata[COMPONENT_IDS] = torch.tensor(component_ids, dtype=torch.long)
-        graph.ndata[META_NODE_IDS] = torch.arange(0, len(component_ids), 1, dtype=torch.long)
-        graph.ndata[NAMES] = torch.tensor(list(map(self.encode, names)), dtype=torch.long)
+        graph.ndata[COMPONENT_ID] = torch.tensor(component_ids, dtype=torch.long)
+        graph.ndata[META_NODE_ID] = torch.arange(0, len(component_ids), 1, dtype=torch.long)
+        graph.ndata[NAME] = torch.tensor(list(map(self.encode, names)), dtype=torch.long)
         return graph
 
     def _gen_dgl_graph(self, component_ids: List[int], names: List[str], values: List[str], meta_node_ids: List[int],
@@ -150,11 +150,11 @@ class GraphTranser(MetaStruct):
         )
 
         # 图边特征
-        graph.edata[META_EDGE_IDS] = torch.tensor(meta_edge_ids, dtype=torch.long)
+        graph.edata[META_EDGE_ID] = torch.tensor(meta_edge_ids, dtype=torch.long)
 
         # 图点特征
-        graph.ndata[COMPONENT_IDS] = torch.tensor(component_ids, dtype=torch.long)
-        graph.ndata[META_NODE_IDS] = torch.tensor(meta_node_ids, dtype=torch.long)
+        graph.ndata[COMPONENT_ID] = torch.tensor(component_ids, dtype=torch.long)
+        graph.ndata[META_NODE_ID] = torch.tensor(meta_node_ids, dtype=torch.long)
 
         # 图数值特征
         # 特殊情况：values = [[]]，此时需要先转成pandas.Series
@@ -163,10 +163,10 @@ class GraphTranser(MetaStruct):
         masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
         for i in range(unique_names.shape[0]):
             numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]])
-        graph.ndata[NUMBERS] = torch.tensor(numbers, dtype=torch.float32)
+        graph.ndata[NUMBER] = torch.tensor(numbers, dtype=torch.float32)
 
         # 图字符特征
-        graph.ndata[VALUES] = torch.tensor(list(map(self.encode, values)), dtype=torch.long)
+        graph.ndata[VALUE] = torch.tensor(list(map(self.encode, values)), dtype=torch.long)
         return graph
 
     def graph_to_dgl(self, graph: Graph) -> Tuple[dgl.DGLGraph, dgl.DGLGraph]:
@@ -192,40 +192,40 @@ class GraphTranser(MetaStruct):
         reverse_string_mapper = self.reverse_string_mapper
 
         if isinstance(self.names, dict):
-            nx_meta_graph = dgl.to_networkx(meta_graph, node_attrs=[NAMES, COMPONENT_IDS])
+            nx_meta_graph = dgl.to_networkx(meta_graph, node_attrs=[NAME, COMPONENT_ID])
             name_mapper: Dict[int, str] = {}
             for node, node_attr in nx_meta_graph.nodes.items():
-                if node_attr[COMPONENT_IDS] < 0:
+                if node_attr[COMPONENT_ID] < 0:
                     continue
-                name = reverse_string_mapper[int(node_attr[NAMES])]
+                name = reverse_string_mapper[int(node_attr[NAME])]
                 if name != META:
                     name_mapper[node] = name
                 else:
-                    succs = [succ for succ in nx_meta_graph.succ[node] if nx_meta_graph.nodes[succ][COMPONENT_IDS] < 0]
+                    succs = [succ for succ in nx_meta_graph.succ[node] if nx_meta_graph.nodes[succ][COMPONENT_ID] < 0]
                     succs_degree = nx_meta_graph.degree(succs)
                     succs_degree = sorted(succs_degree, key=lambda x: x[1], reverse=True)
                     name_mapper[node] = ''.join(
-                        [reverse_string_mapper[int(nx_meta_graph.nodes[succ][NAMES])] for succ, _ in succs_degree]
+                        [reverse_string_mapper[int(nx_meta_graph.nodes[succ][NAME])] for succ, _ in succs_degree]
                     )
-            names = [name_mapper[meta_node_id] for meta_node_id in graph.ndata[META_NODE_IDS].numpy()]
+            names = [name_mapper[meta_node_id] for meta_node_id in graph.ndata[META_NODE_ID].numpy()]
         else:
-            names = meta_graph.ndata[NAMES][graph.ndata[META_NODE_IDS]]
+            names = meta_graph.ndata[NAME][graph.ndata[META_NODE_ID]]
             names = [reverse_string_mapper[name] for name in names.numpy()]
 
         with graph.local_scope():
-            numbers = graph.ndata[NUMBERS].numpy()
+            numbers = graph.ndata[NUMBER].numpy()
             unique_names, inverse_indices = np.unique(names, return_inverse=True)
             masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
             for i in range(unique_names.shape[0]):
                 numbers[masks[:, i]] = self.get_quantiles(unique_names[i], numbers[masks[:, i]])
 
-        values = pd.Series([reverse_string_mapper[value] for value in graph.ndata[VALUES].numpy()])
+        values = pd.Series([reverse_string_mapper[value] for value in graph.ndata[VALUE].numpy()])
         notna = np.bitwise_not(np.isnan(numbers))
         values[notna] = numbers[notna]
 
         preds, succs = graph.edges()
         return Graph(
-            component_ids=graph.ndata[COMPONENT_IDS].numpy().tolist(),
+            component_ids=graph.ndata[COMPONENT_ID].numpy().tolist(),
             names=names,
             values=values.tolist(),
             preds=preds.numpy().tolist(),

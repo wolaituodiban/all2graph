@@ -6,7 +6,7 @@ import pandas as pd
 from .meta_node import MetaNumber, MetaString
 from ..graph import Graph
 from ..meta_struct import MetaStruct
-from ..macro import NULL, TRUE, FALSE, EPSILON, COMPONENT_IDS, NAMES, VALUES, NUMBERS
+from ..macro import NULL, TRUE, FALSE, EPSILON, COMPONENT_ID, NAME, VALUE, NUMBER
 from ..stats import ECDF
 from ..utils import progress_wrapper
 
@@ -49,35 +49,35 @@ class MetaGraph(MetaStruct):
     def from_data(cls, graph: Graph, index_nodes=None, progress_bar=False, **kwargs):
         node_df = pd.DataFrame(
             {
-                COMPONENT_IDS: graph.component_ids,
-                NAMES: graph.names,
-                VALUES: graph.values,
+                COMPONENT_ID: graph.component_ids,
+                NAME: graph.names,
+                VALUE: graph.values,
             }
         )
-        num_samples = node_df[COMPONENT_IDS].unique().shape[0]
+        num_samples = node_df[COMPONENT_ID].unique().shape[0]
 
         # # # # # 生成meta_name # # # # #
         meta_name = MetaString.from_data(
-            num_samples=num_samples, sample_ids=node_df[COMPONENT_IDS], values=node_df[NAMES],
+            num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[NAME],
             progress_bar=progress_bar, postfix='constructing meta name', **kwargs
         )
 
         # # # # # 生成meta_numbers # # # # #
         if index_nodes is not None:
             node_df = node_df.drop(index_nodes)
-        node_df[NUMBERS] = pd.to_numeric(node_df[VALUES], errors='coerce')
-        number_df = node_df[np.isfinite(node_df[NUMBERS])]
+        node_df[NUMBER] = pd.to_numeric(node_df[VALUE], errors='coerce')
+        number_df = node_df[np.isfinite(node_df[NUMBER])]
 
-        number_groups = number_df.groupby(NAMES, sort=False)
+        number_groups = number_df.groupby(NAME, sort=False)
         number_groups = progress_wrapper(number_groups, disable=not progress_bar, postfix='constructing meta numbers')
         meta_numbers = {}
         for name, number_df in number_groups:
             meta_numbers[name] = MetaNumber.from_data(
-                num_samples=num_samples, sample_ids=number_df[COMPONENT_IDS], values=number_df[NUMBERS], **kwargs
+                num_samples=num_samples, sample_ids=number_df[COMPONENT_ID], values=number_df[NUMBER], **kwargs
             )
 
         # # # # # 生成meta_string # # # # #
-        node_df = node_df[pd.isna(node_df[NUMBERS]) & node_df[VALUES].apply(lambda x: not isinstance(x, (dict, list)))]
+        node_df = node_df[pd.isna(node_df[NUMBER]) & node_df[VALUE].apply(lambda x: not isinstance(x, (dict, list)))]
 
         def bool_to_str(x):
             if isinstance(x, bool):
@@ -85,11 +85,11 @@ class MetaGraph(MetaStruct):
             else:
                 return x
 
-        node_df[VALUES] = node_df[VALUES].apply(bool_to_str)
-        node_df[VALUES] = node_df[VALUES].fillna(NULL)
+        node_df[VALUE] = node_df[VALUE].apply(bool_to_str)
+        node_df[VALUE] = node_df[VALUE].fillna(NULL)
 
         meta_string = MetaString.from_data(
-            num_samples=num_samples, sample_ids=node_df[COMPONENT_IDS], values=node_df[VALUES],
+            num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[VALUE],
             progress_bar=progress_bar, **kwargs
         )
 

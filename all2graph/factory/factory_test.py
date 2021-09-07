@@ -2,11 +2,13 @@ import os
 import json
 import shutil
 import time
+import pickle
 
 import numpy as np
 import pandas as pd
 from all2graph import MetaGraph, JsonPathTree, JsonParser
 from all2graph.factory import Factory
+from all2graph.graph.graph_transer import GraphTranser
 
 
 def test():
@@ -34,6 +36,10 @@ def test():
     )
     used_time1 = time.time() - start_time1
     print(used_time1)
+
+    with open(os.path.join(path, 'test_data/factory.pkl'), 'bw') as file:
+        pickle.dump(factory, file)
+
     # 原生模式
     start_time2 = time.time()
     df = pd.read_csv(csv_path)
@@ -45,11 +51,10 @@ def test():
         index_ids += list(mapper.values())
     meta_graph1 = MetaGraph.from_data(graph, index_nodes=index_ids, progress_bar=True)
     used_time2 = time.time() - start_time2
-
     print(used_time1, used_time2)
     assert meta_graph1 == meta_graph2
     assert used_time1 < used_time2
-    with open(os.path.join(path, 'test_data', 'meta.json'), 'w') as file:
+    with open(os.path.join(path, 'test_data', 'meta_graph.json'), 'w') as file:
         json.dump(meta_graph1.to_json(), file)
 
     # 测试保存文件
