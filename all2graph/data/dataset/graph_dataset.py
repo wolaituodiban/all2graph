@@ -3,7 +3,7 @@ import numpy as np
 import torch
 from torch.utils.data import Dataset
 
-from ...macro import COMPONENT_ID
+from ...globals import COMPONENT_ID
 from ...factory import Factory
 from ...utils.dgl_utils import dgl
 from ...utils import progress_wrapper

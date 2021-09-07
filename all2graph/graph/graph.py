@@ -2,7 +2,7 @@ from typing import Dict, List, Union, Tuple
 
 import numpy as np
 
-from ..macro import COMPONENT_ID, NAME, VALUE
+from ..globals import COMPONENT_ID, NAME, VALUE
 from ..meta_struct import MetaStruct
 
 

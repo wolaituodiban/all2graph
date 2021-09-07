@@ -5,7 +5,7 @@ import pandas as pd
 import torch
 
 from ..graph import Graph
-from ..macro import NULL, PRESERVED_WORDS, META, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, NAME, VALUE, NUMBER
+from ..globals import NULL, JSON_KEY_WORDS, META, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, NAME, VALUE, NUMBER
 from ..meta import MetaGraph, MetaNumber
 
 from ..utils.dgl_utils import dgl
@@ -24,7 +24,7 @@ class GraphTranser(MetaStruct):
         super().__init__(initialized=True)
         self.meta_numbers = meta_numbers
 
-        all_words = PRESERVED_WORDS + strings
+        all_words = JSON_KEY_WORDS + strings
         if segment_name:
             import jieba
             self.names = {}

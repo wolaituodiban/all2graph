@@ -4,6 +4,6 @@ from .json import *
 from .meta import *
 from .stats import *
 from .utils import *
-from .macro import *
+from .globals import *
 from .meta_struct import MetaStruct
 from .version import __version__

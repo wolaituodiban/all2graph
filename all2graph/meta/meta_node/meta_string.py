@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 from .meta_node import MetaNode
-from ...macro import EPSILON
+from ...globals import EPSILON
 from ...stats import Discrete, ECDF
 from ...utils import MpMapFuncWrapper, progress_wrapper
 

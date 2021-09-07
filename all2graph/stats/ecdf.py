@@ -3,7 +3,7 @@ import pandas as pd
 from scipy import interpolate
 
 from .distribution import Distribution
-from ..macro import EPSILON
+from ..globals import EPSILON
 
 
 class ECDF(Distribution):

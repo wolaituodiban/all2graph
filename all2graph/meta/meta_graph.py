@@ -6,7 +6,7 @@ import pandas as pd
 from .meta_node import MetaNumber, MetaString
 from ..graph import Graph
 from ..meta_struct import MetaStruct
-from ..macro import NULL, TRUE, FALSE, EPSILON, COMPONENT_ID, NAME, VALUE, NUMBER
+from ..globals import NULL, TRUE, FALSE, EPSILON, COMPONENT_ID, NAME, VALUE, NUMBER
 from ..stats import ECDF
 from ..utils import progress_wrapper
 

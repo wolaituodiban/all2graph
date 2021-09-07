@@ -3,7 +3,7 @@ import pandas as pd
 from typing import Dict
 from .distribution import Distribution
 from .ecdf import ECDF
-from ..macro import EPSILON
+from ..globals import EPSILON
 
 
 class Discrete(Distribution):

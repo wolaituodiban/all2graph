@@ -5,7 +5,7 @@ from typing import Callable, Iterable, Tuple, List, Union
 import pandas as pd
 import torch
 
-from ..macro import COMPONENT_ID, META_NODE_ID, META_EDGE_ID
+from ..globals import COMPONENT_ID, META_NODE_ID, META_EDGE_ID
 from ..meta import MetaGraph
 from ..data import DataParser
 from ..graph.graph_transer import GraphTranser
