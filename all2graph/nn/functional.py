@@ -19,7 +19,7 @@ def edge_feed_forward(
 ) -> torch.Tensor:
     """
     u表示前置节点的特征向量，v表示后置节点的特征向量
-    norm(drop(activation(u * W_u + b_u + v * W_v + b_v)) * W_e + b_e + u + v)
+    norm(dropout(dropout(activation(u * W_u + b_u + v * W_v + b_v)) * W_e + b_e) + u + v)
     返回边uv上的特征向量
 
     :param graph     : 图
@@ -42,16 +42,25 @@ def edge_feed_forward(
         graph.edata['u_weight'] = u_weight
         graph.edata['v_weight'] = v_weight
 
+        # 第一层全连接
         graph.apply_edges(fn.u_dot_e('feat', 'u_weight', 'u_feat'))
-        graph.apply_edges(fn.u_dot_e('feat', 'v_weight', 'v_feat'))
-        e_feat = dropout1(activation(graph.edata['u_feat'] + u_bias + graph.edata['v_feat'] + v_bias))
+        graph.apply_edges(fn.v_dot_e('feat', 'v_weight', 'v_feat'))
+        e_feat = graph.edata['u_feat'].view(num_edges, -1) + u_bias + graph.edata['v_feat'].view(num_edges, -1) + v_bias
+        if activation is not None:
+            e_feat = activation(e_feat)
+        e_feat = dropout1(e_feat)
 
+        # 第二层全连接
         e_feat = (e_feat.view(num_edges, -1, 1) * e_weight).sum(-1, keepdim=False) + e_bias
         graph.edata['e_feat'] = dropout2(e_feat)
 
+        # add & norm
         graph.apply_edges(fn.u_add_e('feat', 'e_feat', 'e_feat'))
         graph.apply_edges(fn.v_add_e('feat', 'e_feat', 'e_feat'))
-        return norm(graph.edata['e_feat'].view(num_edges, -1))
+        output = graph.edata['e_feat'].view(num_edges, -1)
+        if norm is not None:
+            output = norm(output)
+        return output
 
 
 def node_feed_forward(

@@ -3,44 +3,65 @@ import dgl.function as fn
 from dgl.nn.functional import edge_softmax
 import torch
 
-from .functional import edge_feed_forward, node_feed_forward
+from .functional import edge_feed_forward
 from ..globals import FEATURE, KEY, VALUE, ATTENTION, QUERY, \
     SRC_KEY_BIAS, SRC_KEY_WEIGHT, DST_KEY_BIAS, DST_KEY_WEIGHT, EDGE_KEY_BIAS, EDGE_KEY_WEIGHT, \
-    SRC_VALUE_BIAS, SRC_VALUE_WEIGHT, DST_VALUE_BIAS, DST_VALUE_WEIGHT, EDGE_VALUE_BIAS, EDGE_VALUE_WEIGHT, \
-    NODE_WEIGHT, NODE_BIAS
+    SRC_VALUE_BIAS, SRC_VALUE_WEIGHT, DST_VALUE_BIAS, DST_VALUE_WEIGHT, EDGE_VALUE_BIAS, EDGE_VALUE_WEIGHT
 
 
 class Conv(torch.nn.Module):
-    def __init__(self, embedding_dim, activation='gelu', dropout=0.1):
+    def __init__(self, embedding_dim, activation='relu', dropout=0.1, norm=True):
         super().__init__()
         if activation == 'gelu':
             activation = torch.nn.GELU()
         elif activation == 'relu':
             activation = torch.nn.ReLU()
-        if not isinstance(activation, torch.nn.Module):
-            raise TypeError('activation must be string or pytorch module')
         self.key_activation = activation
         self.value_activation = activation
-        self.out_activation = activation
 
         self.key_dropout1 = torch.nn.Dropout(dropout)
         self.key_dropout2 = torch.nn.Dropout(dropout)
         self.value_dropout1 = torch.nn.Dropout(dropout)
         self.value_dropout2 = torch.nn.Dropout(dropout)
         self.attn_dropout = torch.nn.Dropout(dropout)
-        self.node_dropout1 = torch.nn.Dropout(dropout)
-        self.node_dropout2 = torch.nn.Dropout(dropout)
 
-        self.key_norm = torch.nn.LayerNorm(embedding_dim)
-        self.value_norm = torch.nn.LayerNorm(embedding_dim)
-        self.node_norm = torch.nn.LayerNorm(embedding_dim)
+        if norm:
+            self.key_norm = torch.nn.LayerNorm(embedding_dim)
+            self.value_norm = torch.nn.LayerNorm(embedding_dim)
+            self.attn_norm = torch.nn.LayerNorm(embedding_dim)
+        else:
+            self.key_norm = None
+            self.value_norm = None
+            self.attn_norm = None
 
     def reset_parameters(self):
         self.key_norm.reset_parameters()
         self.value_norm.reset_parameters()
-        self.node_norm.reset_parameters()
 
     def forward(self, graph: dgl.DGLGraph, feat: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+        """
+
+        weights:
+            QUERY            : num_nodes * embedding_dim
+            SRC_KEY_BIAS     : num_edges * embedding_dim
+            SRC_KEY_WEIGHT   : num_edges * embedding_dim ** 2
+            DST_KEY_BIAS     : num_edges * embedding_dim
+            DST_KEY_WEIGHT   : num_edges * embedding_dim ** 2
+            EDGE_KEY_BIAS    : num_edges * embedding_dim
+            EDGE_KEY_WEIGHT  : num_edges * embedding_dim ** 2
+            SRC_VALUE_BIAS   : num_edges * embedding_dim
+            SRC_VALUE_WEIGHT : num_edges * embedding_dim ** 2
+            DST_VALUE_BIAS   : num_edges * embedding_dim
+            DST_VALUE_WEIGHT : num_edges * embedding_dim ** 2
+            EDGE_VALUE_BIAS  : num_edges * embedding_dim
+            EDGE_VALUE_WEIGHT: num_edges * embedding_dim ** 2
+        intermedia:
+            KEY  : num_edges * embedding_dim
+            VALUE: num_edges * embedding_dim
+        outputs:
+            FEATURE  : num_nodes * embedding_dim
+            ATTENTION: num_edges
+        """
         with graph.local_scope():
             # 通过feature计算key
             graph.edata[KEY] = edge_feed_forward(
@@ -49,7 +70,6 @@ class Conv(torch.nn.Module):
                 v_bias=graph.edata[DST_KEY_BIAS], e_bias=graph.edata[EDGE_KEY_BIAS], activation=self.key_activation,
                 dropout1=self.key_dropout1, dropout2=self.key_dropout2, norm=self.key_norm
             )
-
             # # 通过key和query计算attention weight
             graph.apply_edges(fn.e_dot_v(KEY, QUERY, ATTENTION))
             graph.edata[ATTENTION] = self.attn_dropout(edge_softmax(graph, graph.edata[ATTENTION]))
@@ -66,11 +86,6 @@ class Conv(torch.nn.Module):
             # 加权平均
             graph.edata[FEATURE] = graph.edata[VALUE] * graph.edata[ATTENTION]
             graph.update_all(fn.copy_e(FEATURE, FEATURE), fn.sum(FEATURE, FEATURE))
-
-            # feed forward
-            output = node_feed_forward(
-                feat=graph.ndata[FEATURE], weight1=graph.ndata[NODE_WEIGHT][:, 0], bias1=graph.ndata[NODE_BIAS][:, 0],
-                weight2=graph.ndata[NODE_WEIGHT][:, 1], bias2=graph.ndata[NODE_BIAS][:, 1], dropout1=self.node_dropout1,
-                dropout2=self.node_dropout2, activation=self.out_activation, norm=self.node_norm
-            )
-            return output,  graph.edata[ATTENTION]
+            if self.attn_norm is not None:
+                graph.ndata[FEATURE] = self.attn_norm(graph.ndata[FEATURE])
+            return graph.ndata[FEATURE],  graph.edata[ATTENTION]

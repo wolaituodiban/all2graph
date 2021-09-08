@@ -1,5 +1,6 @@
 from typing import Dict, Tuple, List
 
+import dgl
 import numpy as np
 import pandas as pd
 import torch
@@ -8,7 +9,6 @@ from ..graph import Graph
 from ..globals import NULL, JSON_KEY_WORDS, META, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, NAME, VALUE, NUMBER
 from ..meta import MetaGraph, MetaNumber
 
-from ..utils.dgl_utils import dgl
 from ..meta_struct import MetaStruct
 
 

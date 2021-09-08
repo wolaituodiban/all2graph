@@ -2,6 +2,7 @@ import os
 from multiprocessing import Pool
 from typing import Callable, Iterable, Tuple, List, Union
 
+import dgl
 import pandas as pd
 import torch
 
@@ -11,7 +12,6 @@ from ..data import DataParser
 from ..graph.graph_transer import GraphTranser
 from ..utils import progress_wrapper
 from ..utils.pd_utils import dataframe_chunk_iter
-from ..utils.dgl_utils import dgl
 
 
 class Factory:

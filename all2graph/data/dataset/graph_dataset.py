@@ -1,11 +1,11 @@
 import numpy as np
 
+import dgl
 import torch
 from torch.utils.data import Dataset
 
 from ...globals import COMPONENT_ID
 from ...factory import Factory
-from ...utils.dgl_utils import dgl
 from ...utils import progress_wrapper
 
 
