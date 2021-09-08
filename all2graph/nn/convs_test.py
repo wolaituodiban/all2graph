@@ -4,45 +4,6 @@ import all2graph as ag
 from all2graph.nn import Conv
 
 
-# def test_count():
-#     embedding_dim = 2
-#     nheads = 2
-#     dim_per_head = embedding_dim // nheads
-#     ffn = lambda x: 1 / x - 1
-#
-#     graph = dgl.graph([(0, 0), (1, 0), (2, 0), (1, 1), (2, 2)])
-#     num_nodes = graph.num_nodes()
-#     num_edges = graph.num_edges()
-#     feat = torch.randn(num_nodes, embedding_dim)
-#
-#     weight_zeros = torch.zeros(num_edges, nheads, dim_per_head, embedding_dim, dtype=torch.float32)
-#     mid_weight_zeros = torch.zeros(num_edges, nheads, dim_per_head, dim_per_head, dtype=torch.float32)
-#     bias_zeros = torch.zeros(num_edges, nheads, dim_per_head, dtype=torch.float32)
-#     weight_eye = torch.eye(embedding_dim).repeat(num_edges, 1, 1).view(num_edges, nheads, dim_per_head, embedding_dim)
-#     mid_weight_ones = torch.ones(num_edges, nheads, dim_per_head, dim_per_head, dtype=torch.float32)
-#     # 手撸参数
-#     graph.ndata[ag.globals.QUERY] = torch.zeros(num_nodes, nheads, dim_per_head)
-#
-#     graph.edata[ag.globals.SRC_KEY_WEIGHT] = weight_zeros
-#     graph.edata[ag.globals.DST_KEY_WEIGHT] = weight_zeros
-#     graph.edata[ag.globals.EDGE_KEY_WEIGHT] = mid_weight_zeros
-#     graph.edata[ag.globals.SRC_KEY_BIAS] = bias_zeros
-#     graph.edata[ag.globals.DST_KEY_BIAS] = bias_zeros
-#     graph.edata[ag.globals.EDGE_KEY_BIAS] = bias_zeros
-#
-#     graph.edata[ag.globals.SRC_VALUE_WEIGHT] = -weight_eye
-#     graph.edata[ag.globals.DST_VALUE_WEIGHT] = -weight_eye
-#     graph.edata[ag.globals.EDGE_VALUE_WEIGHT] = mid_weight_ones
-#     graph.edata[ag.globals.SRC_VALUE_BIAS] = bias_zeros
-#     graph.edata[ag.globals.DST_VALUE_BIAS] = bias_zeros
-#     graph.edata[ag.globals.EDGE_VALUE_BIAS] = bias_zeros.clone()
-#     graph.edata[ag.globals.EDGE_VALUE_BIAS][[0, 3, 4]] = 1
-#
-#     conv = Conv(1, activation=None, norm=False).eval()
-#     feat, attn = conv(graph, feat)
-#     print(ffn(feat))
-
-
 def test():
     def ffn(x):
         output = x.clone()
@@ -95,5 +56,4 @@ def test():
 
 
 if __name__ == '__main__':
-    # test_count()
     test()

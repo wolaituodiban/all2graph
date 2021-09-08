@@ -8,7 +8,6 @@ import numpy as np
 import pandas as pd
 from all2graph import MetaGraph, JsonPathTree, JsonParser
 from all2graph.factory import Factory
-from all2graph.graph.graph_transer import GraphTranser
 
 
 def test():

@@ -5,8 +5,6 @@ NULL = list(json.loads(json.dumps({None: None})).keys())[0]
 TRUE = json.dumps([True])[1:-1]
 FALSE = json.dumps([False])[1:-1]
 
-JSON_KEY_WORDS = [i for i in globals() if isinstance(i, str)]
-
 del json
 
 ID = 'id'
