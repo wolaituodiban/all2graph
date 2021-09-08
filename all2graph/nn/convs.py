@@ -42,25 +42,25 @@ class Conv(torch.nn.Module):
         """
 
         weights:
-            QUERY            : num_nodes * embedding_dim
-            SRC_KEY_BIAS     : num_edges * embedding_dim
-            SRC_KEY_WEIGHT   : num_edges * embedding_dim ** 2
-            DST_KEY_BIAS     : num_edges * embedding_dim
-            DST_KEY_WEIGHT   : num_edges * embedding_dim ** 2
-            EDGE_KEY_BIAS    : num_edges * embedding_dim
-            EDGE_KEY_WEIGHT  : num_edges * embedding_dim ** 2
-            SRC_VALUE_BIAS   : num_edges * embedding_dim
-            SRC_VALUE_WEIGHT : num_edges * embedding_dim ** 2
-            DST_VALUE_BIAS   : num_edges * embedding_dim
-            DST_VALUE_WEIGHT : num_edges * embedding_dim ** 2
-            EDGE_VALUE_BIAS  : num_edges * embedding_dim
-            EDGE_VALUE_WEIGHT: num_edges * embedding_dim ** 2
+            QUERY            :
+            SRC_KEY_BIAS     :
+            SRC_KEY_WEIGHT   :
+            DST_KEY_BIAS     :
+            DST_KEY_WEIGHT   :
+            EDGE_KEY_BIAS    :
+            EDGE_KEY_WEIGHT  :
+            SRC_VALUE_BIAS   :
+            SRC_VALUE_WEIGHT :
+            DST_VALUE_BIAS   :
+            DST_VALUE_WEIGHT :
+            EDGE_VALUE_BIAS  :
+            EDGE_VALUE_WEIGHT:
         intermedia:
-            KEY  : num_edges * embedding_dim
-            VALUE: num_edges * embedding_dim
+            KEY  :
+            VALUE:
         outputs:
-            FEATURE  : num_nodes * embedding_dim
-            ATTENTION: num_edges
+            FEATURE  :
+            ATTENTION:
         """
         with graph.local_scope():
             # 通过feature计算key
@@ -70,6 +70,7 @@ class Conv(torch.nn.Module):
                 v_bias=graph.edata[DST_KEY_BIAS], e_bias=graph.edata[EDGE_KEY_BIAS], activation=self.key_activation,
                 dropout1=self.key_dropout1, dropout2=self.key_dropout2, norm=self.key_norm
             )
+
             # # 通过key和query计算attention weight
             graph.apply_edges(fn.e_dot_v(KEY, QUERY, ATTENTION))
             graph.edata[ATTENTION] = self.attn_dropout(edge_softmax(graph, graph.edata[ATTENTION]))
@@ -88,4 +89,4 @@ class Conv(torch.nn.Module):
             graph.update_all(fn.copy_e(FEATURE, FEATURE), fn.sum(FEATURE, FEATURE))
             if self.attn_norm is not None:
                 graph.ndata[FEATURE] = self.attn_norm(graph.ndata[FEATURE])
-            return graph.ndata[FEATURE],  graph.edata[ATTENTION]
+            return graph.ndata[FEATURE].view(feat.shape),  graph.edata[ATTENTION]
