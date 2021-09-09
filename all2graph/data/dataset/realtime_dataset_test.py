@@ -1,10 +1,11 @@
 import os
 import time
 import shutil
-import pickle
 import numpy as np
+import pandas as pd
 from torch.utils.data import DataLoader
 import all2graph as ag
+from all2graph.factory import Factory
 from all2graph.data.dataset import RealtimeDataset
 import platform
 if 'darwin' in platform.system().lower():
@@ -13,24 +14,28 @@ path = os.path.dirname(__file__)
 path = os.path.dirname(path)
 path = os.path.dirname(path)
 path = os.path.dirname(path)
+csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
 to_dir = os.path.join(path, 'test_data', 'chunk')
 if os.path.exists(to_dir):
     shutil.rmtree(to_dir)
 os.mkdir(to_dir)
-ag.split_csv(
-    os.path.join(path, 'test_data', 'MensShoePrices.csv'),
-    to_dir,
-    chunksize=64,
-    disable=False
-)
+ag.split_csv(csv_path, to_dir, chunksize=64, disable=False)
 
 preprocessor = ag.JsonPathTree('json')
 json_parser = ag.JsonParser(
     root_name=preprocessor.json_col, flatten_dict=True, local_index_names={'name'}, segmentation=True
 )
 
-with open(os.path.join(path, 'test_data/factory.pkl'), 'br') as file:
-    factory = pickle.load(file)
+factory = Factory(
+    data_parser=json_parser, preprocessor=preprocessor, graph_transer_config=dict(
+        min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf', segment_name=False,
+    )
+)
+processes = os.cpu_count()
+
+factory.produce_meta_graph(
+    pd.read_csv(csv_path, nrows=1000), chunksize=int(np.ceil(1000/processes)), progress_bar=True, processes=processes,
+)
 
 files = [os.path.join(to_dir, path) for path in os.listdir(to_dir)]
 
