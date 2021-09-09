@@ -6,7 +6,7 @@ import pandas as pd
 import torch
 
 from ..graph import Graph
-from ..globals import NULL, PRESERVED_WORDS, META, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, NAME, VALUE, NUMBER
+from ..globals import NULL, PRESERVED_WORDS, META, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, KEY, VALUE, NUMBER
 from ..meta import MetaGraph, MetaNumber
 
 from ..meta_struct import MetaStruct
@@ -138,7 +138,7 @@ class GraphTranser(MetaStruct):
         # 元图点特征
         graph.ndata[COMPONENT_ID] = torch.tensor(component_ids, dtype=torch.long)
         graph.ndata[META_NODE_ID] = torch.arange(0, len(component_ids), 1, dtype=torch.long)
-        graph.ndata[NAME] = torch.tensor(list(map(self.encode, names)), dtype=torch.long)
+        graph.ndata[KEY] = torch.tensor(list(map(self.encode, names)), dtype=torch.long)
         return graph
 
     def _gen_dgl_graph(self, component_ids: List[int], names: List[str], values: List[str], meta_node_ids: List[int],
@@ -192,12 +192,12 @@ class GraphTranser(MetaStruct):
         reverse_string_mapper = self.reverse_string_mapper
 
         if isinstance(self.names, dict):
-            nx_meta_graph = dgl.to_networkx(meta_graph, node_attrs=[NAME, COMPONENT_ID])
+            nx_meta_graph = dgl.to_networkx(meta_graph, node_attrs=[KEY, COMPONENT_ID])
             name_mapper: Dict[int, str] = {}
             for node, node_attr in nx_meta_graph.nodes.items():
                 if node_attr[COMPONENT_ID] < 0:
                     continue
-                name = reverse_string_mapper[int(node_attr[NAME])]
+                name = reverse_string_mapper[int(node_attr[KEY])]
                 if name != META:
                     name_mapper[node] = name
                 else:
@@ -205,11 +205,11 @@ class GraphTranser(MetaStruct):
                     succs_degree = nx_meta_graph.degree(succs)
                     succs_degree = sorted(succs_degree, key=lambda x: x[1], reverse=True)
                     name_mapper[node] = ''.join(
-                        [reverse_string_mapper[int(nx_meta_graph.nodes[succ][NAME])] for succ, _ in succs_degree]
+                        [reverse_string_mapper[int(nx_meta_graph.nodes[succ][KEY])] for succ, _ in succs_degree]
                     )
             names = [name_mapper[meta_node_id] for meta_node_id in graph.ndata[META_NODE_ID].numpy()]
         else:
-            names = meta_graph.ndata[NAME][graph.ndata[META_NODE_ID]]
+            names = meta_graph.ndata[KEY][graph.ndata[META_NODE_ID]]
             names = [reverse_string_mapper[name] for name in names.numpy()]
 
         with graph.local_scope():

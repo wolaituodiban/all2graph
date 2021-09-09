@@ -6,7 +6,7 @@ import pandas as pd
 from .meta_node import MetaNumber, MetaString
 from ..graph import Graph
 from ..meta_struct import MetaStruct
-from ..globals import NULL, TRUE, FALSE, EPSILON, COMPONENT_ID, NAME, VALUE, NUMBER
+from ..globals import NULL, TRUE, FALSE, EPSILON, COMPONENT_ID, KEY, VALUE, NUMBER
 from ..stats import ECDF
 from ..utils import progress_wrapper
 
@@ -50,7 +50,7 @@ class MetaGraph(MetaStruct):
         node_df = pd.DataFrame(
             {
                 COMPONENT_ID: graph.component_ids,
-                NAME: graph.names,
+                KEY: graph.names,
                 VALUE: graph.values,
             }
         )
@@ -58,7 +58,7 @@ class MetaGraph(MetaStruct):
 
         # # # # # 生成meta_name # # # # #
         meta_name = MetaString.from_data(
-            num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[NAME],
+            num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[KEY],
             progress_bar=progress_bar, postfix='constructing meta name', **kwargs
         )
 
@@ -68,7 +68,7 @@ class MetaGraph(MetaStruct):
         node_df[NUMBER] = pd.to_numeric(node_df[VALUE], errors='coerce')
         number_df = node_df[np.isfinite(node_df[NUMBER])]
 
-        number_groups = number_df.groupby(NAME, sort=False)
+        number_groups = number_df.groupby(KEY, sort=False)
         number_groups = progress_wrapper(number_groups, disable=not progress_bar, postfix='constructing meta numbers')
         meta_numbers = {}
         for name, number_df in number_groups:

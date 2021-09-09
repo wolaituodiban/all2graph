@@ -36,9 +36,6 @@ def test():
     used_time1 = time.time() - start_time1
     print(used_time1)
 
-    with open(os.path.join(path, 'test_data/factory.pkl'), 'bw') as file:
-        pickle.dump(factory, file)
-
     # 原生模式
     start_time2 = time.time()
     df = pd.read_csv(csv_path)
@@ -53,8 +50,6 @@ def test():
     print(used_time1, used_time2)
     assert meta_graph1 == meta_graph2
     assert used_time1 < used_time2
-    with open(os.path.join(path, 'test_data', 'meta_graph.json'), 'w') as file:
-        json.dump(meta_graph1.to_json(), file)
 
     # 测试保存文件
     save_path = os.path.join(path, 'test_data', 'graphs')
