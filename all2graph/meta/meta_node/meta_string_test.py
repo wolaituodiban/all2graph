@@ -98,8 +98,8 @@ def speed():
     groups = []
     node_df = pd.DataFrame(
         {
-            'component_id': json_graph.component_ids,
-            'name': json_graph.names,
+            'component_id': json_graph.component_id,
+            'name': json_graph.key,
             'value': json_graph.values,
         }
     )

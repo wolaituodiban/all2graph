@@ -49,8 +49,8 @@ class MetaGraph(MetaStruct):
     def from_data(cls, graph: Graph, index_nodes=None, progress_bar=False, **kwargs):
         node_df = pd.DataFrame(
             {
-                COMPONENT_ID: graph.component_ids,
-                KEY: graph.names,
+                COMPONENT_ID: graph.component_id,
+                KEY: graph.key,
                 VALUE: graph.values,
             }
         )

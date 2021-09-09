@@ -60,10 +60,10 @@ def test_non_segment():
     # 验证_gen_dgl_graph的正确性
     with Timer('graph_from_dgl'):
         rc_graph = trans.graph_from_dgl(dgl_meta_graph, dgl_graph)
-    assert graph.component_ids == rc_graph.component_ids
-    assert graph.preds == rc_graph.preds
-    assert graph.succs == rc_graph.succs
-    assert rc_graph.names == [item.lower() for item in graph.names]
+    assert graph.component_id == rc_graph.component_id
+    assert graph.src == rc_graph.src
+    assert graph.dst == rc_graph.dst
+    assert rc_graph.key == [item.lower() for item in graph.key]
     values = pd.Series(graph.values)
     rc_values = pd.Series(rc_graph.values)
     numbers = pd.to_numeric(values, errors='coerce')
@@ -99,7 +99,7 @@ def test_segment():
 
     with Timer('graph_from_dgl'):
         rc_graph = trans2.graph_from_dgl(meta_graph=dgl_meta_graph2, graph=dgl_graph2)
-    assert rc_graph.names == [x.lower() for x in graph.names]
+    assert rc_graph.key == [x.lower() for x in graph.key]
 
 
 if __name__ == '__main__':
