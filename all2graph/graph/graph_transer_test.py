@@ -64,8 +64,8 @@ def test_non_segment():
     assert graph.src == rc_graph.src
     assert graph.dst == rc_graph.dst
     assert rc_graph.key == [item.lower() for item in graph.key]
-    values = pd.Series(graph.values)
-    rc_values = pd.Series(rc_graph.values)
+    values = pd.Series(graph.value)
+    rc_values = pd.Series(rc_graph.value)
     numbers = pd.to_numeric(values, errors='coerce')
     str_mask = values.apply(lambda x: isinstance(x, str) and x in trans.string_mapper) & numbers.isna()
     assert (values[str_mask] == rc_values[str_mask]).all()

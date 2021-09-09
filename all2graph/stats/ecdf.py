@@ -86,7 +86,9 @@ class ECDF(Distribution):
     def mean_var(self):
         delta_prob = np.diff(self.probs, prepend=0)
         mean = np.dot(self.quantiles, delta_prob)
-        return mean, np.dot((self.quantiles - mean) ** 2, delta_prob)
+        square = (self.quantiles - mean) ** 2
+        mask = np.bitwise_not(np.isinf(square))
+        return mean, np.dot(square[mask], delta_prob[mask])
 
     def compress(self, num_bins):
         """

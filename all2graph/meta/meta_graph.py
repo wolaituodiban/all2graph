@@ -51,7 +51,7 @@ class MetaGraph(MetaStruct):
             {
                 COMPONENT_ID: graph.component_id,
                 KEY: graph.key,
-                VALUE: graph.values,
+                VALUE: graph.value,
             }
         )
         num_samples = node_df[COMPONENT_ID].unique().shape[0]

@@ -32,7 +32,7 @@ def test_list_pred_degree():
 
     jg2, *_ = JsonParser('input', list_pred_degree=0).parse([inputs])
     assert jg2.num_nodes == 7 and jg2.num_edges == 14, '\n{}\n{}\n{}\n{}'.format(
-        jg2.key, jg2.values, jg2.src, jg2.dst
+        jg2.key, jg2.value, jg2.src, jg2.dst
     )
 
 
@@ -48,7 +48,7 @@ def test_list_inner_degree():
 
     jg2, *_ = JsonParser('input', list_inner_degree=0).parse([inputs])
     assert jg2.num_nodes == 10 and jg2.num_edges == 16, '\n{}\n{}\n{}\n{}'.format(
-        jg2.key, jg2.values, jg2.src, jg2.dst
+        jg2.key, jg2.value, jg2.src, jg2.dst
     )
 
     jg2, *_ = JsonParser('input', list_inner_degree=0, r_list_inner_degree=1).parse([inputs])
@@ -67,7 +67,7 @@ def test_complicated_situation():
     jg1, *_ = JsonParser('input', flatten_dict=True, dict_pred_degree=0, list_pred_degree=0, list_inner_degree=2,
                          r_list_inner_degree=1).parse([inputs])
     assert jg1.num_nodes == 8 and jg1.num_edges == 27, '\n{}\n{}\n{}\n{}'.format(
-        jg1.key, jg1.values, jg1.src, jg1.dst
+        jg1.key, jg1.value, jg1.src, jg1.dst
     )
 
 
@@ -84,7 +84,7 @@ def speed():
     assert np.unique(json_graph.component_id).shape[0] == df.shape[0]
     print(json_graph.num_nodes, json_graph.num_edges)
     print(np.unique(json_graph.key))
-    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph.values))))
+    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph.value))))
 
     json_graph2, global_index_mapper, _ = JsonParser(
         dict_pred_degree=0, list_pred_degree=0, list_inner_degree=0, r_list_inner_degree=0, global_index_names={'name'},
@@ -95,7 +95,7 @@ def speed():
     assert json_graph2.num_nodes < json_graph.num_nodes
     print(json_graph2.num_nodes, json_graph2.num_edges)
     print(np.unique(json_graph2.key))
-    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph2.values))))
+    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph2.value))))
 
     json_graph3, global_index_mapper, _ = JsonParser(
         flatten_dict=True, global_index_names={'name'}, segmentation=True, root_name='graph', self_loop=True
@@ -105,7 +105,7 @@ def speed():
     assert np.unique(json_graph2.component_id).shape[0] == df.shape[0]
     assert json_graph2.num_nodes < json_graph3.num_nodes
     print(json_graph3.num_nodes, json_graph3.num_edges)
-    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph3.values))))
+    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph3.value))))
 
 
 if __name__ == '__main__':

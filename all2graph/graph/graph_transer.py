@@ -117,14 +117,14 @@ class GraphTranser(MetaStruct):
             from ..json import JsonParser
             json_parser = JsonParser(root_name=META, list_inner_degree=0)
             temps = [META] * len(names)
-            aug_graph = Graph(component_id=component_ids, key=temps, values=temps, src=preds, dst=succs)
+            aug_graph = Graph(component_id=component_ids, key=temps, value=temps, src=preds, dst=succs)
             for meta_node_id, name in enumerate(names):
                 if name not in self.names:
                     continue
                 json_parser.insert_array(graph=aug_graph, component_id=-1, name=META, value=self.names[name],
                                          preds=[meta_node_id], local_index_mapper={}, global_index_mapper={})
             component_ids = aug_graph.component_id
-            names = aug_graph.values
+            names = aug_graph.value
             preds = aug_graph.src
             succs = aug_graph.dst
 
@@ -181,7 +181,7 @@ class GraphTranser(MetaStruct):
         dgl_meta_graph = self._gen_dgl_meta_graph(component_ids=meta_node_component_ids, names=meta_node_names,
                                                   preds=pred_meta_node_ids, succs=succ_meta_node_ids)
         dgl_graph = self._gen_dgl_graph(
-            component_ids=graph.component_id, names=graph.key, values=graph.values, meta_node_ids=meta_node_ids,
+            component_ids=graph.component_id, names=graph.key, values=graph.value, meta_node_ids=meta_node_ids,
             meta_edge_ids=meta_edge_ids, preds=graph.src, succs=graph.dst
         )
         return dgl_meta_graph, dgl_graph
@@ -227,7 +227,7 @@ class GraphTranser(MetaStruct):
         return Graph(
             component_id=graph.ndata[COMPONENT_ID].numpy().tolist(),
             key=names,
-            values=values.tolist(),
+            value=values.tolist(),
             src=preds.numpy().tolist(),
             dst=succs.numpy().tolist()
         )

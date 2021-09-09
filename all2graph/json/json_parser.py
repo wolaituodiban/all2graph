@@ -106,12 +106,12 @@ class JsonParser(DataParser):
             recursive_flag = False
             temp_value = [v for v in jieba.cut(value)]
             # 修改之前插入的value
-            graph.values[preds[-1]] = []
+            graph.value[preds[-1]] = []
         else:
             temp_value = value
 
         if len(temp_value) == 1:
-            graph.values[preds[-1]] = temp_value[0]
+            graph.value[preds[-1]] = temp_value[0]
             return
 
         node_ids = []

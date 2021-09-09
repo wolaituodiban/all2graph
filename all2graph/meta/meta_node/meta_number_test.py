@@ -24,7 +24,7 @@ def speed():
         {
             'component_id': json_graph.component_id,
             'name': json_graph.key,
-            'value': json_graph.values,
+            'value': json_graph.value,
         }
     )
     for name, group in node_df.groupby('name'):
