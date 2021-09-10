@@ -115,14 +115,15 @@ class GraphTranser(MetaStruct):
     ) -> dgl.DGLGraph:
         if isinstance(self.names, dict):
             from ..json import JsonParser
-            json_parser = JsonParser(root_name=META, list_inner_degree=0)
+            json_parser = JsonParser(list_inner_degree=0)
             temps = [META] * len(names)
             aug_graph = Graph(component_id=component_ids, key=temps, value=temps, src=preds, dst=succs)
-            for meta_node_id, name in enumerate(names):
+            for meta_node_id, (name, component_id) in enumerate(zip(names, component_ids)):
                 if name not in self.names:
                     continue
-                json_parser.insert_array(graph=aug_graph, component_id=-1, name=META, value=self.names[name],
-                                         preds=[meta_node_id], local_index_mapper={}, global_index_mapper={})
+                json_parser.insert_array(
+                    graph=aug_graph, component_id=component_id, name=META, value=self.names[name], preds=[meta_node_id],
+                    local_index_mapper={}, global_index_mapper={}, readout_id=None)
             component_ids = aug_graph.component_id
             names = aug_graph.value
             preds = aug_graph.src
@@ -195,8 +196,6 @@ class GraphTranser(MetaStruct):
             nx_meta_graph = dgl.to_networkx(meta_graph, node_attrs=[KEY, COMPONENT_ID])
             name_mapper: Dict[int, str] = {}
             for node, node_attr in nx_meta_graph.nodes.items():
-                if node_attr[COMPONENT_ID] < 0:
-                    continue
                 name = reverse_string_mapper[int(node_attr[KEY])]
                 if name != META:
                     name_mapper[node] = name

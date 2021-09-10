@@ -22,6 +22,7 @@ WEIGHT = 'weight'
 BIAS = 'bias'
 FEATURE = 'feature'
 ATTENTION = 'attention'
+READOUT = 'readout'
 
 
 PRESERVED_WORDS = [i for i in globals() if isinstance(i, str)]

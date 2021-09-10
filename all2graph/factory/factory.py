@@ -96,10 +96,10 @@ class Factory:
     def load_graphs(path, component_ids):
         (meta_graphs, graphs), labels = dgl.load_graphs(path)
         if component_ids is not None:
-            meta_graphs_mask = (meta_graphs.ndata[COMPONENT_ID].view(-1, 1) == component_ids).any(1)
+            meta_graphs_mask = (meta_graphs.ndata[COMPONENT_ID].abs().view(-1, 1) == component_ids).any(1)
             meta_graphs = dgl.node_subgraph(meta_graphs, meta_graphs_mask)
 
-            graphs_mask = (graphs.ndata[COMPONENT_ID].view(-1, 1) == component_ids).any(1)
+            graphs_mask = (graphs.ndata[COMPONENT_ID].abs().view(-1, 1) == component_ids).any(1)
             graphs = dgl.node_subgraph(graphs, graphs_mask)
 
             min_component_ids = component_ids.min()
