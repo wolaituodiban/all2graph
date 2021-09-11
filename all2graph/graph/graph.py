@@ -61,7 +61,6 @@ class Graph(MetaStruct):
             name: str,
             value: Union[dict, list, str, int, float, bool, None],
             self_loop: bool,
-            readout_id: Union[int, None]
     ) -> int:
         """
 
@@ -69,22 +68,15 @@ class Graph(MetaStruct):
         :param name:
         :param value:
         :param self_loop:
-        :param readout_id: 如果None，那么这个点会被当作特殊点处理，不会添加self loop，component_id会成为相反数
-                           如果不是None，那么这个点会自动添加一条指向readout的边
         :return:
         """
-        assert component_id > 0
         node_id = len(self.key)
-        if readout_id is None:
-            component_id = -component_id
-        elif self_loop:
-            self.insert_edges([node_id, node_id], [readout_id, node_id])
-        else:
-            self.src.append(node_id)
-            self.dst.append(readout_id)
         self.component_id.append(component_id)
         self.key.append(name)
         self.value.append(value)
+        if self_loop:
+            self.src.append(node_id)
+            self.dst.append(node_id)
         return node_id
 
     def meta_node_info(self) -> Tuple[

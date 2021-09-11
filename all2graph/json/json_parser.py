@@ -63,7 +63,7 @@ class JsonParser(DataParser):
                 if v in local_index_mapper:
                     node_id = local_index_mapper[v]
                 else:
-                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop, readout_id=readout_id)
+                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     local_index_mapper[v] = node_id
                 new_preds = preds
                 new_succs = [node_id] * len(preds)
@@ -72,7 +72,7 @@ class JsonParser(DataParser):
                 if v in global_index_mapper:
                     node_id = global_index_mapper[v]
                 else:
-                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop, readout_id=readout_id)
+                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     global_index_mapper[v] = node_id
                 new_preds = preds
                 new_succs = [node_id] * len(preds)
@@ -84,7 +84,7 @@ class JsonParser(DataParser):
                     readout_id=readout_id
                 )
             else:
-                node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop, readout_id=readout_id)
+                node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                 new_preds = preds[-self.dict_pred_degree:]
                 new_succs = [node_id] * len(new_preds)
                 graph.insert_edges(new_preds, new_succs)
@@ -120,7 +120,7 @@ class JsonParser(DataParser):
 
         node_ids = []
         for v in temp_value:
-            node_id = graph.insert_node(component_id, name, v, self_loop=self.self_loop, readout_id=readout_id)
+            node_id = graph.insert_node(component_id, name, v, self_loop=self.self_loop)
 
             new_preds = preds[-self.list_pred_degree:]
             if self.list_inner_degree >= 0:
@@ -164,9 +164,9 @@ class JsonParser(DataParser):
         :return:
         """
         if preds is None:
-            node_id = graph.insert_node(component_id, name, value, self_loop=self.self_loop, readout_id=readout_id)
+            node_id = graph.insert_node(-component_id, name, value, self_loop=self.self_loop)
             self.insert_component(
-                graph=graph, component_id=component_id, name=name, value=value, preds=[],
+                graph=graph, component_id=component_id, name=name, value=value, preds=[node_id],
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=node_id
             )
         elif isinstance(value, dict):

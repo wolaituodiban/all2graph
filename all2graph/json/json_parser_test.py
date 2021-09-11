@@ -15,7 +15,7 @@ def test_flatten_dict():
         }
     }
     jg1, *_ = JsonParser().parse([inputs])
-    assert jg1.num_nodes == 5 and jg1.num_edges == 7
+    assert jg1.num_nodes == 5 and jg1.num_edges == 4, '{}\n{}'.format(jg1.src, jg1.dst)
 
     jg2, *_ = JsonParser(flatten_dict=True).parse([inputs])
     assert jg2.num_nodes == 3 and jg2.num_edges == 2
@@ -28,10 +28,10 @@ def test_list_pred_degree():
         }
     }
     jg1, *_ = JsonParser().parse([inputs])
-    assert jg1.num_nodes == 7 and jg1.num_edges == 11
+    assert jg1.num_nodes == 7 and jg1.num_edges == 6
 
     jg2, *_ = JsonParser(list_pred_degree=0).parse([inputs])
-    assert jg2.num_nodes == 7 and jg2.num_edges == 15, '\n{}\n{}\n{}\n{}'.format(
+    assert jg2.num_nodes == 7 and jg2.num_edges == 14, '\n{}\n{}\n{}\n{}'.format(
         jg2.key, jg2.value, jg2.src, jg2.dst
     )
 
@@ -44,15 +44,15 @@ def test_list_inner_degree():
         ]
     }
     jg1, *_ = JsonParser().parse([inputs])
-    assert jg1.num_nodes == 10 and jg1.num_edges == 17
+    assert jg1.num_nodes == 10 and jg1.num_edges == 9
 
     jg2, *_ = JsonParser(list_inner_degree=0).parse([inputs])
-    assert jg2.num_nodes == 10 and jg2.num_edges == 24, '\n{}\n{}\n{}\n{}'.format(
+    assert jg2.num_nodes == 10 and jg2.num_edges == 16, '\n{}\n{}\n{}\n{}'.format(
         jg2.key, jg2.value, jg2.src, jg2.dst
     )
 
     jg2, *_ = JsonParser(list_inner_degree=0, r_list_inner_degree=1).parse([inputs])
-    assert jg2.num_nodes == 10 and jg2.num_edges == 29
+    assert jg2.num_nodes == 10 and jg2.num_edges == 21
 
 
 def test_complicated_situation():
