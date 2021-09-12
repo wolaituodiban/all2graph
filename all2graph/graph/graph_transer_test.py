@@ -1,5 +1,4 @@
 import os
-import json
 import pandas as pd
 import torch
 import all2graph as ag
@@ -16,11 +15,11 @@ csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
 df = pd.read_csv(csv_path, nrows=64)
 
 parser = JsonParser(
-    flatten_dict=True, local_index_names={'name'}, segmentation=True, self_loop=True,
+    'json', flatten_dict=True, local_index_names={'name'}, segmentation=True, self_loop=True,
     list_inner_degree=1
 )
 graph, global_index_mapper, local_index_mappers = parser.parse(
-    list(map(json.loads, df.json)), progress_bar=True
+    df, progress_bar=True
 )
 
 index_ids = list(global_index_mapper.values())
@@ -99,7 +98,8 @@ def test_segment():
 
     with Timer('graph_from_dgl'):
         rc_graph = trans2.graph_from_dgl(meta_graph=dgl_meta_graph2, graph=dgl_graph2)
-    assert rc_graph.key == [x.lower() for x in graph.key]
+    graph_key = [x.lower() for x in graph.key]
+    assert rc_graph.key == graph_key
 
 
 if __name__ == '__main__':

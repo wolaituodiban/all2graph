@@ -102,12 +102,13 @@ class Graph(MetaStruct):
         pred_meta_node_ids: List[int] = []
         succ_meta_node_ids: List[int] = []
         for pred, succ in zip(self.src, self.dst):
-            component_id, pred_name, succ_name = self.component_id[pred], self.key[pred], self.key[succ]
-            if (component_id, pred_name, succ_name) not in meta_edge_id_mapper:
-                meta_edge_id_mapper[(component_id, pred_name, succ_name)] = len(meta_edge_id_mapper)
-                pred_meta_node_ids.append(meta_node_id_mapper[(component_id, pred_name)])
-                succ_meta_node_ids.append(meta_node_id_mapper[(component_id, succ_name)])
-            meta_edge_ids.append(meta_edge_id_mapper[(component_id, pred_name, succ_name)])
+            pred_cpn_id, succ_cpn_id = self.component_id[pred], self.component_id[succ]
+            pred_name, succ_name = self.key[pred], self.key[succ]
+            if (pred_cpn_id, pred_name, succ_name) not in meta_edge_id_mapper:
+                meta_edge_id_mapper[(pred_cpn_id, pred_name, succ_name)] = len(meta_edge_id_mapper)
+                pred_meta_node_ids.append(meta_node_id_mapper[(pred_cpn_id, pred_name)])
+                succ_meta_node_ids.append(meta_node_id_mapper[(succ_cpn_id, succ_name)])
+            meta_edge_ids.append(meta_edge_id_mapper[(pred_cpn_id, pred_name, succ_name)])
         return meta_edge_ids, pred_meta_node_ids, succ_meta_node_ids
 
     @classmethod

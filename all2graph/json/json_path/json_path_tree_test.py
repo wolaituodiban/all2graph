@@ -4,10 +4,10 @@ import time
 from datetime import datetime
 
 import pandas as pd
-from tqdm import tqdm
+import json_tools
 
 from all2graph.json import JsonPathTree, Split, Timestamp, Delete, Lower
-from all2graph.utils import progress_wrapper
+from all2graph.utils import progress_wrapper, Timer
 
 
 data = {
@@ -92,9 +92,6 @@ def preprocessor(df):
 
 def test():
     json_path_tree = JsonPathTree(
-        'json',
-        sample_time_col='crt_dte',
-        sample_time_format='%Y-%m-%d',
         processors=[
             ('$.SMALL_LOAN',),
             ('$.*', Timestamp('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
@@ -109,16 +106,19 @@ def test():
     )
     print(json_path_tree)
     standard_answer = list(preprocessor(data))
-    print(json.dumps(standard_answer, indent=2))
-    assert list(json_path_tree(data)) == standard_answer, list(json_path_tree(data))
+    answer = [
+        json_path_tree(obj, now=crt_dte)
+        for obj, crt_dte
+        in zip(
+            data.json.apply(json.loads),
+            data.crt_dte.apply(lambda x: datetime.strptime(x, '%Y-%m-%d')))
+    ]
+    assert answer == standard_answer, json_tools.diff(standard_answer, answer)
 
 
 def speed():
     df = pd.concat([data] * 10000)
     json_path_tree = JsonPathTree(
-        'json',
-        sample_time_col='crt_dte',
-        sample_time_format='%Y-%m-%d',
         processors=[
             ('$.SMALL_LOAN',),
             ('$.*', Timestamp('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
@@ -131,27 +131,19 @@ def speed():
             ('$.*', Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
         ]
     )
-    start_time = time.time()
-    for _ in progress_wrapper(json_path_tree(df), total=df.shape[0]):
-        pass
-    print(time.time() - start_time)
+    with Timer('json_path_tree'):
+        for row in progress_wrapper(df.itertuples(), total=df.shape[0]):
+            obj = json.loads(row[1])
+            crt_dte = datetime.strptime(row[2], '%Y-%m-%d')
+            answer = json_path_tree(obj, now=crt_dte)
 
-    start_time = time.time()
-    for _ in tqdm(json_path_tree(df), total=df.shape[0], file=sys.stdout):
-        pass
-    print(time.time() - start_time)
+    with Timer('user define function'):
+        for standard_answer in progress_wrapper(preprocessor(df), total=df.shape[0]):
+            pass
 
-    start_time = time.time()
-    for _ in progress_wrapper(preprocessor(df), total=df.shape[0]):
-        pass
-    print(time.time() - start_time)
-
-    start_time = time.time()
-    for _ in tqdm(preprocessor(df), total=df.shape[0], file=sys.stdout):
-        pass
-    print(time.time() - start_time)
+    assert answer == standard_answer
 
 
 if __name__ == '__main__':
-    # test()
+    test()
     speed()

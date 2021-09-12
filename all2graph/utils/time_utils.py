@@ -6,8 +6,12 @@ class Timer:
         self.name = name
         self.start_time = None
 
+    def diff(self):
+        return time.time() - self.start_time
+
     def __enter__(self):
         self.start_time = time.time()
+        return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        print(self.name, time.time() - self.start_time)
+        print('"{}" used {} seconds'.format(self.name, self.diff()))

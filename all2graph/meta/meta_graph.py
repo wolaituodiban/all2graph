@@ -54,6 +54,7 @@ class MetaGraph(MetaStruct):
                 VALUE: graph.value,
             }
         )
+        node_df[COMPONENT_ID] = node_df[COMPONENT_ID].abs()
         num_samples = node_df[COMPONENT_ID].unique().shape[0]
 
         # # # # # 生成meta_name # # # # #

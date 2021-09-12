@@ -12,7 +12,7 @@ class Timestamp(JsonOperator):
             unit: '{}_{}'.format(self.name, unit) for unit in units
         }
 
-    def __call__(self, obj, sample_time: datetime = None, **kwargs):
+    def __call__(self, obj, now: datetime = None, **kwargs):
         if self.name in obj:
             date_string = obj[self.name]
             try:
@@ -20,8 +20,8 @@ class Timestamp(JsonOperator):
             except ValueError:
                 print('{}不满足{}格式'.format(date_string, self.format), file=sys.stderr)
                 return None
-            if sample_time is not None:
-                diff = sample_time - time
+            if now is not None:
+                diff = now - time
                 obj['{}_diff_day'.format(self.name)] = diff.days + int(diff.seconds > 0)
             for unit, feat_name in self.units.items():
                 if unit == 'weekday':

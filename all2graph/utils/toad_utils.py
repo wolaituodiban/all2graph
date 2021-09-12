@@ -3,8 +3,8 @@ import sys
 try:
     from tqdm import tqdm
 
-    def progress_wrapper(iterable, total=None, disable=False, postfix=None, file=sys.stdout, **kwargs):
-        return tqdm(iterable, total=total, disable=disable, postfix=postfix, file=file, **kwargs)
+    def progress_wrapper(iterable, total=None, disable=False, postfix=None, file=sys.stdout, ascii=True, **kwargs):
+        return tqdm(iterable, total=total, disable=disable, postfix=postfix, file=file, ascii=ascii, **kwargs)
 
 
 except ImportError:

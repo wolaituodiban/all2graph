@@ -1,6 +1,6 @@
 import os
 from multiprocessing import Pool
-from typing import Callable, Iterable, Tuple, List, Union
+from typing import Iterable, Tuple, List, Union
 
 import dgl
 import pandas as pd
@@ -15,19 +15,20 @@ from ..utils.pd_utils import dataframe_chunk_iter
 
 
 class Factory:
-    def __init__(self, preprocessor: Callable[[pd.DataFrame], Iterable], data_parser: DataParser,
+    def __init__(self, data_parser: DataParser,
                  meta_graph_config: dict = None, graph_transer_config: dict = None):
-        self.preprocessor = preprocessor
         self.data_parser = data_parser
         self.meta_graph_config = meta_graph_config or {}
         self.graph_transer_config = graph_transer_config or {}
         self.graph_transer: Union[GraphTranser, None] = None
-        self.label_cols = None
         self.save_path = None
 
+    @property
+    def target_cols(self):
+        return self.data_parser.target_cols
+
     def _produce_meta_graph(self, chunk: pd.DataFrame) -> Tuple[MetaGraph, int]:
-        data = self.preprocessor(chunk)
-        graph, global_index_mapper, local_index_mappers = self.data_parser.parse(data, progress_bar=False)
+        graph, global_index_mapper, local_index_mappers = self.data_parser.parse(chunk, progress_bar=False)
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
@@ -62,13 +63,12 @@ class Factory:
         return meta_graph
 
     def product_graphs(self, chunk: pd.DataFrame):
-        data = self.preprocessor(chunk)
-        graph, *_ = self.data_parser.parse(data, progress_bar=False)
+        graph, *_ = self.data_parser.parse(chunk, progress_bar=False)
         dgl_meta_graph, dgl_graph = self.graph_transer.graph_to_dgl(graph)
 
         labels = {}
-        if self.label_cols is not None:
-            for col in self.label_cols:
+        if self.target_cols is not None:
+            for col in self.target_cols:
                 if col in chunk:
                     labels[col] = torch.tensor(pd.to_numeric(chunk[col].values, errors='coerce'), dtype=torch.float32)
         return (dgl_meta_graph, dgl_graph), labels
@@ -79,9 +79,8 @@ class Factory:
         dgl.save_graphs(file_path, [dgl_meta_graph, dgl_graph], labels=labels)
         return file_path
 
-    def save_graphs(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], save_path, label_cols=None,
+    def save_graphs(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], save_path,
                     chunksize=64, progress_bar=False, postfix='saving graphs', processes=0, **kwargs):
-        self.label_cols = label_cols or []
         self.save_path = save_path
         if isinstance(data, (str, pd.DataFrame)):
             data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
