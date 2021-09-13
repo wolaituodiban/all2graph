@@ -1,96 +1,107 @@
+import copy
+
 import dgl
 import dgl.function as fn
 from dgl.nn.functional import edge_softmax
 import torch
 
-from .functional import edgewise_feedforward
-from ..globals import FEATURE, KEY, VALUE, ATTENTION, QUERY, \
-    SRC_KEY_BIAS, SRC_KEY_WEIGHT, DST_KEY_BIAS, DST_KEY_WEIGHT, EDGE_KEY_BIAS, EDGE_KEY_WEIGHT, \
-    SRC_VALUE_BIAS, SRC_VALUE_WEIGHT, DST_VALUE_BIAS, DST_VALUE_WEIGHT, EDGE_VALUE_BIAS, EDGE_VALUE_WEIGHT
+from .functional import edgewise_linear, nodewise_linear
+from ..globals import FEATURE, KEY, VALUE, ATTENTION, \
+    SRC_KEY_BIAS, SRC_KEY_WEIGHT, DST_KEY_BIAS, DST_KEY_WEIGHT, \
+    SRC_VALUE_BIAS, SRC_VALUE_WEIGHT, DST_VALUE_BIAS, DST_VALUE_WEIGHT, \
+    NODE_WEIGHT, NODE_BIAS, QUERY
 
 
 class Conv(torch.nn.Module):
-    def __init__(self, normalized_shape, activation='relu', dropout=0.1):
+    def __init__(self, normalized_shape, dropout=0.1, activation='relu', residual=True):
         super().__init__()
+        if normalized_shape is not None:
+            self.out_norm = torch.nn.LayerNorm(normalized_shape)
+        else:
+            self.out_norm = None
+
+        self.key_dropout = torch.nn.Dropout(dropout)
+        self.value_dropout = torch.nn.Dropout(dropout)
+        self.attn_dropout = torch.nn.Dropout(dropout)
+        self.out_dropout = torch.nn.Dropout(dropout)
+
         if activation == 'gelu':
             activation = torch.nn.GELU()
         elif activation == 'relu':
             activation = torch.nn.ReLU()
-        self.key_activation = activation
-        self.value_activation = activation
+        self.key_activation = copy.deepcopy(activation)
+        self.value_activation = copy.deepcopy(activation)
+        self.out_activation = copy.deepcopy(activation)
 
-        self.key_dropout1 = torch.nn.Dropout(dropout)
-        self.key_dropout2 = torch.nn.Dropout(dropout)
-        self.value_dropout1 = torch.nn.Dropout(dropout)
-        self.value_dropout2 = torch.nn.Dropout(dropout)
-        self.attn_dropout = torch.nn.Dropout(dropout)
-
-        if normalized_shape is not None:
-            self.key_norm = torch.nn.LayerNorm(normalized_shape)
-            self.value_norm = torch.nn.LayerNorm(normalized_shape)
-            self.out_norm = torch.nn.LayerNorm(normalized_shape)
-        else:
-            self.key_norm = None
-            self.value_norm = None
-            self.out_norm = None
+        self.residual = residual
 
     def reset_parameters(self):
-        self.key_norm.reset_parameters()
-        self.value_norm.reset_parameters()
+        for module in self.children():
+            if hasattr(module, 'reset_parameters'):
+                module.reset_parameters()
 
-    def forward(self, graph: dgl.DGLGraph, feat: torch.Tensor, i: int) -> (torch.Tensor, torch.Tensor):
+    def forward(self, graph: dgl.DGLGraph, feat: torch.Tensor) -> (torch.Tensor, torch.Tensor):
         """
+        K = dot(u, w_uk) + b_uk + dot(v, w_vk) + b_vk
+        V = dot(u, w_uv) + b_uv + dot(v, w_vv) + b_vv
+        attn_out = softmax(dot(Q, K_T)) * V
+        out = dot(attn_out, w_o) + b_o
         :param graph:
+            ndata:
+                QUERY            : (, nheads, out_dim // nheads)
+                NODE_WEIGHT      : (, out_dim, in_dim)
+                NODE_BIAS        : (, out_dim)
             edata:
-                QUERY            : (, num_layers, nheads, embedding_dim // nheads)
+                SRC_KEY_WEIGHT   : (, nheads, out_dim // nheads, in_dim)
+                DST_KEY_WEIGHT   : (, nheads, out_dim // nheads, in_dim)
+                SRC_KEY_BIAS     : (, nheads, out_dim // nheads)
+                DST_KEY_BIAS     : (, nheads, out_dim // nheads)
 
-                SRC_KEY_WEIGHT   : (, num_layers, nheads, feedforward_dim, embedding_dim)
-                DST_KEY_WEIGHT   : (, num_layers, nheads, feedforward_dim, embedding_dim)
-                SRC_KEY_BIAS     : (, num_layers, nheads, feedforward_dim)
-                DST_KEY_BIAS     : (, num_layers, nheads, feedforward_dim)
-                EDGE_KEY_WEIGHT  : (, num_layers, nheads, feedforward_dim, embedding_dim // nheads)
-                EDGE_KEY_BIAS    : (, num_layers, nheads, embedding_dim // nheads)
-
-                SRC_VALUE_WEIGHT : (, num_layers, nheads, feedforward_dim, embedding_dim)
-                DST_VALUE_WEIGHT : (, num_layers, nheads, feedforward_dim, embedding_dim)
-                SRC_VALUE_BIAS   : (, num_layers, nheads, feedforward_dim)
-                DST_VALUE_BIAS   : (, num_layers, nheads, feedforward_dim)
-                EDGE_VALUE_WEIGHT: (, num_layers, nheads, feedforward_dim, embedding_dim // nheads)
-                EDGE_VALUE_BIAS  : (, num_layers, nheads, embedding_dim // nheads)
-        :param feat: num_nodes * embedding_dim
-        :param i: 第几层，所有参数会按照[:, i]的方式取
+                SRC_VALUE_WEIGHT : (, nheads, out_dim // nheads, in_dim)
+                DST_VALUE_WEIGHT : (, nheads, out_dim // nheads, in_dim)
+                SRC_VALUE_BIAS   : (, nheads, out_dim // nheads)
+                DST_VALUE_BIAS   : (, nheads, out_dim // nheads)
+        :param feat: num_nodes * in_dim
         :return:
-            FEATURE  : (num_nodes, embedding_dim)
+            FEATURE  : (num_nodes, out_dim)
+            KEY      : (num_edges, out_dim)
+            VALUE    : (num_edges, out_dim)
             ATTENTION: (num_edges, nheads)
         """
         with graph.local_scope():
             # 通过feature计算key
-            graph.edata[KEY] = edgewise_feedforward(
-                feat=feat, graph=graph, u_weight=graph.edata[SRC_KEY_WEIGHT][:, i],
-                v_weight=graph.edata[DST_KEY_WEIGHT][:, i],
-                e_weight=graph.edata[EDGE_KEY_WEIGHT][:, i], u_bias=graph.edata[SRC_KEY_BIAS][:, i],
-                v_bias=graph.edata[DST_KEY_BIAS][:, i], e_bias=graph.edata[EDGE_KEY_BIAS][:, i],
-                activation=self.key_activation, dropout1=self.key_dropout1, dropout2=self.key_dropout2,
-                norm=self.key_norm
-            )
-
-            # # 通过key和query计算attention weight
-            attention = (graph.edata[KEY] * graph.edata[QUERY][:, i]).sum(-1, keepdim=True)
-            graph.edata[ATTENTION] = self.attn_dropout(edge_softmax(graph, attention))
+            graph.edata[KEY] = edgewise_linear(
+                feat=feat, graph=graph, u_weight=graph.edata[SRC_KEY_WEIGHT], v_weight=graph.edata[DST_KEY_WEIGHT],
+                u_bias=graph.edata[SRC_KEY_BIAS], v_bias=graph.edata[DST_KEY_BIAS], dropout=self.key_dropout,
+                activation=self.key_activation)  # (, nheads, out_dim // nheads)
 
             # 通过feature计算value
-            graph.edata[VALUE] = edgewise_feedforward(
-                feat=feat, graph=graph, u_weight=graph.edata[SRC_VALUE_WEIGHT][:, i],
-                v_weight=graph.edata[DST_VALUE_WEIGHT][:, i],
-                e_weight=graph.edata[EDGE_VALUE_WEIGHT][:, i], u_bias=graph.edata[SRC_VALUE_BIAS][:, i],
-                v_bias=graph.edata[DST_VALUE_BIAS][:, i], e_bias=graph.edata[EDGE_VALUE_BIAS][:, i],
-                activation=self.value_activation, dropout1=self.value_dropout1, dropout2=self.value_dropout2,
-                norm=self.value_norm
-            )
+            graph.edata[VALUE] = edgewise_linear(
+                feat=feat, graph=graph, u_weight=graph.edata[SRC_VALUE_WEIGHT], v_weight=graph.edata[DST_VALUE_WEIGHT],
+                u_bias=graph.edata[SRC_VALUE_BIAS], v_bias=graph.edata[DST_VALUE_BIAS], dropout=self.value_dropout,
+                activation=self.value_activation)  # (, nheads, out_dim // nheads)
 
-            # 加权平均
+            # attention
+            graph.apply_edges(fn.e_dot_v(KEY, QUERY, ATTENTION))
+            graph.edata[ATTENTION] = self.attn_dropout(edge_softmax(graph, graph.edata[ATTENTION]))
             graph.edata[FEATURE] = graph.edata[VALUE] * graph.edata[ATTENTION]
             graph.update_all(fn.copy_e(FEATURE, FEATURE), fn.sum(FEATURE, FEATURE))
+
+            # linear
+            out_feat = graph.ndata[FEATURE].view(graph.num_nodes(), -1)
+            out_feat = nodewise_linear(
+                out_feat, weight=graph.ndata[NODE_WEIGHT], bias=graph.ndata[NODE_BIAS],
+                activation=self.out_activation
+            )
+            out_feat = self.out_dropout(out_feat)
+            out_feat = out_feat.view(graph.num_nodes(), -1)
+            # add & norm
+            if self.residual:
+                out_feat += feat
             if self.out_norm is not None:
-                graph.ndata[FEATURE] = self.out_norm(graph.ndata[FEATURE])
-            return graph.ndata[FEATURE].view(feat.shape),  graph.edata[ATTENTION].view(attention.shape[:-1])
+                out_feat = self.out_norm(out_feat)
+
+            key_feat = graph.edata[KEY].view(graph.num_edges(), -1)
+            value_feat = graph.edata[VALUE].view(graph.num_edges(), -1)
+            attn_weight = graph.edata[ATTENTION].view(graph.num_edges(), -1)
+            return out_feat, key_feat, value_feat, attn_weight

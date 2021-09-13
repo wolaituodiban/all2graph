@@ -1,2 +1,2 @@
 from .convs import Conv
-from .readouts import Readout
+from .functional import edgewise_linear, nodewise_linear

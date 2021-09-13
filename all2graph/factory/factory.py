@@ -95,6 +95,8 @@ class Factory:
     def load_graphs(path, component_ids):
         (meta_graphs, graphs), labels = dgl.load_graphs(path)
         if component_ids is not None:
+            # todo component_id为负数的情况，没有完全考虑清楚
+            raise NotImplementedError
             meta_graphs_mask = (meta_graphs.ndata[COMPONENT_ID].abs().view(-1, 1) == component_ids).any(1)
             meta_graphs = dgl.node_subgraph(meta_graphs, meta_graphs_mask)
 

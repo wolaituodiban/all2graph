@@ -10,11 +10,11 @@ csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
 node_df = pd.read_csv(csv_path, nrows=64)
 
 parser = JsonParser(
-    flatten_dict=True, local_index_names={'name'}, segmentation=True, self_loop=True,
+    'json', flatten_dict=True, local_index_names={'name'}, segmentation=True, self_loop=True,
     list_inner_degree=1
 )
 graph, global_index_mapper, local_index_mappers = parser.parse(
-    list(map(json.loads, node_df.json)), progress_bar=True
+    node_df, progress_bar=True
 )
 
 
