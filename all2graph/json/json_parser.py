@@ -27,8 +27,8 @@ class JsonParser(DataParser):
             target_cols=None,
             # 图生成参数
             flatten_dict=False,
-            dict_pred_degree=1,
-            list_pred_degree=1,
+            dict_dst_degree=1,
+            list_dst_degree=1,
             list_inner_degree=-1,
             r_list_inner_degree=-1,
             local_index_names: Set[str] = None,
@@ -42,8 +42,8 @@ class JsonParser(DataParser):
         """
 
         :param flatten_dict:
-        :param dict_pred_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
-        :param list_pred_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
+        :param dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
+        :param list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
         :param list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
         :param r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
         :param local_index_names:
@@ -55,8 +55,8 @@ class JsonParser(DataParser):
         super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, target_cols=target_cols,
                          **kwargs)
         self.flatten_dict = flatten_dict
-        self.dict_pred_degree = dict_pred_degree
-        self.list_pred_degree = list_pred_degree
+        self.dict_dst_degree = dict_dst_degree
+        self.list_dst_degree = list_dst_degree
         self.list_inner_degree = list_inner_degree
         self.r_list_inner_degree = r_list_inner_degree
         self.local_index_names = local_index_names
@@ -73,7 +73,7 @@ class JsonParser(DataParser):
             graph: Graph,
             component_id: int,
             value: Union[Dict, List, str, int, float, None],
-            preds: Union[List[int], None],
+            dsts: Union[List[int], None],
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int],
     ):
@@ -84,30 +84,30 @@ class JsonParser(DataParser):
                 else:
                     node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     local_index_mapper[v] = node_id
-                new_preds = preds
-                new_succs = [node_id] * len(preds)
-                graph.insert_edges(new_preds + new_succs, new_succs + new_preds)
+                new_dsts = dsts
+                new_srcs = [node_id] * len(dsts)
+                graph.insert_edges(dsts=new_dsts + new_srcs, srcs=new_srcs + new_dsts)
             elif self.global_index_names is not None and k in self.global_index_names:
                 if v in global_index_mapper:
                     node_id = global_index_mapper[v]
                 else:
                     node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     global_index_mapper[v] = node_id
-                new_preds = preds
-                new_succs = [node_id] * len(preds)
-                graph.insert_edges(new_preds + new_succs, new_succs + new_preds)
+                new_dsts = dsts
+                new_srcs = [node_id] * len(dsts)
+                graph.insert_edges(dsts=new_dsts + new_srcs, srcs=new_srcs + new_dsts)
             elif self.flatten_dict and isinstance(v, dict):
                 self.insert_component(
-                    graph=graph, component_id=component_id, name=k, value=v, preds=preds,
+                    graph=graph, component_id=component_id, name=k, value=v, dsts=dsts,
                     local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0
                 )  # 此处之需要readout_id不为None即可
             else:
                 node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
-                new_preds = preds[-self.dict_pred_degree:]
-                new_succs = [node_id] * len(new_preds)
-                graph.insert_edges(new_preds, new_succs)
+                new_dsts = dsts[-self.dict_dst_degree:]
+                new_srcs = [node_id] * len(new_dsts)
+                graph.insert_edges(dsts=new_dsts, srcs=new_srcs)
                 self.insert_component(
-                    graph=graph, component_id=component_id, name=k, value=v, preds=preds + [node_id],
+                    graph=graph, component_id=component_id, name=k, value=v, dsts=dsts + [node_id],
                     local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0
                 )  # 此处之需要readout_id不为None即可
 
@@ -117,7 +117,7 @@ class JsonParser(DataParser):
             component_id: int,
             name: str,
             value: Union[Dict, List, str, int, float, None],
-            preds: Union[List[int], None],
+            dsts: Union[List[int], None],
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int],
     ):
@@ -126,32 +126,33 @@ class JsonParser(DataParser):
             recursive_flag = False
             temp_value = [v for v in jieba.cut(value)]
             # 修改之前插入的value
-            graph.value[preds[-1]] = []
+            graph.value[dsts[-1]] = []
         else:
             temp_value = value
 
-        if len(temp_value) == 1 and len(preds) > 0:
-            graph.value[preds[-1]] = temp_value[0]
+        if len(temp_value) == 1 and len(dsts) > 0:
+            graph.value[dsts[-1]] = temp_value[0]
             return
 
         node_ids = []
         for v in temp_value:
             node_id = graph.insert_node(component_id, name, v, self_loop=self.self_loop)
 
-            new_preds = preds[-self.list_pred_degree:]
+            new_dsts = dsts[-self.list_dst_degree:]
+            new_srcs = [node_id] * len(new_dsts)
             if self.list_inner_degree >= 0:
-                new_preds += node_ids[-self.list_inner_degree:]
+                new_srcs += node_ids[-self.list_inner_degree:]
+                new_dsts += [node_id] * (len(new_srcs) - len(new_dsts))
 
-            new_succs = [node_id] * len(new_preds)
             if self.r_list_inner_degree >= 0:
-                new_succs += node_ids[-self.r_list_inner_degree:]
-                new_preds += [node_id] * (len(new_succs) - len(new_preds))
+                new_dsts += node_ids[-self.r_list_inner_degree:]
+                new_srcs += [node_id] * (len(new_dsts) - len(new_srcs))
 
-            graph.insert_edges(new_preds, new_succs)
+            graph.insert_edges(dsts=new_dsts, srcs=new_srcs)
             node_ids.append(node_id)
             if recursive_flag:
                 self.insert_component(
-                    graph=graph, component_id=component_id, name=name, value=v, preds=preds + [node_id],
+                    graph=graph, component_id=component_id, name=name, value=v, dsts=dsts + [node_id],
                     local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0
                 )  # 此处之需要readout_id不为None即可
 
@@ -161,7 +162,7 @@ class JsonParser(DataParser):
             component_id: int,
             name: str,
             value: Union[Dict, List, str, int, float, None],
-            preds: List[int],
+            dsts: List[int],
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int],
             readout_id: Union[int, None]
@@ -172,7 +173,7 @@ class JsonParser(DataParser):
         :param component_id: 连通片编号
         :param name: 第一个节点的名称
         :param value: 第一个节点的值
-        :param preds: 前置节点的编号
+        :param dsts: 前置节点的编号
         :param local_index_mapper: index的value和node_id的映射
         :param global_index_mapper: index的value和node_id的映射
         :param readout_id:
@@ -181,17 +182,17 @@ class JsonParser(DataParser):
         if readout_id is None:
             readout_id = graph.insert_node(-component_id, name, value, self_loop=self.self_loop)
             self.insert_component(
-                graph=graph, component_id=component_id, name=name, value=value, preds=[readout_id],
+                graph=graph, component_id=component_id, name=name, value=value, dsts=[readout_id],
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=readout_id
             )
         elif isinstance(value, dict):
             self.insert_dict(
-                graph=graph, component_id=component_id, value=value, preds=preds,
+                graph=graph, component_id=component_id, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
             )
         elif isinstance(value, list) or (self.segmentation and isinstance(value, str)):
             self.insert_array(
-                graph=graph, component_id=component_id, name=name, value=value, preds=preds,
+                graph=graph, component_id=component_id, name=name, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
             )
         return readout_id
@@ -233,7 +234,7 @@ class JsonParser(DataParser):
 
             local_index_mapper = {}
             readout_id = self.insert_component(
-                graph=graph, component_id=component_id, name=READOUT, value=obj, preds=[],
+                graph=graph, component_id=component_id, name=READOUT, value=obj, dsts=[],
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=None
             )
             self.add_targets(graph, component_id, readout_id, targets=self.target_cols)

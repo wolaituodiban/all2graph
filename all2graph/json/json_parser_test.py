@@ -22,7 +22,7 @@ def test_flatten_dict():
     assert jg2.num_nodes == 3 and jg2.num_edges == 2
 
 
-def test_list_pred_degree():
+def test_list_dst_degree():
     inputs = {
         'a': {
             'b': [1, 2, 3, 4],
@@ -32,7 +32,7 @@ def test_list_pred_degree():
     jg1, *_ = JsonParser('json').parse(inputs)
     assert jg1.num_nodes == 7 and jg1.num_edges == 6
 
-    jg2, *_ = JsonParser('json', list_pred_degree=0).parse(inputs)
+    jg2, *_ = JsonParser('json', list_dst_degree=0).parse(inputs)
     assert jg2.num_nodes == 7 and jg2.num_edges == 14, '\n{}\n{}\n{}\n{}'.format(
         jg2.key, jg2.value, jg2.src, jg2.dst
     )
@@ -51,11 +51,11 @@ def test_list_inner_degree():
 
     jg2, *_ = JsonParser('json', list_inner_degree=0).parse(inputs)
     assert jg2.num_nodes == 10 and jg2.num_edges == 16, '\n{}\n{}\n{}\n{}'.format(
-        jg2.key, jg2.value, jg2.src, jg2.dst
-    )
+        jg2.key, jg2.value, jg2.src, jg2.dst)
 
     jg2, *_ = JsonParser('json', list_inner_degree=0, r_list_inner_degree=1).parse(inputs)
-    assert jg2.num_nodes == 10 and jg2.num_edges == 21
+    assert jg2.num_nodes == 10 and jg2.num_edges == 21, '\n{}\n{}\n{}\n{}'.format(
+        jg2.key, jg2.value, jg2.src, jg2.dst)
 
 
 def test_complicated_situation():
@@ -68,7 +68,7 @@ def test_complicated_situation():
         }
     }
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
-    jg1, *_ = JsonParser('json', flatten_dict=True, dict_pred_degree=0, list_pred_degree=0, list_inner_degree=2,
+    jg1, *_ = JsonParser('json', flatten_dict=True, dict_dst_degree=0, list_dst_degree=0, list_inner_degree=2,
                          r_list_inner_degree=1, target_cols=['a', 'b']).parse(inputs)
     assert jg1.num_nodes == 10 and jg1.num_edges == 29, '\n{}\n{}\n{}\n{}'.format(
         jg1.key, jg1.value, jg1.src, jg1.dst
@@ -91,7 +91,7 @@ def speed():
     print(max(map(len, filter(lambda x: isinstance(x, str), json_graph.value))))
 
     json_graph2, global_index_mapper, _ = JsonParser(
-        'json', dict_pred_degree=0, list_pred_degree=0, list_inner_degree=0, r_list_inner_degree=0,
+        'json', dict_dst_degree=0, list_dst_degree=0, list_inner_degree=0, r_list_inner_degree=0,
         global_index_names={'name'}, segment_value=False, self_loop=True
     ).parse(df, progress_bar=True)
     assert len(global_index_mapper) > 0
@@ -114,7 +114,7 @@ def speed():
 
 if __name__ == '__main__':
     test_flatten_dict()
-    test_list_pred_degree()
+    test_list_dst_degree()
     test_list_inner_degree()
     test_complicated_situation()
     speed()
