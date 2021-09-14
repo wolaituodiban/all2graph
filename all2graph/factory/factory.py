@@ -23,10 +23,6 @@ class Factory:
         self.graph_transer: Union[GraphTranser, None] = None
         self.save_path = None
 
-    @property
-    def target_cols(self):
-        return self.data_parser.target_cols
-
     def _produce_meta_graph(self, chunk: pd.DataFrame) -> Tuple[MetaInfo, int]:
         graph, global_index_mapper, local_index_mappers = self.data_parser.parse(chunk, progress_bar=False)
         index_ids = list(global_index_mapper.values())
@@ -65,12 +61,7 @@ class Factory:
     def product_graphs(self, chunk: pd.DataFrame):
         graph, *_ = self.data_parser.parse(chunk, progress_bar=False)
         dgl_meta_graph, dgl_graph = self.graph_transer.graph_to_dgl(graph)
-
-        labels = {}
-        if self.target_cols is not None:
-            for col in self.target_cols:
-                if col in chunk:
-                    labels[col] = torch.tensor(pd.to_numeric(chunk[col].values, errors='coerce'), dtype=torch.float32)
+        labels = self.data_parser.gen_targets(chunk)
         return (dgl_meta_graph, dgl_graph), labels
 
     def _save_graph(self, chunk: pd.DataFrame):

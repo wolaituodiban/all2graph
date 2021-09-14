@@ -15,7 +15,7 @@ def test():
     nrows = 1000
 
     json_parser = JsonParser(
-        'json', flatten_dict=True, local_index_names={'name'}, segmentation=True
+        'json', flatten_dict=True, local_index_names={'name'}, segment_value=True
     )
 
     with Timer('工厂封装模式') as timer:

@@ -92,7 +92,7 @@ def speed():
 
     json_graph2, global_index_mapper, _ = JsonParser(
         'json', dict_pred_degree=0, list_pred_degree=0, list_inner_degree=0, r_list_inner_degree=0,
-        global_index_names={'name'}, segmentation=False, self_loop=True
+        global_index_names={'name'}, segment_value=False, self_loop=True
     ).parse(df, progress_bar=True)
     assert len(global_index_mapper) > 0
     assert np.unique(np.abs(json_graph2.component_id)).shape[0] == df.shape[0]
@@ -102,7 +102,7 @@ def speed():
     print(max(map(len, filter(lambda x: isinstance(x, str), json_graph2.value))))
 
     json_graph3, global_index_mapper, _ = JsonParser(
-        'json', flatten_dict=True, global_index_names={'name'}, segmentation=True, self_loop=True
+        'json', flatten_dict=True, global_index_names={'name'}, segment_value=True, self_loop=True
     ).parse(df, progress_bar=True)
 
     assert len(global_index_mapper) > 0

@@ -33,7 +33,7 @@ class JsonParser(DataParser):
             r_list_inner_degree=-1,
             local_index_names: Set[str] = None,
             global_index_names: Set[str] = None,
-            segmentation=False,
+            segment_value=False,
             self_loop=False,
             # 预处理
             processors=None,
@@ -48,7 +48,7 @@ class JsonParser(DataParser):
         :param r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
         :param local_index_names:
         :param global_index_names:
-        :param segmentation:
+        :param segment_value:
         :param self_loop:
         :param processors: JsonPathTree的参数
         """
@@ -61,7 +61,7 @@ class JsonParser(DataParser):
         self.r_list_inner_degree = r_list_inner_degree
         self.local_index_names = local_index_names
         self.global_index_names = global_index_names
-        self.segmentation = segmentation
+        self.segmentation = segment_value
         self.self_loop = self_loop
         if processors is not None:
             self.json_path_tree = JsonPathTree(processors=processors)

@@ -73,31 +73,31 @@ class GraphTranser(MetaStruct):
             return self.string_mapper[NULL]
 
     @classmethod
-    def from_data(cls, meta_graph: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
+    def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
                   segment_name=False):
         """
 
-        :param meta_graph:
+        :param meta_info:
         :param min_df: 字符串最小文档平吕
         :param max_df: 字符串最大文档频率
         :param top_k: 选择前k个字符串
         :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
         :param segment_name: 是否对name分词
         """
-        strings = [k for k, df in meta_graph.meta_string.doc_freq().items() if min_df <= df <= max_df]
+        strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:
             if top_method == 'max_tfidf':
-                strings = [(k, v.max) for k, v in meta_graph.meta_string.tf_idf_ecdf(strings).items()]
+                strings = [(k, v.max) for k, v in meta_info.meta_string.tf_idf_ecdf(strings).items()]
             elif top_method == 'mean_tfidf':
-                strings = [(k, v.mean) for k, v in meta_graph.meta_string.tf_idf_ecdf(strings).items()]
+                strings = [(k, v.mean) for k, v in meta_info.meta_string.tf_idf_ecdf(strings).items()]
             elif top_method == 'max_tf':
-                strings = [(k, v.max) for k, v in meta_graph.meta_string.term_freq_ecdf.items() if k in strings]
+                strings = [(k, v.max) for k, v in meta_info.meta_string.term_freq_ecdf.items() if k in strings]
             elif top_method == 'mean_tf':
-                strings = [(k, v.mean) for k, v in meta_graph.meta_string.term_freq_ecdf.items() if k in strings]
+                strings = [(k, v.mean) for k, v in meta_info.meta_string.term_freq_ecdf.items() if k in strings]
             elif top_method == 'max_tc':
-                strings = [(k, v.max) for k, v in meta_graph.meta_string.term_count_ecdf.items() if k in strings]
+                strings = [(k, v.max) for k, v in meta_info.meta_string.term_count_ecdf.items() if k in strings]
             elif top_method == 'mean_tc':
-                strings = [(k, v.mean) for k, v in meta_graph.meta_string.term_count_ecdf.items() if k in strings]
+                strings = [(k, v.mean) for k, v in meta_info.meta_string.term_count_ecdf.items() if k in strings]
             else:
                 raise ValueError(
                     "top_method只能是('max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc')其中之一"
@@ -105,9 +105,9 @@ class GraphTranser(MetaStruct):
             strings = sorted(strings, key=lambda x: x[1])
             strings = [k[0] for k in strings[:top_k]]
 
-        meta_numbers = {key: ecdf for key, ecdf in meta_graph.meta_numbers.items() if ecdf.value_ecdf.mean_var[1] > 0}
+        meta_numbers = {key: ecdf for key, ecdf in meta_info.meta_numbers.items() if ecdf.value_ecdf.mean_var[1] > 0}
 
-        names = list(meta_graph.meta_name)
+        names = list(meta_info.meta_name)
         return cls(meta_numbers=meta_numbers, strings=strings, names=names, segment_name=segment_name)
 
     def _gen_dgl_meta_graph(

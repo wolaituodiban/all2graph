@@ -12,7 +12,7 @@ def speed():
     nrows = 1000
 
     parser = JsonParser(
-        'json', flatten_dict=True, local_index_names={'name'}, segmentation=True
+        'json', flatten_dict=True, local_index_names={'name'}, segment_value=True
     )
 
     with Timer('一遍过') as timer:

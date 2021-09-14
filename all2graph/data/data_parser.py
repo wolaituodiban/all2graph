@@ -1,4 +1,5 @@
 from typing import Tuple, List
+import pandas as pd
 from ..graph import Graph
 from ..meta_struct import MetaStruct
 
@@ -16,6 +17,13 @@ class DataParser(MetaStruct):
         for target in targets:
             target_id = graph.insert_node(-component_id, target, value=None, self_loop=False)
             graph.insert_edges([readout_id], [target_id])
+
+    def gen_targets(self, df: pd.DataFrame):
+        import torch
+        return {
+            k: torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32)
+            for k in self.target_cols
+        }
 
     def parse(self, data, progress_bar: bool = False) -> Tuple[Graph, dict, List[dict]]:
         raise NotImplementedError
