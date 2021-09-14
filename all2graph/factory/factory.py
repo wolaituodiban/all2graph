@@ -83,29 +83,15 @@ class Factory:
                 list(progress_wrapper(temp, disable=not progress_bar, postfix=postfix))
 
     @staticmethod
-    def load_graphs(path, component_ids):
+    def load_graphs(path, component_ids: torch.Tensor):
         (meta_graphs, graphs), labels = dgl.load_graphs(path)
         if component_ids is not None:
-            # todo component_id为负数的情况，没有完全考虑清楚
-            raise NotImplementedError
+            # 采子图，注意component id有可能为负数
             meta_graphs_mask = (meta_graphs.ndata[COMPONENT_ID].abs().view(-1, 1) == component_ids).any(1)
             meta_graphs = dgl.node_subgraph(meta_graphs, meta_graphs_mask)
 
             graphs_mask = (graphs.ndata[COMPONENT_ID].abs().view(-1, 1) == component_ids).any(1)
             graphs = dgl.node_subgraph(graphs, graphs_mask)
-
-            min_component_ids = component_ids.min()
-            meta_graphs.ndata[COMPONENT_ID] -= min_component_ids
-            graphs.ndata[COMPONENT_ID] -= min_component_ids
-
-            min_meta_node_ids = meta_graphs.ndata[META_NODE_ID].min()
-            meta_graphs.ndata[META_NODE_ID] -= min_meta_node_ids
-            graphs.ndata[META_NODE_ID] -= min_meta_node_ids
-
-            if meta_graphs.num_edges() > 0:
-                min_meta_edge_ids = meta_graphs.edata[META_EDGE_ID].min()
-                meta_graphs.edata[META_EDGE_ID] -= min_meta_edge_ids
-                graphs.edata[META_EDGE_ID] -= min_meta_edge_ids
 
             labels = {k: v[component_ids] for k, v in labels.items()}
 
@@ -113,6 +99,7 @@ class Factory:
 
     @staticmethod
     def batch(batches):
+        # 为了防止id冲突，要给每个小图加上之前id的最大值
         meta_graphss = []
         graphss = []
         labelss = {}
@@ -120,9 +107,10 @@ class Factory:
         max_meta_node_id = 0
         max_edge_node_id = 0
         for (meta_graphs, graphs), labels in batches:
-            meta_graphs.ndata[COMPONENT_ID] += max_component_id
-            graphs.ndata[COMPONENT_ID] += max_component_id
-            max_component_id = meta_graphs.ndata[COMPONENT_ID].max() + 1
+            # 当COMPONENT_ID为负数的时候，应该加上max_component_id的相反数
+            meta_graphs.ndata[COMPONENT_ID] += max_component_id * torch.sign(meta_graphs.ndata[COMPONENT_ID])
+            graphs.ndata[COMPONENT_ID] += max_component_id * torch.sign(graphs.ndata[COMPONENT_ID])
+            max_component_id = meta_graphs.ndata[COMPONENT_ID].abs().max() + 1
 
             meta_graphs.ndata[META_NODE_ID] += max_meta_node_id
             graphs.ndata[META_NODE_ID] += max_meta_node_id
