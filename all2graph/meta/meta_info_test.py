@@ -1,6 +1,6 @@
 import os
 import pandas as pd
-from all2graph import MetaGraph, progress_wrapper, Timer
+from all2graph import MetaInfo, progress_wrapper, Timer
 from all2graph.json import JsonParser
 
 
@@ -23,7 +23,7 @@ def speed():
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
-        meta_graph = MetaGraph.from_data(graph, index_nodes=index_ids, num_bins=None, progress_bar=True)
+        meta_graph = MetaInfo.from_data(graph, index_nodes=index_ids, num_bins=None, progress_bar=True)
         used_time1 = timer.diff()
     print(meta_graph.meta_name.keys())
 
@@ -35,11 +35,11 @@ def speed():
             index_ids = list(global_index_mapper.values())
             for mapper in local_index_mappers:
                 index_ids += list(mapper.values())
-            meta_graphs.append(MetaGraph.from_data(graph, index_nodes=index_ids, num_bins=None))
+            meta_graphs.append(MetaInfo.from_data(graph, index_nodes=index_ids, num_bins=None))
         used_time2 = timer.diff()
 
     with Timer('reduce') as timer:
-        meta_graph2 = MetaGraph.reduce(meta_graphs, num_bins=None, progress_bar=True)
+        meta_graph2 = MetaInfo.reduce(meta_graphs, num_bins=None, progress_bar=True)
         used_time3 = timer.diff()
     print(meta_graph2.meta_name.keys())
     assert used_time3 < used_time1 and used_time3 < used_time2

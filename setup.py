@@ -29,8 +29,6 @@ setup(
     ],
     # ext_modules=cythonize([
     #     # 'all2graph/graph/graph.py'
-    #     # 'all2graph/meta_node/meta_json/meta_json_value.py',
-    #     # 'all2graph/meta_node/meta_json/meta_string.py',
     #     # "all2graph/stats/ecdf.py",
     # ])
 )

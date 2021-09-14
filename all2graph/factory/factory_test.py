@@ -3,7 +3,7 @@ import shutil
 
 import numpy as np
 import pandas as pd
-from all2graph import MetaGraph, JsonParser, Timer
+from all2graph import MetaInfo, JsonParser, Timer
 from all2graph.factory import Factory
 
 
@@ -35,7 +35,7 @@ def test():
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
-        meta_graph1 = MetaGraph.from_data(graph, index_nodes=index_ids, progress_bar=True)
+        meta_graph1 = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=True)
         used_time2 = timer.diff()
 
     assert meta_graph1 == meta_graph2

@@ -1,5 +1,5 @@
 from ...meta_struct import MetaStruct
 
 
-class MetaNode(MetaStruct):
+class MetaValue(MetaStruct):
     pass

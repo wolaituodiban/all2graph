@@ -5,7 +5,7 @@ from typing import Dict, Union, Iterable
 import numpy as np
 import pandas as pd
 
-from .meta_node import MetaNode
+from .meta_value import MetaValue
 from ...globals import EPSILON
 from ...stats import Discrete, ECDF
 from ...utils import MpMapFuncWrapper, progress_wrapper
@@ -21,7 +21,7 @@ def term_count_ecdf_to_doc_freq(term_count: ECDF, inverse=False) -> float:
         return doc_freq
 
 
-class MetaString(MetaNode):
+class MetaString(MetaValue):
     """类别节点"""
     def __init__(self, term_count_ecdf: Dict[str, ECDF], term_freq_ecdf: Dict[str, ECDF], **kwargs):
         """

@@ -3,7 +3,7 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
-from .meta_node import MetaNumber, MetaString
+from .meta_value import MetaNumber, MetaString
 from ..graph import Graph
 from ..meta_struct import MetaStruct
 from ..globals import NULL, TRUE, FALSE, EPSILON, COMPONENT_ID, KEY, VALUE, NUMBER
@@ -11,7 +11,7 @@ from ..stats import ECDF
 from ..utils import progress_wrapper
 
 
-class MetaGraph(MetaStruct):
+class MetaInfo(MetaStruct):
     def __init__(
             self,
             meta_string: MetaString,

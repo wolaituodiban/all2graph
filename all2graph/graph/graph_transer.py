@@ -7,7 +7,7 @@ import torch
 
 from ..graph import Graph
 from ..globals import NULL, PRESERVED_WORDS, META, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, KEY, VALUE, NUMBER
-from ..meta import MetaGraph, MetaNumber
+from ..meta import MetaInfo, MetaNumber
 
 from ..meta_struct import MetaStruct
 
@@ -73,7 +73,7 @@ class GraphTranser(MetaStruct):
             return self.string_mapper[NULL]
 
     @classmethod
-    def from_data(cls, meta_graph: MetaGraph, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
+    def from_data(cls, meta_graph: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
                   segment_name=False):
         """
 

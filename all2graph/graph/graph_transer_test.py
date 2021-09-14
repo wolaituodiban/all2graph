@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import torch
 import all2graph as ag
-from all2graph import MetaGraph, EPSILON, NULL
+from all2graph import MetaInfo, EPSILON, NULL
 from all2graph import JsonParser, Timer
 from all2graph.graph.graph_transer import GraphTranser
 
@@ -25,7 +25,7 @@ graph, global_index_mapper, local_index_mappers = parser.parse(
 index_ids = list(global_index_mapper.values())
 for mapper in local_index_mappers:
     index_ids += list(mapper.values())
-meta_graph = MetaGraph.from_data(graph, index_nodes=index_ids, progress_bar=True)
+meta_graph = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=True)
 
 
 def test_init():

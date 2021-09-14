@@ -7,7 +7,7 @@ import pandas as pd
 import torch
 
 from ..globals import COMPONENT_ID, META_NODE_ID, META_EDGE_ID
-from ..meta import MetaGraph
+from ..meta import MetaInfo
 from ..data import DataParser
 from ..graph.graph_transer import GraphTranser
 from ..utils import progress_wrapper
@@ -27,20 +27,20 @@ class Factory:
     def target_cols(self):
         return self.data_parser.target_cols
 
-    def _produce_meta_graph(self, chunk: pd.DataFrame) -> Tuple[MetaGraph, int]:
+    def _produce_meta_graph(self, chunk: pd.DataFrame) -> Tuple[MetaInfo, int]:
         graph, global_index_mapper, local_index_mappers = self.data_parser.parse(chunk, progress_bar=False)
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
-        meta_graph = MetaGraph.from_data(graph, index_nodes=index_ids, progress_bar=False, **self.meta_graph_config)
+        meta_graph = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=False, **self.meta_graph_config)
         return meta_graph, chunk.shape[0]
 
     def produce_meta_graph(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], chunksize=64, progress_bar=False,
-                           postfix='reading csv', processes=0, **kwargs) -> MetaGraph:
+                           postfix='reading csv', processes=0, **kwargs) -> MetaInfo:
         if isinstance(data, (str, pd.DataFrame)):
             data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
 
-        meta_graphs: List[MetaGraph] = []
+        meta_graphs: List[MetaInfo] = []
         weights = []
         if processes == 0:
             results = map(self._produce_meta_graph, data)
@@ -56,7 +56,7 @@ class Factory:
                     meta_graphs.append(meta_graph)
                     weights.append(weight)
 
-        meta_graph = MetaGraph.reduce(
+        meta_graph = MetaInfo.reduce(
             meta_graphs, weights=weights, progress_bar=progress_bar, processes=processes, **self.meta_graph_config
         )
         self.graph_transer = GraphTranser.from_data(meta_graph, **self.graph_transer_config)
