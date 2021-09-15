@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import all2graph as ag
 from all2graph import MetaInfo, EPSILON
-from all2graph import JsonParser, Timer
+from all2graph import JsonParser, Timer, JiebaTokenizer
 from all2graph.graph.graph_transer import GraphTranser
 
 
@@ -16,11 +16,9 @@ df = pd.read_csv(csv_path, nrows=64)
 
 parser = JsonParser(
     'json', flatten_dict=True, local_index_names={'name'}, segment_value=True, self_loop=True,
-    list_inner_degree=1
+    list_inner_degree=1, tokenizer=JiebaTokenizer()
 )
-graph, global_index_mapper, local_index_mappers = parser.parse(
-    df, progress_bar=True
-)
+graph, global_index_mapper, local_index_mappers = parser.parse(df, progress_bar=True)
 
 index_ids = list(global_index_mapper.values())
 for mapper in local_index_mappers:
@@ -29,13 +27,11 @@ meta_graph = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=True)
 
 
 def test_init():
-    GraphTranser.from_data(
-        meta_graph, min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf', segment_key=False
-    )
+    GraphTranser.from_data(meta_graph, min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf')
 
 
 def test_non_segment():
-    trans = GraphTranser.from_data(meta_graph, segment_key=False)
+    trans = GraphTranser.from_data(meta_graph)
 
     with Timer('graph_to_dgl'):
         dgl_meta_graph, dgl_graph = trans.graph_to_dgl(graph)
@@ -69,11 +65,11 @@ def test_non_segment():
 
 
 def test_segment():
-    trans1 = GraphTranser.from_data(meta_graph, segment_key=False)
+    trans1 = GraphTranser.from_data(meta_graph)
     with Timer('non_segment'):
         dgl_meta_graph1, dgl_graph1 = trans1.graph_to_dgl(graph)
 
-    trans2 = GraphTranser.from_data(meta_graph, segment_key=True)
+    trans2 = GraphTranser.from_data(meta_graph, tokenizer=JiebaTokenizer())
     with Timer('segment'):
         dgl_meta_graph2, dgl_graph2 = trans2.graph_to_dgl(graph)
     print(dgl_meta_graph2)

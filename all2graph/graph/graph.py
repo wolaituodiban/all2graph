@@ -1,10 +1,10 @@
 from typing import Dict, List, Union, Tuple
 
-import jieba
 import numpy as np
 
 from ..globals import COMPONENT_ID, KEY, VALUE, SRC, DST, META, TYPE
 from ..meta_struct import MetaStruct
+from ..utils import Tokenizer
 
 
 class Graph(MetaStruct):
@@ -119,9 +119,9 @@ class Graph(MetaStruct):
         return meta_edge_ids, src_meta_node_ids, dst_meta_node_ids
 
     @staticmethod
-    def segment_key(component_ids, keys, srcs, dsts, types):
+    def segment_key(component_ids, keys, srcs, dsts, types, tokenizer: Tokenizer):
         for i in range(len(keys)):
-            segmented_key = jieba.lcut(keys[i])
+            segmented_key = tokenizer.lcut(keys[i])
             if len(segmented_key) > 1:
                 srcs += list(range(len(keys), len(keys) + len(segmented_key)))
                 dsts += [i] * len(segmented_key)  # 指向原本的点

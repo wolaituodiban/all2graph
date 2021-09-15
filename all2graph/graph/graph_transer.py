@@ -8,13 +8,13 @@ import torch
 from ..graph import Graph
 from ..globals import NULL, PRESERVED_WORDS, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, VALUE, NUMBER, TYPE, META
 from ..meta import MetaInfo, MetaNumber
-
+from ..utils import Tokenizer
 from ..meta_struct import MetaStruct
 
 
 class GraphTranser(MetaStruct):
     def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list,
-                 keys: List[str], segment_key):
+                 keys: List[str], tokenizer: Tokenizer = None):
         """
         Graph与dgl.DiGraph的转换器
         :param meta_numbers: 数值分布
@@ -23,20 +23,14 @@ class GraphTranser(MetaStruct):
         """
         super().__init__(initialized=True)
         self.meta_numbers = meta_numbers
-
+        self.keys = keys
+        self.tokenizer = tokenizer
         all_words = PRESERVED_WORDS + strings
-        if segment_key:
-            import jieba
-            self.names = {}
-            for name in keys:
-                name_cut = jieba.lcut(name)
-                self.names[name] = name_cut
-                for word in name_cut:
-                    all_words.append(word)
+        if self.tokenizer is not None:
+            for key in keys:
+                all_words += self.tokenizer.lcut(key)
         else:
-            self.names = keys
-            all_words += self.names
-
+            all_words += keys
         self.string_mapper = {}
         for word in (word.lower() for word in all_words):
             if word not in self.string_mapper:
@@ -74,7 +68,7 @@ class GraphTranser(MetaStruct):
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  segment_key=True):
+                  tokenizer: Tokenizer = None):
         """
 
         :param meta_info:
@@ -82,6 +76,7 @@ class GraphTranser(MetaStruct):
         :param max_df: 字符串最大文档频率
         :param top_k: 选择前k个字符串
         :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
+        :param tokenizer:
         """
         strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:
@@ -107,7 +102,7 @@ class GraphTranser(MetaStruct):
         meta_numbers = {key: ecdf for key, ecdf in meta_info.meta_numbers.items() if ecdf.value_ecdf.mean_var[1] > 0}
 
         all_keys = list(meta_info.meta_name)
-        return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, segment_key=segment_key)
+        return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer)
 
     def _gen_dgl_meta_graph(
             self, component_ids: List[int], keys: List[str], srcs: List[int], dsts: List[int], types: List[str]
@@ -163,9 +158,9 @@ class GraphTranser(MetaStruct):
         meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_keys, meta_node_types \
             = graph.meta_node_info()
         meta_edge_ids, pred_meta_node_ids, succ_meta_node_ids = graph.meta_edge_info(meta_node_id_mapper)
-        if isinstance(self.names, dict):
-            graph.segment_key(component_ids=meta_node_component_ids, keys=meta_node_keys,
-                              srcs=pred_meta_node_ids, dsts=succ_meta_node_ids, types=meta_node_types)
+        if self.tokenizer is not None:
+            graph.segment_key(component_ids=meta_node_component_ids, keys=meta_node_keys, srcs=pred_meta_node_ids,
+                              dsts=succ_meta_node_ids, types=meta_node_types, tokenizer=self.tokenizer)
 
         dgl_meta_graph = self._gen_dgl_meta_graph(
             component_ids=meta_node_component_ids, keys=meta_node_keys, srcs=pred_meta_node_ids,
@@ -190,7 +185,7 @@ class GraphTranser(MetaStruct):
                 # 找到所有指向v，并且不是自连接的边，并且前置节点的类型是meta的边
                 mask = (meta_u != v) & (meta_v == v) & meta_edge_mask
                 if mask.sum() > 0:
-                    meta_node_keys[v] = ''.join([meta_node_keys[int(u)] for u in meta_u[mask]])
+                    meta_node_keys[v] = self.tokenizer.join([meta_node_keys[int(u)] for u in meta_u[mask]])
         keys = [meta_node_keys[i] for i in graph.ndata[META_NODE_ID]]
 
         # 复原numbers

@@ -1,7 +1,7 @@
-from .json_operator import JsonOperator
+from .operator import Operator
 
 
-class Lower(JsonOperator):
+class Lower(Operator):
     def __init__(self):
         super().__init__()
 
@@ -12,7 +12,7 @@ class Lower(JsonOperator):
             return obj
 
 
-class Split(JsonOperator):
+class Split(Operator):
     def __init__(self, sep, maxsplit=-1):
         super().__init__()
         self.sep = sep
@@ -26,3 +26,15 @@ class Split(JsonOperator):
 
     def __repr__(self):
         return "{}(sep='{}', maxsplit={})".format(self.__class__.__name__, self.sep, self.maxsplit)
+
+
+class Cut(Operator):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, obj: str, tokenizer=None, **kwargs):
+        if isinstance(obj, str):
+            return tokenizer.lcut(obj)
+        else:
+            return obj
+

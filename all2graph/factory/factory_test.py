@@ -3,7 +3,7 @@ import shutil
 
 import numpy as np
 import pandas as pd
-from all2graph import MetaInfo, JsonParser, Timer
+from all2graph import MetaInfo, JsonParser, Timer, JiebaTokenizer
 from all2graph.factory import Factory
 
 
@@ -15,7 +15,7 @@ def test():
     nrows = 1000
 
     json_parser = JsonParser(
-        'json', flatten_dict=True, local_index_names={'name'}, segment_value=True
+        'json', flatten_dict=True, local_index_names={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
     )
 
     with Timer('工厂封装模式') as timer:

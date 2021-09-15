@@ -1,12 +1,12 @@
 from typing import Union, List
 
-from ...json_operator import JsonOperator
+from ...operator import Operator
 
 
-class JsonPathNode(JsonOperator):
+class JsonPathNode(Operator):
     def __init__(self):
         super().__init__()
-        self.childs_or_processors: List[Union[JsonPathNode, JsonOperator]] = []
+        self.childs_or_processors: List[Union[JsonPathNode, Operator]] = []
 
     def get(self, obj) -> list:
         raise NotImplementedError

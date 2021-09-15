@@ -4,17 +4,12 @@ from typing import Dict, List, Union, Set
 
 import pandas as pd
 
-try:
-    import jieba
-except ImportError:
-    jieba = None
 
-
-from .json_path import JsonPathTree
+from .path import JsonPathTree
 from ..data import DataParser
 from ..globals import READOUT
 from ..graph import Graph
-from ..utils import progress_wrapper
+from ..utils import progress_wrapper, Tokenizer, default_tokenizer
 
 
 class JsonParser(DataParser):
@@ -37,6 +32,7 @@ class JsonParser(DataParser):
             self_loop=False,
             # 预处理
             processors=None,
+            tokenizer: Tokenizer = None,
             **kwargs
     ):
         """
@@ -61,12 +57,15 @@ class JsonParser(DataParser):
         self.r_list_inner_degree = r_list_inner_degree
         self.local_index_names = local_index_names
         self.global_index_names = global_index_names
-        self.segmentation = segment_value
+        self.segment_value = segment_value
         self.self_loop = self_loop
         if processors is not None:
             self.json_path_tree = JsonPathTree(processors=processors)
         else:
             self.json_path_tree = None
+        self.tokenizer = tokenizer
+        if self.segment_value and self.tokenizer is None:
+            self.tokenizer = default_tokenizer
 
     def insert_dict(
             self,
@@ -99,7 +98,7 @@ class JsonParser(DataParser):
             elif self.flatten_dict and isinstance(v, dict):
                 self.insert_component(
                     graph=graph, component_id=component_id, name=k, value=v, dsts=dsts,
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0
+                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0,
                 )  # 此处之需要readout_id不为None即可
             else:
                 node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
@@ -108,7 +107,7 @@ class JsonParser(DataParser):
                 graph.insert_edges(dsts=new_dsts, srcs=new_srcs)
                 self.insert_component(
                     graph=graph, component_id=component_id, name=k, value=v, dsts=dsts + [node_id],
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0
+                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0,
                 )  # 此处之需要readout_id不为None即可
 
     def insert_array(
@@ -124,7 +123,7 @@ class JsonParser(DataParser):
         recursive_flag = True
         if isinstance(value, str):
             recursive_flag = False
-            temp_value = [v for v in jieba.cut(value)]
+            temp_value = [v for v in self.tokenizer.cut(value)]
             # 修改之前插入的value
             graph.value[dsts[-1]] = []
         else:
@@ -165,7 +164,7 @@ class JsonParser(DataParser):
             dsts: List[int],
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int],
-            readout_id: Union[int, None]
+            readout_id: Union[int, None],
     ):
         """
         插入一个连通片（component）。如果图中任意两点都是连通的，那么图被称作连通图。
@@ -177,30 +176,29 @@ class JsonParser(DataParser):
         :param local_index_mapper: index的value和node_id的映射
         :param global_index_mapper: index的value和node_id的映射
         :param readout_id:
+        :param tokenizer:
         :return:
         """
         if readout_id is None:
             readout_id = graph.insert_node(component_id, name, value, self_loop=self.self_loop, type=READOUT)
             self.insert_component(
                 graph=graph, component_id=component_id, name=name, value=value, dsts=[readout_id],
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=readout_id
-            )
+                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=readout_id)
         elif isinstance(value, dict):
             self.insert_dict(
                 graph=graph, component_id=component_id, value=value, dsts=dsts,
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
-            )
-        elif isinstance(value, list) or (self.segmentation and isinstance(value, str)):
+                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+        elif isinstance(value, list) or (self.segment_value and isinstance(value, str)):
             self.insert_array(
                 graph=graph, component_id=component_id, name=name, value=value, dsts=dsts,
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper
-            )
+                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
         return readout_id
 
     def parse(
             self,
             df: pd.DataFrame,
             progress_bar: bool = False,
+            **kwargs
     ) -> (Graph, dict, List[dict]):
         graph = Graph()
         global_index_mapper = {}
@@ -228,13 +226,12 @@ class JsonParser(DataParser):
                 else:
                     now = None
 
-                obj = self.json_path_tree(obj, now=now)
+                obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)
 
             local_index_mapper = {}
             readout_id = self.insert_component(
                 graph=graph, component_id=component_id, name=READOUT, value=obj, dsts=[],
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=None
-            )
+                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=None)
             self.add_targets(graph, component_id, readout_id, targets=self.target_cols)
             local_index_mappers.append(local_index_mapper)
         return graph, global_index_mapper, local_index_mappers

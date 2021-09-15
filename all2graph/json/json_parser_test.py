@@ -3,6 +3,7 @@ import json
 import numpy as np
 import pandas as pd
 from all2graph.json import JsonParser
+from all2graph import JiebaTokenizer
 
 
 def test_flatten_dict():
@@ -102,8 +103,8 @@ def speed():
     print(max(map(len, filter(lambda x: isinstance(x, str), json_graph2.value))))
 
     json_graph3, global_index_mapper, _ = JsonParser(
-        'json', flatten_dict=True, global_index_names={'name'}, segment_value=True, self_loop=True
-    ).parse(df, progress_bar=True)
+        'json', flatten_dict=True, global_index_names={'name'}, segment_value=True, self_loop=True,
+        tokenizer=JiebaTokenizer()).parse(df, progress_bar=True)
 
     assert len(global_index_mapper) > 0
     assert np.unique(np.abs(json_graph2.component_id)).shape[0] == df.shape[0]

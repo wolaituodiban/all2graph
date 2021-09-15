@@ -1,9 +1,9 @@
 import sys
 from datetime import datetime
-from .json_operator import JsonOperator
+from .operator import Operator
 
 
-class Timestamp(JsonOperator):
+class Timestamp(Operator):
     def __init__(self, name, _format, units):
         super().__init__()
         self.name = name

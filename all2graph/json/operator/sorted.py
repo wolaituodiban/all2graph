@@ -1,7 +1,7 @@
-from json_operator import JsonOperator
+from .operator import Operator
 
 
-class Sorted(JsonOperator):
+class Sorted(Operator):
     def __init__(self, key=None, reverse=False):
         super().__init__()
         self.key = key

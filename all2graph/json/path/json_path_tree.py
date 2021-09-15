@@ -1,10 +1,10 @@
 from typing import Union, List, Tuple
 
 from .nodes import JsonPathNode, ALL_JSON_PATH_NODE_CLASSES
-from ..json_operator import JsonOperator
+from ..operator import Operator
 
 
-def insert_node(root_node: JsonPathNode, json_path: str, processor: JsonOperator = None):
+def insert_node(root_node: JsonPathNode, json_path: str, processor: Operator = None):
     if json_path in ('$', '$.'):
         if processor is not None:
             root_node.childs_or_processors.append(processor)
@@ -27,7 +27,7 @@ class JsonPathTree(JsonPathNode):
     https://goessner.net/articles/JsonPath/
     """
 
-    def __init__(self, processors: List[Union[Tuple[str], Tuple[str, JsonOperator]]] = None):
+    def __init__(self, processors: List[Union[Tuple[str], Tuple[str, Operator]]] = None):
         super().__init__()
 
         if processors is not None:

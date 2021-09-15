@@ -3,7 +3,7 @@ import numpy as np
 import shutil
 from torch.utils.data import DataLoader
 import all2graph as ag
-from all2graph import JsonParser, Timer
+from all2graph import JsonParser, Timer, default_tokenizer
 from all2graph.data.dataset import GraphDataset
 from all2graph.factory import Factory
 
@@ -24,7 +24,7 @@ def test_graph_file():
         'json', flatten_dict=True, local_index_names={'name'}, segment_value=True
     )
 
-    factory = Factory(data_parser=json_parser, graph_transer_config=dict(segment_key=False))
+    factory = Factory(data_parser=json_parser)
 
     factory.produce_meta_graph(
         csv_path, chunksize=64, progress_bar=True, processes=None, nrows=nrows

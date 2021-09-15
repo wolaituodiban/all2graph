@@ -1,7 +1,7 @@
-from .json_operator import JsonOperator
+from .operator import Operator
 
 
-class Delete(JsonOperator):
+class Delete(Operator):
     def __init__(self, names):
         super().__init__()
         self.names = names

@@ -26,6 +26,7 @@ READOUT = 'readout'
 TYPE = 'type'
 
 PRESERVED_WORDS = [v for k, v in locals().items() if k[:2] != '__' and isinstance(v, str)]
+print('PRESERVED_WORDS:', PRESERVED_WORDS)
 
 COMPONENT_ID = ' '.join([COMPONENT, ID])
 META_NODE_ID = ' '.join([META, NODE, ID])

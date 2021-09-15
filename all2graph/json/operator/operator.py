@@ -1,7 +1,7 @@
-from ...version import __version__
+from all2graph.version import __version__
 
 
-class JsonOperator:
+class Operator:
     def __init__(self):
         self.version = __version__
 
