@@ -2,7 +2,7 @@ import os
 import pandas as pd
 import torch
 import all2graph as ag
-from all2graph import MetaInfo, EPSILON, NULL
+from all2graph import MetaInfo, EPSILON
 from all2graph import JsonParser, Timer
 from all2graph.graph.graph_transer import GraphTranser
 
@@ -30,14 +30,12 @@ meta_graph = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=True)
 
 def test_init():
     GraphTranser.from_data(
-        meta_graph, min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf', segment_name=False
+        meta_graph, min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf', segment_key=False
     )
 
 
 def test_non_segment():
-    trans = GraphTranser.from_data(
-        meta_graph, segment_name=False
-    )
+    trans = GraphTranser.from_data(meta_graph, segment_key=False)
 
     with Timer('graph_to_dgl'):
         dgl_meta_graph, dgl_graph = trans.graph_to_dgl(graph)
@@ -50,10 +48,10 @@ def test_non_segment():
 
     # 验证_gen_dgl_meta_graph的正确性
     reverse_string_mapper = trans.reverse_string_mapper
-    meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_names = graph.meta_node_info()
+    meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_keys, meta_node_types = graph.meta_node_info()
     assert meta_node_component_ids == dgl_meta_graph.ndata[ag.COMPONENT_ID].numpy().tolist()
-    assert [x.lower() for x in meta_node_names] == [
-        reverse_string_mapper[int(x)] for x in dgl_meta_graph.ndata[ag.KEY]
+    assert [x.lower() for x in meta_node_keys] == [
+        reverse_string_mapper[int(x)] for x in dgl_meta_graph.ndata[ag.VALUE]
     ]
 
     # 验证_gen_dgl_graph的正确性
@@ -71,11 +69,11 @@ def test_non_segment():
 
 
 def test_segment():
-    trans1 = GraphTranser.from_data(meta_graph, segment_name=False)
+    trans1 = GraphTranser.from_data(meta_graph, segment_key=False)
     with Timer('non_segment'):
         dgl_meta_graph1, dgl_graph1 = trans1.graph_to_dgl(graph)
 
-    trans2 = GraphTranser.from_data(meta_graph, segment_name=True)
+    trans2 = GraphTranser.from_data(meta_graph, segment_key=True)
     with Timer('segment'):
         dgl_meta_graph2, dgl_graph2 = trans2.graph_to_dgl(graph)
     print(dgl_meta_graph2)
@@ -94,7 +92,6 @@ def test_segment():
             == dgl_meta_graph2.ndata[ag.COMPONENT_ID][:dgl_meta_graph1.num_nodes()]).all()
     assert (dgl_meta_graph1.ndata[ag.COMPONENT_ID]
             == dgl_meta_graph2.ndata[ag.COMPONENT_ID][:dgl_meta_graph1.num_nodes()]).all()
-    assert (dgl_meta_graph2.ndata[ag.KEY] != trans2.encode(NULL)).all()
 
     with Timer('graph_from_dgl'):
         rc_graph = trans2.graph_from_dgl(meta_graph=dgl_meta_graph2, graph=dgl_graph2)

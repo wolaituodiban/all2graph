@@ -180,7 +180,7 @@ class JsonParser(DataParser):
         :return:
         """
         if readout_id is None:
-            readout_id = graph.insert_node(-component_id, name, value, self_loop=self.self_loop)
+            readout_id = graph.insert_node(component_id, name, value, self_loop=self.self_loop, type=READOUT)
             self.insert_component(
                 graph=graph, component_id=component_id, name=name, value=value, dsts=[readout_id],
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=readout_id
@@ -209,11 +209,9 @@ class JsonParser(DataParser):
         if self.time_col not in df:
             df[self.time_col] = None
 
-        for i, row in progress_wrapper(
+        for component_id, row in progress_wrapper(
                 enumerate(df[[self.json_col, self.time_col]].itertuples()),
                 disable=not progress_bar, postfix='parsing json'):
-            component_id = i + 1
-
             # json load
             try:
                 obj = json.loads(row[1])

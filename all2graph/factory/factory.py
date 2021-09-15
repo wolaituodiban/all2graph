@@ -84,21 +84,21 @@ class Factory:
 
     @staticmethod
     def load_graphs(path, component_ids: torch.Tensor):
-        (meta_graphs, graphs), labels = dgl.load_graphs(path)
+        (meta_graph, graph), labels = dgl.load_graphs(path)
         if component_ids is not None:
-            # 采子图，注意component id有可能为负数
-            meta_graphs_mask = (meta_graphs.ndata[COMPONENT_ID].abs().view(-1, 1) == component_ids).any(1)
-            meta_graphs = dgl.node_subgraph(meta_graphs, meta_graphs_mask)
+            graph_mask = (meta_graph.ndata[COMPONENT_ID][graph.ndata[META_NODE_ID]].view(-1, 1) == component_ids).any(1)
+            graph = dgl.node_subgraph(graph, graph_mask)
 
-            graphs_mask = (graphs.ndata[COMPONENT_ID].abs().view(-1, 1) == component_ids).any(1)
-            graphs = dgl.node_subgraph(graphs, graphs_mask)
+            meta_graph_mask = (meta_graph.ndata[COMPONENT_ID].view(-1, 1) == component_ids).any(1)
+            meta_graph = dgl.node_subgraph(meta_graph, meta_graph_mask)
 
             labels = {k: v[component_ids] for k, v in labels.items()}
-
-        return (meta_graphs, graphs), labels
+        return (meta_graph, graph), labels
 
     @staticmethod
     def batch(batches):
+        if len(batches) == 1:
+            return batches[0]
         # 为了防止id冲突，要给每个小图加上之前id的最大值
         meta_graphss = []
         graphss = []
@@ -108,9 +108,8 @@ class Factory:
         max_edge_node_id = 0
         for (meta_graphs, graphs), labels in batches:
             # 当COMPONENT_ID为负数的时候，应该加上max_component_id的相反数
-            meta_graphs.ndata[COMPONENT_ID] += max_component_id * torch.sign(meta_graphs.ndata[COMPONENT_ID])
-            graphs.ndata[COMPONENT_ID] += max_component_id * torch.sign(graphs.ndata[COMPONENT_ID])
-            max_component_id = meta_graphs.ndata[COMPONENT_ID].abs().max() + 1
+            meta_graphs.ndata[COMPONENT_ID] += max_component_id
+            max_component_id = meta_graphs.ndata[COMPONENT_ID].max() + 1
 
             meta_graphs.ndata[META_NODE_ID] += max_meta_node_id
             graphs.ndata[META_NODE_ID] += max_meta_node_id

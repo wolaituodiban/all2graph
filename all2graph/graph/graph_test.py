@@ -1,5 +1,4 @@
 import os
-import json
 import pandas as pd
 from all2graph.json import JsonParser
 
@@ -19,7 +18,7 @@ graph, global_index_mapper, local_index_mappers = parser.parse(
 
 
 def test():
-    meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_names = graph.meta_node_info()
+    meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_names, meta_node_types = graph.meta_node_info()
     assert graph.key == [meta_node_names[i] for i in meta_node_ids]
     assert graph.component_id == [meta_node_component_ids[i] for i in meta_node_ids]
 

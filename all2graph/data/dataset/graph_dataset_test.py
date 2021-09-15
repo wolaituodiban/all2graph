@@ -24,11 +24,10 @@ def test_graph_file():
         'json', flatten_dict=True, local_index_names={'name'}, segment_value=True
     )
 
-    factory = Factory(data_parser=json_parser)
-    processes = os.cpu_count()
+    factory = Factory(data_parser=json_parser, graph_transer_config=dict(segment_key=False))
 
     factory.produce_meta_graph(
-        csv_path, chunksize=int(np.ceil(nrows/processes)), progress_bar=True, processes=processes, nrows=nrows
+        csv_path, chunksize=64, progress_bar=True, processes=None, nrows=nrows
     )
 
     # 测试保存文件
@@ -36,7 +35,7 @@ def test_graph_file():
     if os.path.exists(save_path):
         shutil.rmtree(save_path)
     os.mkdir(save_path)
-    factory.save_graphs(csv_path, save_path, chunksize=64, progress_bar=True, processes=processes, nrows=nrows)
+    factory.save_graphs(csv_path, save_path, chunksize=64, progress_bar=True, processes=None, nrows=nrows)
     graph_paths = [os.path.join(save_path, file) for file in os.listdir(save_path)]
 
     # 开始测试
@@ -47,8 +46,9 @@ def test_graph_file():
     num_meta_edges1 = 0
     for _, labels in ag.progress_wrapper(dataset1):
         assert _[1].ndata[ag.META_NODE_ID].min() == 0
-        assert _[0].ndata[ag.META_NODE_ID].max() == _[1].ndata[ag.META_NODE_ID].max()
-        num_components1 += np.unique(_[0].ndata[ag.COMPONENT_ID].abs()).shape[0]
+        assert _[0].ndata[ag.META_NODE_ID].max() == _[1].ndata[ag.META_NODE_ID].max(), (
+            _[0].ndata[ag.META_NODE_ID].max(), _[1].ndata[ag.META_NODE_ID].max())
+        num_components1 += np.unique(_[0].ndata[ag.COMPONENT_ID]).shape[0]
         num_meta_nodes1 += np.unique(_[0].ndata[ag.META_NODE_ID]).shape[0]
         if _[1].num_edges() > 0:
             assert _[1].edata[ag.META_EDGE_ID].min() == 0
@@ -62,7 +62,7 @@ def test_graph_file():
     for _, labels in ag.progress_wrapper(dataset2):
         assert _[1].ndata[ag.META_NODE_ID].min() >= 0, _[1].ndata[ag.META_NODE_ID].min()
         assert _[0].ndata[ag.META_NODE_ID].max() == _[1].ndata[ag.META_NODE_ID].max()
-        num_components2 += np.unique(_[0].ndata[ag.COMPONENT_ID].abs()).shape[0]
+        num_components2 += np.unique(_[0].ndata[ag.COMPONENT_ID]).shape[0]
         num_meta_nodes2 += np.unique(_[0].ndata[ag.META_NODE_ID]).shape[0]
         if _[1].num_edges() > 0:
             assert _[1].edata[ag.META_EDGE_ID].min() >= 0, _[1].edata[ag.META_EDGE_ID].min()
@@ -81,7 +81,7 @@ def test_graph_file():
     num_meta_edges1 = 0
     with Timer('dataset') as timer:
         for _, labels in ag.progress_wrapper(dataset3):
-            num_components1 += np.unique(_[0].ndata[ag.COMPONENT_ID].abs()).shape[0]
+            num_components1 += np.unique(_[0].ndata[ag.COMPONENT_ID]).shape[0]
             num_meta_nodes1 += np.unique(_[0].ndata[ag.META_NODE_ID]).shape[0]
             if _[0].num_edges() > 0:
                 num_meta_edges1 += np.unique(_[0].edata[ag.META_EDGE_ID]).shape[0]
@@ -96,7 +96,7 @@ def test_graph_file():
     num_meta_edges2 = 0
     with Timer('dataloader') as timer:
         for _, labels in ag.progress_wrapper(data_loader):
-            num_components2 += np.unique(_[0].ndata[ag.COMPONENT_ID].abs()).shape[0]
+            num_components2 += np.unique(_[0].ndata[ag.COMPONENT_ID]).shape[0]
             num_meta_nodes2 += np.unique(_[0].ndata[ag.META_NODE_ID]).shape[0]
             if _[0].num_edges() > 0:
                 num_meta_edges2 += np.unique(_[0].edata[ag.META_EDGE_ID]).shape[0]

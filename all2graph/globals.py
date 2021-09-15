@@ -23,9 +23,9 @@ BIAS = 'bias'
 FEATURE = 'feature'
 ATTENTION = 'attention'
 READOUT = 'readout'
+TYPE = 'type'
 
-
-PRESERVED_WORDS = [i for i in globals() if isinstance(i, str)]
+PRESERVED_WORDS = [v for k, v in locals().items() if k[:2] != '__' and isinstance(v, str)]
 
 COMPONENT_ID = ' '.join([COMPONENT, ID])
 META_NODE_ID = ' '.join([META, NODE, ID])
