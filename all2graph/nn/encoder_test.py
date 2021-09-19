@@ -1,6 +1,6 @@
-import torch.nn
+import torch
 
-from all2graph import Graph, PRESERVED_WORDS
+from all2graph import Graph, PRESERVED_WORDS, Timer
 from all2graph.graph.transer import GraphTranser
 from all2graph.nn import UGFM, num_parameters
 
@@ -16,13 +16,24 @@ def test():
     model2 = UGFM(transer, d_model=d_model, num_latent=num_latent, nhead=nhead, num_layers=num_layers, share_conv=False)
     assert num_parameters(model1) < num_parameters(model2)
     print(model1.eval())
-    for k, v in model1._meta_node_param.items():
+    for k, v in model1.named_buffers(recurse=False):
+        print(k, v.shape)
         assert (v != 0).all()
-    for k, v in model1._meta_edge_param.items():
-        assert (v != 0).all(), k
+
     graph = Graph(component_id=[0, 0], key=['key', 'meta'], value=['value', 'node'], type=['value', 'value'],
                   src=[0, 1, 1], dst=[0, 0, 1])
-    out = model1(graph)
+    with Timer('cpu forward'):
+        out = model1(graph)
+
+    if torch.cuda.is_available():
+        model1 = model1.cuda()
+        with Timer('gpu forward'):
+            model1(graph)
+        model1.train()
+        with Timer('gpu forward'):
+            model1(graph)
+        with Timer('gpu forward'):
+            out = model1(graph)
     for x in out:
         assert x.shape == (graph.num_nodes, d_model)
 

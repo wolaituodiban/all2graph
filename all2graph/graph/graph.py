@@ -86,48 +86,54 @@ class Graph(MetaStruct):
             self.dst.append(node_id)
         return node_id
 
-    def meta_node_info(self) -> Tuple[
-        List[int], Dict[Tuple[int, str], int], List[int], List[str], List[str]
+    def _meta_node_info(self) -> Tuple[
+        List[int], List[str], Dict[Tuple[int, str], int], List[int]
     ]:
-        meta_node_ids: List[int] = []
+        meta_node_id: List[int] = []
         meta_node_id_mapper: Dict[Tuple[int, str], int] = {}
-        meta_node_component_ids: List[int] = []
-        meta_node_keys: List[str] = []
+        meta_component_id: List[int] = []
+        meta_value: List[str] = []
         for i, key in zip(self.component_id, self.key):
             if (i, key) not in meta_node_id_mapper:
                 meta_node_id_mapper[(i, key)] = len(meta_node_id_mapper)
-                meta_node_component_ids.append(i)
-                meta_node_keys.append(key)
-            meta_node_ids.append(meta_node_id_mapper[(i, key)])
-        return meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_keys, [KEY] * len(meta_node_keys)
+                meta_component_id.append(i)
+                meta_value.append(key)
+            meta_node_id.append(meta_node_id_mapper[(i, key)])
+        return meta_component_id, meta_value, meta_node_id_mapper, meta_node_id
 
-    def meta_edge_info(self, meta_node_id_mapper: Dict[Tuple[int, str], int]) -> Tuple[
+    def _meta_edge_info(self, meta_node_id_mapper: Dict[Tuple[int, str], int]) -> Tuple[
         List[int], List[int], List[int]
     ]:
-        meta_edge_ids: List[int] = []
+        meta_edge_id: List[int] = []
         meta_edge_id_mapper: Dict[Tuple[int, str, str], int] = {}
-        src_meta_node_ids: List[int] = []
-        dst_meta_node_ids: List[int] = []
+        meta_src: List[int] = []
+        meta_dst: List[int] = []
         for src, dst in zip(self.src, self.dst):
             src_cpn_id, dst_cpn_id = self.component_id[src], self.component_id[dst]
             src_name, dst_name = self.key[src], self.key[dst]
             if (src_cpn_id, src_name, dst_name) not in meta_edge_id_mapper:
                 meta_edge_id_mapper[(src_cpn_id, src_name, dst_name)] = len(meta_edge_id_mapper)
-                src_meta_node_ids.append(meta_node_id_mapper[(src_cpn_id, src_name)])
-                dst_meta_node_ids.append(meta_node_id_mapper[(dst_cpn_id, dst_name)])
-            meta_edge_ids.append(meta_edge_id_mapper[(src_cpn_id, src_name, dst_name)])
-        return meta_edge_ids, src_meta_node_ids, dst_meta_node_ids
+                meta_src.append(meta_node_id_mapper[(src_cpn_id, src_name)])
+                meta_dst.append(meta_node_id_mapper[(dst_cpn_id, dst_name)])
+            meta_edge_id.append(meta_edge_id_mapper[(src_cpn_id, src_name, dst_name)])
+        return meta_src, meta_dst, meta_edge_id
 
-    @staticmethod
-    def segment_key(component_ids, keys, srcs, dsts, types, tokenizer: Tokenizer):
-        for i in range(len(keys)):
-            segmented_key = tokenizer.lcut(keys[i])
-            if len(segmented_key) > 1:
-                srcs += list(range(len(keys), len(keys) + len(segmented_key)))
-                dsts += [i] * len(segmented_key)  # 指向原本的点
-                keys += segmented_key
-                component_ids += [component_ids[i]] * len(segmented_key)
-                types += [META] * len(segmented_key)
+    def meta_graph(self, tokenizer: Tokenizer = None):
+        meta_component_id, meta_value, meta_node_id_mapper, meta_node_id = self._meta_node_info()
+        meta_src, meta_dst, meta_edge_id = self._meta_edge_info(meta_node_id_mapper)
+        meta_key = [KEY] * len(meta_component_id)
+        if tokenizer is not None:
+            for i in range(len(meta_value)):
+                segmented_key = tokenizer.lcut(meta_value[i])
+                if len(segmented_key) > 1:
+                    meta_src += list(range(len(meta_value), len(meta_value) + len(segmented_key)))
+                    meta_dst += [i] * len(segmented_key)  # 指向原本的点
+                    meta_value += segmented_key
+                    meta_component_id += [meta_component_id[i]] * len(segmented_key)
+                    meta_key += [META] * len(segmented_key)
+        meta_graph = Graph(
+            component_id=meta_component_id, key=meta_key, value=meta_value, src=meta_src, dst=meta_dst, type=meta_key)
+        return meta_graph, meta_node_id, meta_edge_id
 
     @classmethod
     def from_data(cls, **kwargs):

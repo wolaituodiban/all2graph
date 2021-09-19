@@ -41,8 +41,10 @@ class UGFM(torch.nn.Module):
 
         # 元参数信息
         self._init_meta_param_idx_and_graph()
-        self._meta_node_param: Dict[str, torch.Tensor] = {}
-        self._meta_edge_param: Dict[str, torch.Tensor] = {}
+
+    @property
+    def device(self):
+        return self.meta_learner.u.device
 
     def reset_parameters(self):
         for module in self.children():
@@ -71,27 +73,31 @@ class UGFM(torch.nn.Module):
         init_indices_and_graph_data(HeteroAttnConv.EDGE_PARAMS_1D, self._meta_edge_param_1d_idx)
         init_indices_and_graph_data(HeteroAttnConv.EDGE_PARAMS_2D, self._meta_edge_param_2d_idx)
 
-        self.__meta_param_graph = dgl.graph((src, dst), num_nodes=len(value))
-        self.__meta_param_graph.ndata[VALUE] = torch.tensor(list(map(self.transer.encode, value)), dtype=torch.long)
+        self._meta_param_graph = dgl.graph((src, dst), num_nodes=len(value))
+        self._meta_param_graph.ndata[VALUE] = torch.tensor(list(map(self.transer.encode, value)), dtype=torch.long)
 
     def _init_meta_param(self):
-        with self.__meta_param_graph.local_scope():
-            self.__meta_param_graph.ndata[FEATURE] = self.embedding(self.__meta_param_graph)
-            self.__meta_param_graph.update_all(fn.copy_u(FEATURE, FEATURE), fn.sum(FEATURE, FEATURE))
-            param_2d, param_1d = self.meta_learner(self.__meta_param_graph.ndata[FEATURE])
+        self._meta_param_graph = self._meta_param_graph.to(self.device)
+        with self._meta_param_graph.local_scope():
+            self._meta_param_graph.ndata[FEATURE] = self.embedding(self._meta_param_graph)
+            self._meta_param_graph.update_all(fn.copy_u(FEATURE, FEATURE), fn.sum(FEATURE, FEATURE))
+            param_2d, param_1d = self.meta_learner(self._meta_param_graph.ndata[FEATURE])
 
-            def init_param(param, idx_dict, param_dict):
-                for key, idx in idx_dict.items():
-                    param_dict[key] = param[idx]
+            def init_param(param, *idx_dicts):
+                for idx_dict in idx_dicts:
+                    for key, idx in idx_dict.items():
+                        self.register_buffer(key, param[idx], persistent=False)
 
-            init_param(param_2d, self._meta_node_param_2d_idx, self._meta_node_param)
-            init_param(param_1d, self._meta_node_param_1d_idx, self._meta_node_param)
-            init_param(param_2d, self._meta_edge_param_2d_idx, self._meta_edge_param)
-            init_param(param_1d, self._meta_edge_param_1d_idx, self._meta_edge_param)
+            init_param(param_2d, self._meta_node_param_2d_idx, self._meta_edge_param_2d_idx)
+            init_param(param_1d, self._meta_node_param_1d_idx, self._meta_edge_param_1d_idx)
 
     def _asign_param_to_graph(self, graph, meta_node_feat=None, meta_edge_feat=None):
-        for key, param in self._meta_node_param.items():
-            graph.ndata[key] = param.repeat(graph.num_nodes(), *[1] * len(param.shape))
+        for key, param in self.named_buffers(recurse=False):
+            if key in self._meta_node_param_2d_idx or key in self._meta_node_param_1d_idx:
+                graph.ndata[key] = param.repeat(graph.num_nodes(), *[1] * len(param.shape))
+            elif key in self._meta_edge_param_2d_idx or key in self._meta_edge_param_1d_idx:
+                graph.edata[key] = param.repeat(graph.num_edges(), *[1] * len(param.shape))
+
         if meta_node_feat is not None:
             node_param_2d, node_param_1d = self.meta_learner(meta_node_feat)
             for key in self._meta_node_param_2d_idx:
@@ -99,8 +105,6 @@ class UGFM(torch.nn.Module):
             for key in self._meta_node_param_1d_idx:
                 graph.ndata[key] += node_param_1d[graph.ndata[META_NODE_ID]]
 
-        for key, param in self._meta_edge_param.items():
-            graph.edata[key] = param.repeat(graph.num_edges(), *[1] * len(param.shape))
         if meta_edge_feat is not None:
             edge_param_2d, edge_param_1d = self.meta_learner(meta_edge_feat)
             for key in self._meta_edge_param_2d_idx:
@@ -115,6 +119,8 @@ class UGFM(torch.nn.Module):
     def forward(self, graph: Union[dgl.DGLGraph, Graph], meta_graph: dgl.DGLGraph = None):
         if meta_graph is None:
             meta_graph, graph = self.transer.graph_to_dgl(graph)
+        meta_graph = meta_graph.to(self.device)
+        graph = graph.to(self.device)
         if self.training:
             self._init_meta_param()
         feat_map = []

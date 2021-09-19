@@ -108,49 +108,36 @@ class GraphTranser(MetaStruct):
         all_keys = list(meta_info.meta_name)
         return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer)
 
-    def _gen_dgl_meta_graph(
-            self, component_ids: List[int], keys: List[str], srcs: List[int], dsts: List[int], types: List[str]
+    def _graph_to_dgl(
+            self, src: List[int], dst: List[int], value: List[str], type: List[str] = None, key: List[str] = None,
+            component_id: List[int] = None, meta_node_id: List[int] = None, meta_edge_id: List[int] = None,
     ) -> dgl.DGLGraph:
-        # 构造dgl meta graph
-        graph = dgl.graph(
-            data=(torch.tensor(srcs, dtype=torch.long), torch.tensor(dsts, dtype=torch.long)),
-            num_nodes=len(component_ids),
-        )
-        graph.edata[META_EDGE_ID] = torch.arange(0, graph.num_edges(), 1, dtype=torch.long)
-
-        # 元图点特征
-        graph.ndata[COMPONENT_ID] = torch.tensor(component_ids, dtype=torch.long)
-        graph.ndata[META_NODE_ID] = torch.arange(0, len(component_ids), 1, dtype=torch.long)
-        graph.ndata[VALUE] = torch.tensor(list(map(self.encode, keys)), dtype=torch.long)
-        graph.ndata[TYPE] = torch.tensor(list(map(self.encode, types)), dtype=torch.long)
-        return graph
-
-    def _gen_dgl_graph(self, keys: List[str], values: List[str], meta_node_ids: List[int], types: List[str],
-                       srcs: List[int], dsts: List[int], meta_edge_ids: List[int]) -> dgl.DGLGraph:
         # 构造dgl graph
         graph = dgl.graph(
-            data=(torch.tensor(srcs, dtype=torch.long), torch.tensor(dsts, dtype=torch.long)),
-            num_nodes=len(keys)
+            data=(torch.tensor(src, dtype=torch.long), torch.tensor(dst, dtype=torch.long)),
+            num_nodes=len(value)
         )
+        graph.ndata[VALUE] = torch.tensor(list(map(self.encode, value)), dtype=torch.long)
+        graph.ndata[TYPE] = torch.tensor(list(map(self.encode, type)), dtype=torch.long)
 
-        # 图边特征
-        graph.edata[META_EDGE_ID] = torch.tensor(meta_edge_ids, dtype=torch.long)
+        if key is not None:
+            # 特殊情况：values = [[]]，此时需要先转成pandas.Series
+            numbers = pd.to_numeric(pd.Series(value).values, errors='coerce')
+            unique_names, inverse_indices = np.unique(key, return_inverse=True)
+            masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
+            for i in range(unique_names.shape[0]):
+                numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]])
+            graph.ndata[NUMBER] = torch.tensor(numbers, dtype=torch.float32)
 
-        # 图点特征
-        graph.ndata[META_NODE_ID] = torch.tensor(meta_node_ids, dtype=torch.long)
+        if component_id is not None:
+            graph.ndata[COMPONENT_ID] = torch.tensor(component_id, dtype=torch.long)
 
-        # 图数值特征
-        # 特殊情况：values = [[]]，此时需要先转成pandas.Series
-        numbers = pd.to_numeric(pd.Series(values).values, errors='coerce')
-        unique_names, inverse_indices = np.unique(keys, return_inverse=True)
-        masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
-        for i in range(unique_names.shape[0]):
-            numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]])
-        graph.ndata[NUMBER] = torch.tensor(numbers, dtype=torch.float32)
+        if meta_node_id is not None:
+            graph.ndata[META_NODE_ID] = torch.tensor(meta_node_id, dtype=torch.long)
 
-        # 图字符特征
-        graph.ndata[VALUE] = torch.tensor(list(map(self.encode, values)), dtype=torch.long)
-        graph.ndata[TYPE] = torch.tensor(list(map(self.encode, types)), dtype=torch.long)
+        if meta_edge_id is not None:
+            graph.edata[META_EDGE_ID] = torch.tensor(meta_edge_id, dtype=torch.long)
+
         return graph
 
     def graph_to_dgl(self, graph: Graph) -> Tuple[dgl.DGLGraph, dgl.DGLGraph]:
@@ -159,19 +146,13 @@ class GraphTranser(MetaStruct):
         :param graph:
         :return:
         """
-        meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_keys, meta_node_types \
-            = graph.meta_node_info()
-        meta_edge_ids, pred_meta_node_ids, succ_meta_node_ids = graph.meta_edge_info(meta_node_id_mapper)
-        if self.tokenizer is not None:
-            graph.segment_key(component_ids=meta_node_component_ids, keys=meta_node_keys, srcs=pred_meta_node_ids,
-                              dsts=succ_meta_node_ids, types=meta_node_types, tokenizer=self.tokenizer)
-
-        dgl_meta_graph = self._gen_dgl_meta_graph(
-            component_ids=meta_node_component_ids, keys=meta_node_keys, srcs=pred_meta_node_ids,
-            dsts=succ_meta_node_ids, types=meta_node_types)
-        dgl_graph = self._gen_dgl_graph(
-            keys=graph.key, values=graph.value, meta_node_ids=meta_node_ids, meta_edge_ids=meta_edge_ids,
-            srcs=graph.src, dsts=graph.dst, types=graph.type)
+        meta_graph, meta_node_id, meta_edge_id = graph.meta_graph(self.tokenizer)
+        dgl_meta_graph = self._graph_to_dgl(
+            src=meta_graph.src, dst=meta_graph.dst, value=meta_graph.value, type=meta_graph.type,
+            component_id=meta_graph.component_id)
+        dgl_graph = self._graph_to_dgl(
+            src=graph.src, dst=graph.dst, value=graph.value, key=graph.key, type=graph.type,
+            meta_node_id=meta_node_id, meta_edge_id=meta_edge_id)
         return dgl_meta_graph, dgl_graph
 
     __call__ = graph_to_dgl
