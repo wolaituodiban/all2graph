@@ -2,7 +2,7 @@ from all2graph import JiebaTokenizer, default_tokenizer
 
 
 def test():
-    s = '你好avalonPitch hello!! ！ aadDDa'
+    s = '你好avalonPitch hello!! ！  aadDDa'
     tokenizer = JiebaTokenizer()
     print(tokenizer)
     print(tokenizer.lcut(s))

@@ -1,6 +1,7 @@
 from typing import Tuple, List
 import pandas as pd
 from ..graph import Graph
+from ..globals import TARGET
 from ..meta_struct import MetaStruct
 
 
@@ -15,7 +16,7 @@ class DataParser(MetaStruct):
     @staticmethod
     def add_targets(graph: Graph, component_id, readout_id, targets):
         for target in targets:
-            target_id = graph.insert_node(component_id, target, value=None, self_loop=False)
+            target_id = graph.insert_node(component_id, target, value=None, self_loop=False, type=TARGET)
             graph.insert_edges([readout_id], [target_id])
 
     def gen_targets(self, df: pd.DataFrame):

@@ -36,12 +36,16 @@ class GraphTranser(MetaStruct):
             if word not in self.string_mapper:
                 self.string_mapper[word] = len(self.string_mapper)
 
-        assert NULL in self.string_mapper
+        assert all(i == self.string_mapper[w] for i, w in enumerate(PRESERVED_WORDS))
         assert set(map(type, self.string_mapper)) == {str}
         assert len(self.string_mapper) == len(set(self.string_mapper.values())), (
             len(self.string_mapper), len(set(self.string_mapper.values()))
         )
         assert len(self.string_mapper) == max(list(self.string_mapper.values())) + 1
+
+    @property
+    def num_strings(self):
+        return len(self.string_mapper)
 
     @property
     def reverse_string_mapper(self):

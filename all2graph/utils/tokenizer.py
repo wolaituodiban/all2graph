@@ -2,6 +2,8 @@ from abc import abstractmethod
 from typing import List, Iterable
 import re
 
+from ..globals import SEP
+
 
 class Tokenizer:
     def __init__(self, kill_camel):
@@ -24,28 +26,35 @@ class Tokenizer:
         return ''.join(x)
 
 
-class JiebaTokenizer(Tokenizer):
-    def __init__(self, kill_camel=False, dictionary=None):
-        super().__init__(kill_camel=kill_camel)
-        import jieba
-        if dictionary is not None:
-            tokenizer = jieba.Tokenizer(dictionary)
-        else:
-            tokenizer = jieba.Tokenizer()
-        tokenizer.initialize()
-        tokenizer.lock = None
-        self.tokenizer = tokenizer
+try:
+    import jieba
 
-    def cut(self, s: str, cut_all=False, HMM=True, use_paddle=False, **kwargs) -> Iterable[str]:
-        if self.kill_camel_pattern is not None:
-            s = self.kill_camel(s)
-        return self.tokenizer.cut(s, cut_all=cut_all, HMM=HMM, use_paddle=use_paddle)
+    class JiebaTokenizer(Tokenizer):
+        def __init__(self, kill_camel=False, dictionary=None, stopwords=None):
+            super().__init__(kill_camel=kill_camel)
+            if dictionary is not None:
+                tokenizer = jieba.Tokenizer(dictionary)
+            else:
+                tokenizer = jieba.Tokenizer()
+            tokenizer.initialize()
+            tokenizer.lock = None
+            self.tokenizer = tokenizer
+            self.stopwords = stopwords
 
-    def lcut(self, s: str, **kwargs) -> List[str]:
-        return list(self.cut(s, **kwargs))
+        def cut(self, s: str, cut_all=False, HMM=True, use_paddle=False, **kwargs) -> Iterable[str]:
+            if self.kill_camel_pattern is not None:
+                s = self.kill_camel(s)
+            output = self.tokenizer.cut(s, cut_all=cut_all, HMM=HMM, use_paddle=use_paddle)
+            if self.stopwords is not None:
+                output = (x for x in output if x not in self.stopwords)
+            return output
 
-    def join(self, x: List[str], **kwargs) -> str:
-        return super().join(x, **kwargs)
+        def lcut(self, s: str, **kwargs) -> List[str]:
+            return list(self.cut(s, **kwargs))
 
+        def join(self, x: List[str], **kwargs) -> str:
+            return super().join(x, **kwargs)
 
-default_tokenizer = JiebaTokenizer(kill_camel=True)
+    default_tokenizer = JiebaTokenizer(kill_camel=True, stopwords={SEP})
+except ImportError:
+    default_tokenizer = None

@@ -44,7 +44,7 @@ def edgewise_linear(
 def nodewise_linear(
         feat: torch.Tensor,
         weight: torch.Tensor,
-        bias: torch.Tensor,
+        bias: torch.Tensor = None,
         dropout: torch.nn.Module = None,
         activation: torch.nn.Module = None,
 ) -> torch.Tensor:
@@ -52,16 +52,19 @@ def nodewise_linear(
     u表示前置节点的特征向量，v表示后置节点的特征向量
     norm(dropout(dropout(activation(u * W_u + b_u + v * W_v + b_v)) * W_e + b_e) + u + v)
 
-    :param feat      : num_nodes * in_dim
-    :param weight    : num_nodes * out_dim * in_dim
-    :param bias      : num_nodes * out_dim
+    :param feat      : (num_nodes, in_dim)
+    :param weight    : (num_nodes, *, in_dim)
+    :param bias      : (num_nodes, *)
     :param activation: 激活层
     :param dropout   :
-    :return          : num_nodes * out_dim
+    :return          : (num_nodes, *)
     """
     if dropout is not None:
         feat = dropout(feat)
-    output = (feat.view(*feat.shape[:-1], 1, feat.shape[-1]) * weight).sum(-1) + bias
+    shape = feat.shape[0], *[1]*(len(weight.shape)-len(feat.shape)), feat.shape[-1]
+    output = (feat.view(shape) * weight).sum(-1)
+    if bias is not None:
+        output += bias
     if activation is not None:
         output = activation(output)
     return output

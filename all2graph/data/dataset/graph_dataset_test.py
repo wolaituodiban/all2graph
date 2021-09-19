@@ -3,7 +3,7 @@ import numpy as np
 import shutil
 from torch.utils.data import DataLoader
 import all2graph as ag
-from all2graph import JsonParser, Timer, default_tokenizer
+from all2graph import JsonParser, Timer
 from all2graph.data.dataset import GraphDataset
 from all2graph.factory import Factory
 

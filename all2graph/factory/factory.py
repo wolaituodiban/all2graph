@@ -9,7 +9,7 @@ import torch
 from ..globals import COMPONENT_ID, META_NODE_ID, META_EDGE_ID
 from ..meta import MetaInfo
 from ..data import DataParser
-from ..graph.graph_transer import GraphTranser
+from ..graph.transer import GraphTranser
 from ..utils import progress_wrapper
 from ..utils.pd_utils import dataframe_chunk_iter
 
