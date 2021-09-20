@@ -19,7 +19,6 @@ class JsonParser(DataParser):
             json_col,
             time_col=None,
             time_format=None,
-            target_cols=None,
             # 图生成参数
             flatten_dict=False,
             dict_dst_degree=1,
@@ -48,8 +47,7 @@ class JsonParser(DataParser):
         :param self_loop:
         :param processors: JsonPathTree的参数
         """
-        super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, target_cols=target_cols,
-                         **kwargs)
+        super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, **kwargs)
         self.flatten_dict = flatten_dict
         self.dict_dst_degree = dict_dst_degree
         self.list_dst_degree = list_dst_degree
@@ -176,7 +174,6 @@ class JsonParser(DataParser):
         :param local_index_mapper: index的value和node_id的映射
         :param global_index_mapper: index的value和node_id的映射
         :param readout_id:
-        :param tokenizer:
         :return:
         """
         if readout_id is None:
@@ -197,6 +194,7 @@ class JsonParser(DataParser):
     def parse(
             self,
             df: pd.DataFrame,
+            targets: List[str] = None,
             progress_bar: bool = False,
             **kwargs
     ) -> (Graph, dict, List[dict]):
@@ -232,6 +230,7 @@ class JsonParser(DataParser):
             readout_id = self.insert_component(
                 graph=graph, component_id=component_id, name=READOUT, value=obj, dsts=[],
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=None)
-            self.add_targets(graph, component_id, readout_id, targets=self.target_cols)
+            if targets is not None:
+                graph.add_targets(component_id, readout_id, targets=targets)
             local_index_mappers.append(local_index_mapper)
         return graph, global_index_mapper, local_index_mappers

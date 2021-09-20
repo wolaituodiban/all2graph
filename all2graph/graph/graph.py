@@ -1,8 +1,9 @@
+from itertools import permutations
 from typing import Dict, List, Union, Tuple
 
 import numpy as np
 
-from ..globals import COMPONENT_ID, KEY, VALUE, SRC, DST, META, TYPE
+from ..globals import COMPONENT_ID, KEY, VALUE, SRC, DST, META, TYPE, TARGET
 from ..meta_struct import MetaStruct
 from ..utils import Tokenizer
 
@@ -86,6 +87,11 @@ class Graph(MetaStruct):
             self.dst.append(node_id)
         return node_id
 
+    def add_targets(self, component_id, readout_id, targets):
+        for target in targets:
+            target_id = self.insert_node(component_id, target, value=None, self_loop=False, type=TARGET)
+            self.insert_edges([readout_id], [target_id])
+
     def _meta_node_info(self) -> Tuple[
         List[int], List[str], Dict[Tuple[int, str], int], List[int]
     ]:
@@ -126,8 +132,10 @@ class Graph(MetaStruct):
             for i in range(len(meta_value)):
                 segmented_key = tokenizer.lcut(meta_value[i])
                 if len(segmented_key) > 1:
-                    meta_src += list(range(len(meta_value), len(meta_value) + len(segmented_key)))
-                    meta_dst += [i] * len(segmented_key)  # 指向原本的点
+                    all_ids = [i] + list(range(len(meta_value), len(meta_value) + len(segmented_key)))
+                    for src, dst in permutations(all_ids, 2):
+                        meta_src.append(src)
+                        meta_dst.append(dst)
                     meta_value += segmented_key
                     meta_component_id += [meta_component_id[i]] * len(segmented_key)
                     meta_key += [META] * len(segmented_key)

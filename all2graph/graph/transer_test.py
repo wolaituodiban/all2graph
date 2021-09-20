@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 import all2graph as ag
 from all2graph import MetaInfo, EPSILON
-from all2graph import JsonParser, Timer, JiebaTokenizer, default_tokenizer
+from all2graph import JsonParser, Timer, JiebaTokenizer
 from all2graph.graph.transer import GraphTranser
 
 

@@ -14,7 +14,7 @@ from ..meta_struct import MetaStruct
 
 class GraphTranser(MetaStruct):
     def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list,
-                 keys: List[str], tokenizer: Tokenizer = None):
+                 keys: List[str], targets: List[str] = None, tokenizer: Tokenizer = None):
         """
         Graph与dgl.DiGraph的转换器
         :param meta_numbers: 数值分布
@@ -25,6 +25,7 @@ class GraphTranser(MetaStruct):
         self.meta_numbers = meta_numbers
         self.keys = keys
         self.tokenizer = tokenizer
+        self.targets = list(targets or [])
         all_words = PRESERVED_WORDS + strings
         if self.tokenizer is not None:
             for key in keys:

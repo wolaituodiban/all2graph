@@ -18,13 +18,11 @@ graph, global_index_mapper, local_index_mappers = parser.parse(
 
 
 def test():
-    meta_node_ids, meta_node_id_mapper, meta_node_component_ids, meta_node_names, meta_node_types = graph.meta_node_info()
-    assert graph.key == [meta_node_names[i] for i in meta_node_ids]
-    assert graph.component_id == [meta_node_component_ids[i] for i in meta_node_ids]
-
-    meta_edge_ids, pred_meta_node_ids, succ_meta_node_ids = graph.meta_edge_info(meta_node_id_mapper)
-    assert [graph.key[i] for i in graph.src] == [meta_node_names[pred_meta_node_ids[i]] for i in meta_edge_ids]
-    assert [graph.key[i] for i in graph.dst] == [meta_node_names[succ_meta_node_ids[i]] for i in meta_edge_ids]
+    meta_graph, meta_node_id, meta_edge_id = graph.meta_graph()
+    assert graph.key == [meta_graph.value[i] for i in meta_node_id]
+    assert graph.component_id == [meta_graph.component_id[i] for i in meta_node_id]
+    assert [graph.key[i] for i in graph.src] == [meta_graph.value[meta_graph.src[i]] for i in meta_edge_id]
+    assert [graph.key[i] for i in graph.dst] == [meta_graph.value[meta_graph.dst[i]] for i in meta_edge_id]
 
 
 if __name__ == '__main__':

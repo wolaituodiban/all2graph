@@ -1,5 +1,4 @@
 import os
-import shutil
 
 import numpy as np
 import pandas as pd
@@ -22,7 +21,7 @@ def test():
         factory = Factory(data_parser=json_parser)
         processes = os.cpu_count()
 
-        meta_graph2 = factory.produce_meta_graph(
+        meta_graph2 = factory.analyse(
             csv_path, chunksize=int(np.ceil(nrows/processes)), progress_bar=True, processes=processes, nrows=1000
         )
         used_time1 = timer.diff()
@@ -40,14 +39,6 @@ def test():
 
     assert meta_graph1 == meta_graph2
     assert used_time1 < used_time2
-
-    # 测试保存文件
-    save_path = os.path.join(path, 'test_data', 'graphs')
-    if os.path.exists(save_path):
-        shutil.rmtree(save_path)
-    os.mkdir(save_path)
-    factory.save_graphs(csv_path, save_path, chunksize=64, progress_bar=True, processes=None)
-    shutil.rmtree(save_path)
 
 
 if __name__ == '__main__':
