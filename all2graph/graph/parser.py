@@ -12,7 +12,7 @@ from ..utils import Tokenizer
 from ..meta_struct import MetaStruct
 
 
-class GraphTranser(MetaStruct):
+class GraphParser(MetaStruct):
     def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list,
                  keys: List[str], targets: List[str] = None, tokenizer: Tokenizer = None):
         """
@@ -28,10 +28,10 @@ class GraphTranser(MetaStruct):
         self.targets = list(targets or [])
         all_words = PRESERVED_WORDS + strings
         if self.tokenizer is not None:
-            for key in keys:
+            for key in keys + self.targets:
                 all_words += self.tokenizer.lcut(key)
         else:
-            all_words += keys
+            all_words += keys + self.targets
         self.string_mapper = {}
         for word in (word.lower() for word in all_words):
             if word not in self.string_mapper:
@@ -47,6 +47,10 @@ class GraphTranser(MetaStruct):
     @property
     def num_strings(self):
         return len(self.string_mapper)
+
+    @property
+    def num_targets(self):
+        return len(self.targets)
 
     @property
     def reverse_string_mapper(self):
@@ -147,6 +151,7 @@ class GraphTranser(MetaStruct):
         :param graph:
         :return:
         """
+        graph = graph.add_targets(self.targets)
         meta_graph, meta_node_id, meta_edge_id = graph.meta_graph(self.tokenizer)
         dgl_meta_graph = self._graph_to_dgl(
             src=meta_graph.src, dst=meta_graph.dst, value=meta_graph.value, type=meta_graph.type,

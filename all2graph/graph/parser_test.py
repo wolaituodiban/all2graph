@@ -4,7 +4,7 @@ import torch
 import all2graph as ag
 from all2graph import MetaInfo, EPSILON
 from all2graph import JsonParser, Timer, JiebaTokenizer
-from all2graph.graph.transer import GraphTranser
+from all2graph.graph.parser import GraphParser
 
 
 path = os.path.dirname(__file__)
@@ -27,11 +27,11 @@ meta_info = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=True)
 
 
 def test_init():
-    GraphTranser.from_data(meta_info, min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf')
+    GraphParser.from_data(meta_info, min_df=0.01, max_df=0.95, top_k=100, top_method='max_tfidf')
 
 
 def test_non_segment():
-    trans = GraphTranser.from_data(meta_info)
+    trans = GraphParser.from_data(meta_info)
 
     with Timer('graph_to_dgl'):
         dgl_meta_graph, dgl_graph = trans.graph_to_dgl(graph)
@@ -67,11 +67,11 @@ def test_non_segment():
 
 
 def test_segment():
-    trans1 = GraphTranser.from_data(meta_info)
+    trans1 = GraphParser.from_data(meta_info)
     with Timer('non_segment'):
         dgl_meta_graph1, dgl_graph1 = trans1.graph_to_dgl(graph)
 
-    trans2 = GraphTranser.from_data(meta_info, tokenizer=JiebaTokenizer())
+    trans2 = GraphParser.from_data(meta_info, tokenizer=JiebaTokenizer())
     with Timer('segment'):
         dgl_meta_graph2, dgl_graph2 = trans2.graph_to_dgl(graph)
     print(dgl_meta_graph2)

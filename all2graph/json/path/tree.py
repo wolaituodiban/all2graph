@@ -1,6 +1,6 @@
 from typing import Union, List, Tuple
 
-from .nodes import JsonPathNode, ALL_JSON_PATH_NODE_CLASSES
+from .node import JsonPathNode, ALL_JSON_PATH_NODE_CLASSES
 from ..operator import Operator
 
 

@@ -1,7 +1,7 @@
 import torch
 
 from all2graph import Graph, PRESERVED_WORDS, Timer
-from all2graph.graph.transer import GraphTranser
+from all2graph.graph.parser import GraphParser
 from all2graph.nn import UGFM, num_parameters
 
 
@@ -11,7 +11,7 @@ def test():
     num_latent = 4
     nhead = 2
     num_layers = [(2, 3), (1, 1)]
-    transer = GraphTranser({}, strings=[], keys=[])
+    transer = GraphParser({}, strings=[], keys=[], targets=['a', 'b'])
     model1 = UGFM(transer, d_model=d_model, num_latent=num_latent, nhead=nhead, num_layers=num_layers, share_conv=True)
     model2 = UGFM(transer, d_model=d_model, num_latent=num_latent, nhead=nhead, num_layers=num_layers, share_conv=False)
     assert num_parameters(model1) < num_parameters(model2)
@@ -20,7 +20,7 @@ def test():
         print(k, v.shape)
         assert (v != 0).all()
 
-    graph = Graph(component_id=[0, 0], key=['key', 'meta'], value=['value', 'node'], type=['value', 'value'],
+    graph = Graph(component_id=[0, 0], key=['key', 'meta'], value=['value', 'node'], type=['readout', 'value'],
                   src=[0, 1, 1], dst=[0, 0, 1])
     with Timer('cpu forward'):
         out = model1(graph)
@@ -34,8 +34,8 @@ def test():
             model1(graph)
         with Timer('gpu forward'):
             out = model1(graph)
-    for x in out:
-        assert x.shape == (graph.num_nodes, d_model)
+    print(out)
+    assert out.shape == (graph.num_components, transer.num_targets)
 
 
 if __name__ == '__main__':

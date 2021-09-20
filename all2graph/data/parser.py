@@ -19,7 +19,7 @@ class DataParser(MetaStruct):
             for k in target_cols
         }
 
-    def parse(self, data, targets=None, progress_bar: bool = False, **kwargs) -> Tuple[Graph, dict, List[dict]]:
+    def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[Graph, dict, List[dict]]:
         raise NotImplementedError
 
     def __eq__(self, other):

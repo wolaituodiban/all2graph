@@ -5,7 +5,7 @@ import pandas as pd
 
 from ..meta import MetaInfo
 from ..data import DataParser
-from ..graph.transer import GraphTranser
+from ..graph.parser import GraphParser
 from ..utils import progress_wrapper
 from ..utils.pd_utils import dataframe_chunk_iter
 
@@ -13,21 +13,21 @@ from ..utils.pd_utils import dataframe_chunk_iter
 class Factory:
     def __init__(self, data_parser: DataParser,
                  meta_graph_config: dict = None, graph_transer_config: dict = None):
-        self.parser = data_parser
+        self.data_parser = data_parser
         self.meta_config = meta_graph_config or {}
-        self.transer_config = graph_transer_config or {}
-        self.transer: Union[GraphTranser, None] = None
+        self.graph_parser_config = graph_transer_config or {}
+        self.graph_parser: Union[GraphParser, None] = None
         self.save_path = None  # 多进程的cache
 
     @property
     def targets(self):
-        if self.transer is None:
+        if self.graph_parser is None:
             return []
         else:
-            return self.transer.targets
+            return self.graph_parser.targets
 
     def _produce_graph(self, chunk):
-        return self.parser.parse(chunk, progress_bar=False, targets=self.targets)
+        return self.data_parser.parse(chunk, progress_bar=False, targets=self.targets)
 
     def _analyse(self, chunk: pd.DataFrame) -> Tuple[MetaInfo, int]:
         graph, global_index_mapper, local_index_mappers = self._produce_graph(chunk)
@@ -61,11 +61,11 @@ class Factory:
         meta_info = MetaInfo.reduce(
             meta_infos, weights=weights, progress_bar=progress_bar, processes=processes, **self.meta_config
         )
-        self.transer = GraphTranser.from_data(meta_info, **self.transer_config)
+        self.graph_parser = GraphParser.from_data(meta_info, **self.graph_parser_config)
         return meta_info
 
     def produce_dgl_graph_and_label(self, chunk: pd.DataFrame):
         graph, *_ = self._produce_graph(chunk)
-        dgl_meta_graph, dgl_graph = self.transer.graph_to_dgl(graph)
-        labels = self.parser.gen_targets(chunk, target_cols=self.targets)
+        dgl_meta_graph, dgl_graph = self.graph_parser.graph_to_dgl(graph)
+        labels = self.data_parser.gen_targets(chunk, target_cols=self.targets)
         return (dgl_meta_graph, dgl_graph), labels

@@ -3,7 +3,7 @@ from typing import Dict, List, Union, Tuple
 
 import numpy as np
 
-from ..globals import COMPONENT_ID, KEY, VALUE, SRC, DST, META, TYPE, TARGET
+from ..globals import COMPONENT_ID, KEY, VALUE, SRC, DST, META, TYPE, TARGET, READOUT
 from ..meta_struct import MetaStruct
 from ..utils import Tokenizer
 
@@ -63,7 +63,7 @@ class Graph(MetaStruct):
     def insert_node(
             self,
             component_id: int,
-            name: str,
+            key: str,
             value: Union[dict, list, str, int, float, bool, None],
             self_loop: bool,
             type=VALUE
@@ -71,7 +71,7 @@ class Graph(MetaStruct):
         """
 
         :param component_id:
-        :param name:
+        :param key:
         :param value:
         :param self_loop:
         :param type:
@@ -79,7 +79,7 @@ class Graph(MetaStruct):
         """
         node_id = len(self.key)
         self.component_id.append(component_id)
-        self.key.append(name)
+        self.key.append(key)
         self.value.append(value)
         self.type.append(type)
         if self_loop:
@@ -87,10 +87,24 @@ class Graph(MetaStruct):
             self.dst.append(node_id)
         return node_id
 
-    def add_targets(self, component_id, readout_id, targets):
-        for target in targets:
-            target_id = self.insert_node(component_id, target, value=None, self_loop=False, type=TARGET)
-            self.insert_edges([readout_id], [target_id])
+    def insert_readout(
+            self,
+            component_id: int,
+            value: Union[dict, list, str, int, float, bool, None],
+            self_loop: bool
+    ) -> int:
+        return self.insert_node(component_id=component_id, key=READOUT, value=value, self_loop=self_loop, type=READOUT)
+
+    def add_targets(self, targets):
+        new_graph = Graph(component_id=list(self.component_id), key=list(self.key), value=list(self.value),
+                          src=list(self.src), dst=list(self.dst), type=list(self.type))
+        for i, type in enumerate(new_graph.type):
+            if type == READOUT:
+                for target in targets:
+                    target_id = new_graph.insert_node(
+                        new_graph.component_id[i], target, value=TARGET, self_loop=False, type=TARGET)
+                    new_graph.insert_edges([i], [target_id])
+        return new_graph
 
     def _meta_node_info(self) -> Tuple[
         List[int], List[str], Dict[Tuple[int, str], int], List[int]

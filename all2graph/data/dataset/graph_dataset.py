@@ -20,7 +20,7 @@ class GraphDataset(Dataset):
         for path in progress_wrapper(paths, disable=disable, postfix='checking files'):
             try:
                 df = pd.read_csv(path, **self.kwargs)
-                assert set(self.factory.transer.targets) < set(df.columns)
+                assert set(self.factory.graph_parser.targets) < set(df.columns)
                 unique_component_ids = np.arange(0, df.shape[0], 1)
             except:
                 print(path, file=sys.stderr)

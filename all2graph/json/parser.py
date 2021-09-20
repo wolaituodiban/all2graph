@@ -7,7 +7,6 @@ import pandas as pd
 
 from .path import JsonPathTree
 from ..data import DataParser
-from ..globals import READOUT
 from ..graph import Graph
 from ..utils import progress_wrapper, Tokenizer, default_tokenizer
 
@@ -95,24 +94,22 @@ class JsonParser(DataParser):
                 graph.insert_edges(dsts=new_dsts + new_srcs, srcs=new_srcs + new_dsts)
             elif self.flatten_dict and isinstance(v, dict):
                 self.insert_component(
-                    graph=graph, component_id=component_id, name=k, value=v, dsts=dsts,
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0,
-                )  # 此处之需要readout_id不为None即可
+                    graph=graph, component_id=component_id, key=k, value=v, dsts=dsts,
+                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
             else:
                 node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                 new_dsts = dsts[-self.dict_dst_degree:]
                 new_srcs = [node_id] * len(new_dsts)
                 graph.insert_edges(dsts=new_dsts, srcs=new_srcs)
                 self.insert_component(
-                    graph=graph, component_id=component_id, name=k, value=v, dsts=dsts + [node_id],
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0,
-                )  # 此处之需要readout_id不为None即可
+                    graph=graph, component_id=component_id, key=k, value=v, dsts=dsts + [node_id],
+                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
 
     def insert_array(
             self,
             graph: Graph,
             component_id: int,
-            name: str,
+            key: str,
             value: Union[Dict, List, str, int, float, None],
             dsts: Union[List[int], None],
             local_index_mapper: Dict[str, int],
@@ -121,19 +118,15 @@ class JsonParser(DataParser):
         recursive_flag = True
         if isinstance(value, str):
             recursive_flag = False
-            temp_value = [v for v in self.tokenizer.cut(value)]
+            value = self.tokenizer.lcut(value)
+            if len(value) < 2:
+                return
             # 修改之前插入的value
-            graph.value[dsts[-1]] = []
-        else:
-            temp_value = value
-
-        if len(temp_value) == 1 and len(dsts) > 0:
-            graph.value[dsts[-1]] = temp_value[0]
-            return
+            graph.value[dsts[-1]] = value
 
         node_ids = []
-        for v in temp_value:
-            node_id = graph.insert_node(component_id, name, v, self_loop=self.self_loop)
+        for v in value:
+            node_id = graph.insert_node(component_id, key, v, self_loop=self.self_loop)
 
             new_dsts = dsts[-self.list_dst_degree:]
             new_srcs = [node_id] * len(new_dsts)
@@ -149,47 +142,43 @@ class JsonParser(DataParser):
             node_ids.append(node_id)
             if recursive_flag:
                 self.insert_component(
-                    graph=graph, component_id=component_id, name=name, value=v, dsts=dsts + [node_id],
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=0
-                )  # 此处之需要readout_id不为None即可
+                    graph=graph, component_id=component_id, key=key, value=v, dsts=dsts + [node_id],
+                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
 
     def insert_component(
             self,
             graph: Graph,
             component_id: int,
-            name: str,
             value: Union[Dict, List, str, int, float, None],
             dsts: List[int],
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int],
-            readout_id: Union[int, None],
+            key: str = None,
     ):
         """
         插入一个连通片（component）。如果图中任意两点都是连通的，那么图被称作连通图。
         :param graph:
         :param component_id: 连通片编号
-        :param name: 第一个节点的名称
+        :param key: 第一个节点的名称
         :param value: 第一个节点的值
         :param dsts: 前置节点的编号
         :param local_index_mapper: index的value和node_id的映射
         :param global_index_mapper: index的value和node_id的映射
-        :param readout_id:
         :return:
         """
-        if readout_id is None:
-            readout_id = graph.insert_node(component_id, name, value, self_loop=self.self_loop, type=READOUT)
+        if key is None:
+            readout_id = graph.insert_readout(component_id, value=value, self_loop=self.self_loop)
             self.insert_component(
-                graph=graph, component_id=component_id, name=name, value=value, dsts=[readout_id],
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=readout_id)
+                graph=graph, component_id=component_id, key=graph.key[-1], value=value, dsts=[readout_id],
+                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
         elif isinstance(value, dict):
             self.insert_dict(
                 graph=graph, component_id=component_id, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
         elif isinstance(value, list) or (self.segment_value and isinstance(value, str)):
             self.insert_array(
-                graph=graph, component_id=component_id, name=name, value=value, dsts=dsts,
+                graph=graph, component_id=component_id, key=key, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
-        return readout_id
 
     def parse(
             self,
@@ -227,10 +216,8 @@ class JsonParser(DataParser):
                 obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)
 
             local_index_mapper = {}
-            readout_id = self.insert_component(
-                graph=graph, component_id=component_id, name=READOUT, value=obj, dsts=[],
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper, readout_id=None)
-            if targets is not None:
-                graph.add_targets(component_id, readout_id, targets=targets)
+            self.insert_component(
+                graph=graph, component_id=component_id, value=obj, dsts=[],
+                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
             local_index_mappers.append(local_index_mapper)
         return graph, global_index_mapper, local_index_mappers

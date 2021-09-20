@@ -71,7 +71,7 @@ def test_complicated_situation():
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
     jg1, *_ = JsonParser('json', flatten_dict=True, dict_dst_degree=0, list_dst_degree=0, list_inner_degree=2,
                          r_list_inner_degree=1, target_cols=['a', 'b']).parse(inputs)
-    assert jg1.num_nodes == 10 and jg1.num_edges == 29, '\n{}\n{}\n{}\n{}'.format(
+    assert jg1.num_nodes == 10 and jg1.num_edges == 34, '\n{}\n{}\n{}\n{}'.format(
         jg1.key, jg1.value, jg1.src, jg1.dst
     )
 
