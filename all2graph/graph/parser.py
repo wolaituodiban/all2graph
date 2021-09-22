@@ -77,7 +77,7 @@ class GraphParser(MetaStruct):
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  tokenizer: Tokenizer = None):
+                  targets=None, tokenizer: Tokenizer = None):
         """
 
         :param meta_info:
@@ -85,6 +85,7 @@ class GraphParser(MetaStruct):
         :param max_df: 字符串最大文档频率
         :param top_k: 选择前k个字符串
         :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
+        :param targets:
         :param tokenizer:
         """
         strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
@@ -111,7 +112,7 @@ class GraphParser(MetaStruct):
         meta_numbers = {key: ecdf for key, ecdf in meta_info.meta_numbers.items() if ecdf.value_ecdf.mean_var[1] > 0}
 
         all_keys = list(meta_info.meta_name)
-        return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer)
+        return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer, targets=targets)
 
     def _graph_to_dgl(
             self, src: List[int], dst: List[int], value: List[str], type: List[str] = None, key: List[str] = None,
