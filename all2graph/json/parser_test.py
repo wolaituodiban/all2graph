@@ -113,9 +113,29 @@ def speed():
     print(max(map(len, filter(lambda x: isinstance(x, str), json_graph3.value))))
 
 
+def test_repr():
+    import all2graph as ag
+    parser = JsonParser(
+        'json', flatten_dict=True, global_index_names={'name'}, segment_value=True, self_loop=True,
+        tokenizer=JiebaTokenizer(), processors=[
+            ('$.SMALL_LOAN',),
+            ('$.*', ag.Timestamp('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', ag.Timestamp('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', ag.Timestamp('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
+            ('$.*.bsy_typ', ag.Lower()),
+            ('$.*.ded_typ', ag.Lower()),
+            ('$.*.bsy_typ', ag.Split('_')),
+            ('$.*.ded_typ', ag.Split('_')),
+            ('$.*', ag.Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
+        ]
+    )
+    print(parser)
+
+
 if __name__ == '__main__':
     test_flatten_dict()
     test_list_dst_degree()
     test_list_inner_degree()
     test_complicated_situation()
+    test_repr()
     speed()

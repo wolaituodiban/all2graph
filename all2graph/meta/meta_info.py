@@ -141,3 +141,8 @@ class MetaInfo(MetaStruct):
         return super().reduce(
             structs, weights=weights, meta_numbers=meta_numbers, meta_string=meta_string, meta_name=meta_name, **kwargs
         )
+
+    def extra_repr(self) -> str:
+        return 'num_strings={}, num_numbers={}, num_keys={}'.format(
+            len(self.meta_string), len(self.meta_numbers), len(self.meta_name)
+        )

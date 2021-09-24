@@ -68,10 +68,12 @@ def test_non_segment():
 
 def test_segment():
     trans1 = GraphParser.from_data(meta_info)
+    print(trans1)
     with Timer('non_segment'):
         dgl_meta_graph1, dgl_graph1 = trans1.graph_to_dgl(graph)
 
     trans2 = GraphParser.from_data(meta_info, tokenizer=JiebaTokenizer())
+    print(trans2)
     with Timer('segment'):
         dgl_meta_graph2, dgl_graph2 = trans2.graph_to_dgl(graph)
     print(dgl_meta_graph2)

@@ -52,6 +52,9 @@ try:
         def lcut(self, s: str, **kwargs) -> List[str]:
             return list(self.cut(s, **kwargs))
 
+        def __repr__(self):
+            return '{}(kill_camel={})'.format(self.__class__.__name__, self.kill_camel_pattern is not None)
+
     default_tokenizer = JiebaTokenizer(kill_camel=True, stopwords={SEP}, join_token=SEP)
 except ImportError:
     default_tokenizer = None

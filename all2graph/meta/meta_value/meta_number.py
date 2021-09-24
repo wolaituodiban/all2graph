@@ -63,3 +63,6 @@ class MetaNumber(MetaValue):
             **kwargs
         )
         return super().reduce(structs, count_ecdf=count_ecdf, value_ecdf=value_ecdf, weights=weights, **kwargs)
+
+    def extra_repr(self) -> str:
+        return 'count={}, value={}'.format(self.count_ecdf, self.value_ecdf)

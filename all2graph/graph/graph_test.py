@@ -23,6 +23,7 @@ def test():
     assert graph.component_id == [meta_graph.component_id[i] for i in meta_node_id]
     assert [graph.key[i] for i in graph.src] == [meta_graph.value[meta_graph.src[i]] for i in meta_edge_id]
     assert [graph.key[i] for i in graph.dst] == [meta_graph.value[meta_graph.dst[i]] for i in meta_edge_id]
+    print(graph)
 
 
 if __name__ == '__main__':

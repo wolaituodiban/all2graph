@@ -41,6 +41,7 @@ def speed():
     with Timer('reduce') as timer:
         meta_graph2 = MetaInfo.reduce(meta_graphs, num_bins=None, progress_bar=True)
         used_time3 = timer.diff()
+    print(meta_graph2)
     print(meta_graph2.meta_name.keys())
     assert used_time3 < used_time1 and used_time3 < used_time2
     assert meta_graph == meta_graph2

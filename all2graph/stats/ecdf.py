@@ -138,3 +138,9 @@ class ECDF(Distribution):
         probs = np.sum(probs, axis=0)
 
         return super().reduce(structs, weights=weights, quantiles=quantiles, probs=probs, **kwargs)
+
+    def extra_repr(self) -> str:
+        p = np.arange(0, 1.1, 0.2)
+        q = self.get_quantiles(p)
+        s = ', '.join('{:.3}({:.3})'.format(x, y) for x, y in zip(q, p))
+        return 'quantiles=[{}]'.format(s)

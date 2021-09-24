@@ -15,7 +15,7 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph, *_ = JsonParser('graph', flatten_dict=True).parse(list(map(json.loads, df.json)))
+    json_graph, *_ = JsonParser('json', flatten_dict=True).parse(df)
 
     num_samples = json_graph.num_components
 
@@ -44,7 +44,7 @@ def speed():
     reduce_start_time = time.time()
     number = MetaNumber.reduce(numbers, num_bins=20)
     reduce_time = time.time() - reduce_start_time
-
+    print(number)
     assert reduce_time < merge_time
     print(reduce_time, merge_time)
     print(number.count_ecdf.quantiles)

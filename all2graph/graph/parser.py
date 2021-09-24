@@ -217,3 +217,8 @@ class GraphParser(MetaStruct):
     @classmethod
     def reduce(cls, structs, weights=None, **kwargs):
         raise NotImplementedError
+
+    def extra_repr(self) -> str:
+        return 'num_numbers={}, num_strings={}, num_keys={}, targets={}'.format(
+            len(self.meta_numbers), len(self.string_mapper), len(self.keys), self.targets
+        )

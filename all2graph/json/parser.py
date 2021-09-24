@@ -1,4 +1,5 @@
 import json
+from inspect import ismethod
 from datetime import datetime as ddt
 from typing import Dict, List, Union, Set
 
@@ -221,3 +222,15 @@ class JsonParser(DataParser):
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
             local_index_mappers.append(local_index_mapper)
         return graph, global_index_mapper, local_index_mappers
+
+    def extra_repr(self) -> str:
+        s = '\n'.join(
+            '{}={}'.format(k, v) for k, v in self.__dict__.items()
+            if not ismethod(v) and not isinstance(v, JsonPathTree) and not k.startswith('_')
+        )
+        if self.json_path_tree is not None:
+            s += '\njson_path_tree=('
+            for line in str(self.json_path_tree).split('\n'):
+                s += '\n\t' + line
+            s += ')'
+        return s

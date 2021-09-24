@@ -50,3 +50,12 @@ class MetaStruct(ABC):
         合并多个结构，返回一个加总的结构
         """
         return cls(initialized=True, **kwargs)
+
+    def extra_repr(self) -> str:
+        return ''
+
+    def __repr__(self):
+        extra_repr = str(self.extra_repr())
+        if '\n' in extra_repr:
+            extra_repr = '\n' + '\n\t'.join(extra_repr.split('\n')) + '\n'
+        return '{}({})'.format(self.__class__.__name__, extra_repr)

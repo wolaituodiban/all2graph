@@ -25,6 +25,7 @@ def test():
             csv_path, chunksize=int(np.ceil(nrows/processes)), progress_bar=True, processes=processes, nrows=1000
         )
         used_time1 = timer.diff()
+    print(factory)
 
     with Timer('原生模式') as timer:
         df = pd.read_csv(csv_path, nrows=1000)

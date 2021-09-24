@@ -56,6 +56,14 @@ class Graph(MetaStruct):
     def num_components(self):
         return np.unique(self.component_id).shape[0]
 
+    @property
+    def num_keys(self):
+        return np.unique(self.key).shape[0]
+
+    @property
+    def num_types(self):
+        return np.unique(self.type).shape[0]
+
     def insert_edges(self, srcs: List[int], dsts: List[int]):
         self.src += srcs
         self.dst += dsts
@@ -168,3 +176,8 @@ class Graph(MetaStruct):
     @classmethod
     def merge(cls, structs, **kwargs):
         raise NotImplementedError
+
+    def extra_repr(self) -> str:
+        return 'num_nodes={}, num_edges={}, num_components={}, num_keys={}, num_types={}'.format(
+            self.num_nodes, self.num_edges, self.num_components, self.num_keys, self.num_types
+        )

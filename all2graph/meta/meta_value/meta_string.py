@@ -199,3 +199,6 @@ class MetaString(MetaValue):
         return super().reduce(
             structs, weights=weights, term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf, **kwargs
         )
+
+    def extra_repr(self) -> str:
+        return 'num_strings={}'.format(len(self))

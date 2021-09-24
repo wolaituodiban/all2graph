@@ -22,6 +22,7 @@ def test_from_data():
         columns=['id', 'value']
     )
     cat = MetaString.from_data(df['id'].unique().shape[0], df['id'], df['value'])
+    print(cat)
     assert cat.term_count_ecdf['a'].mean_var == (0.5, 0.25), '{}:{}'.format(
         cat.term_count_ecdf['a'].to_json(), cat.term_count_ecdf['a'].mean_var)
     assert cat.term_count_ecdf['b'].mean_var == (1.5, 0.25), '{}'.format(
@@ -39,6 +40,7 @@ def test_not_eq():
         columns=['id', 'value']
     )
     cat1 = MetaString.from_data(df1['id'].unique().shape[0], df1['id'], df1['value'])
+    print(cat1)
 
     df2 = pd.DataFrame(
         [
@@ -50,6 +52,7 @@ def test_not_eq():
         columns=['id', 'value']
     )
     cat2 = MetaString.from_data(df2['id'].unique().shape[0], df2['id'], df2['value'])
+    print(cat2)
     assert cat1 != cat2
 
 
@@ -75,6 +78,8 @@ def test_merge():
     df = pd.concat(dfs)
     cat1 = MetaString.from_data(df.shape[0], df['index'], df['value'])
     cat2 = MetaString.reduce(cats, weights=weights)
+    print(cat1)
+    print(cat2)
     assert cat1.term_count_ecdf == cat2.term_count_ecdf, json_tools.diff(
         cat1.term_count_ecdf.to_json(), cat2.term_count_ecdf.to_json()
     )
@@ -91,7 +96,7 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph, *_ = JsonParser('graph', flatten_dict=True).parse(list(map(json.loads, df.json)))
+    json_graph, *_ = JsonParser('json', flatten_dict=True).parse(df)
 
     num_samples = json_graph.num_components
 
