@@ -76,10 +76,10 @@ class Factory(MetaStruct):
         return (dgl_meta_graph, dgl_graph), labels
 
     def produce_dataloader(
-            self, path: str, batch_size, num_workers=0, pin_memory=False, partitions=1, disable=False,
+            self, path: Union[str, List[str]], batch_size, num_workers=0, pin_memory=False, partitions=1, disable=False,
             **kwargs) -> DataLoader:
         dir_path = path
-        if not os.path.isdir(path):
+        if isinstance(path, str) and not os.path.isdir(path):
             if dir_path.endswith('.csv') or dir_path.endswith('.zip'):
                 dir_path = dir_path[:-4]
             os.mkdir(dir_path)
@@ -92,7 +92,7 @@ class Factory(MetaStruct):
         )
 
     def extra_repr(self) -> str:
-        return 'data_parser={}\ngraph_parser={}'.format(
+        return 'data_parser: {}\ngraph_parser: {}'.format(
             self.data_parser, self.graph_parser
         )
 

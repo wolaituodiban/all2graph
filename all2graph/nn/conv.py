@@ -119,7 +119,7 @@ class HeteroAttnConv(torch.nn.Module):
             node_feat = node_feat.view(graph.num_nodes(), -1)
             # add & norm
             if self.residual:
-                node_feat += feat
+                node_feat = feat + node_feat
             if self.feat_norm is not None:
                 node_feat = self.feat_norm(node_feat)
 

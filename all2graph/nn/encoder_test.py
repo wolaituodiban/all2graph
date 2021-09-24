@@ -40,6 +40,7 @@ def test_forward():
         with Timer('gpu forward'):
             out = model1(graph)
     print(out)
+    out['a'].mean().backward()
     assert len(out) == graph_parser.num_targets
     for v in out.values():
         assert v.shape == (graph.num_components, )

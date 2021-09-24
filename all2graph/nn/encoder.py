@@ -3,6 +3,7 @@ from typing import List, Tuple, Dict, Union
 import dgl
 import dgl.function as fn
 import torch
+from torch.utils.data import DataLoader
 from toad.nn import Module
 
 from .conv import HeteroAttnConv
@@ -10,9 +11,10 @@ from .embedding import ValueEmbedding
 from .meta import MetaLearner
 from .target import Target
 from .utils import num_parameters
-from ..globals import FEATURE, SEP, VALUE, META_NODE_ID, META_EDGE_ID, TARGET, TYPE
+from ..globals import FEATURE, SEP, VALUE, META_NODE_ID, META_EDGE_ID, TARGET
 from ..graph import Graph
 from ..graph.parser import GraphParser
+from ..utils import progress_wrapper
 
 
 class UGFMEncoder(Module):
@@ -148,15 +150,32 @@ class UGFMEncoder(Module):
                 for conv in block['conv']:
                     node_feat, edge_feat, attn_weight = conv(graph, node_feat)
                     output.append(self.target(graph, node_feat))  # (num_components * num_targets, )
-
                 if self.block_residual:
-                    meta_node_feat += pre_meta_node_feat
-                    node_feat += pre_node_feat
+                    meta_node_feat = meta_node_feat + pre_meta_node_feat
+                    node_feat = node_feat + pre_node_feat
         output = torch.stack(output, -1)
         output = torch.mean(output, -1)
         output = output.view(-1, len(self.graph_parser.targets))
         output = {target: output[:, i] for i, target in enumerate(self.graph_parser.targets)}
         return output
+
+    def predict_dataloader(self, dataloader: DataLoader, postfix=''):
+        with torch.no_grad():
+            self.eval()
+            labels = None
+            outputs = None
+            for (meta_graph, graph), label in progress_wrapper(dataloader, postfix=postfix):
+                output = self(meta_graph=meta_graph, graph=graph)
+                if outputs is None:
+                    outputs = {k: [v.detach().cpu()] for k, v in output.items()}
+                    labels = {k: [v.detach().cpu()] for k, v in label.items()}
+                else:
+                    for k in output:
+                        outputs[k].append(output[k].detach().cpu())
+                        labels[k].append(label[k].detach().cpu())
+            labels = {k: torch.cat(v, dim=0) for k, v in labels.items()}
+            outputs = {k: torch.cat(v, dim=0) for k, v in outputs.items()}
+        return outputs, labels
 
     def fit_step(self, batch, *args, **kwargs):
         (meta_graph, graph), labels = batch

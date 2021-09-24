@@ -8,7 +8,7 @@ class Target(torch.nn.Module):
 
     def __init__(self, targets: torch.Tensor):
         super().__init__()
-        self.targets = targets
+        self.register_buffer('targets', targets, persistent=True)
 
     def forward(self, graph: dgl.DGLGraph, feat) -> torch.Tensor:
         """

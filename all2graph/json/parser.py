@@ -229,8 +229,7 @@ class JsonParser(DataParser):
             if not ismethod(v) and not isinstance(v, JsonPathTree) and not k.startswith('_')
         )
         if self.json_path_tree is not None:
-            s += '\njson_path_tree=('
+            s += '\njson_path_tree:'
             for line in str(self.json_path_tree).split('\n'):
                 s += '\n\t' + line
-            s += ')'
         return s
