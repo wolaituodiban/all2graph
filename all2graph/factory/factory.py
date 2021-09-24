@@ -1,13 +1,16 @@
+import os
 from multiprocessing import Pool
 from typing import Iterable, Tuple, List, Union
 
 import pandas as pd
+from torch.utils.data import DataLoader
 
 from ..meta import MetaInfo
 from ..data import DataParser
+from ..data.dataset import GraphDataset
 from ..graph.parser import GraphParser
 from ..utils import progress_wrapper
-from ..utils.pd_utils import dataframe_chunk_iter
+from ..utils.pd_utils import dataframe_chunk_iter, split_csv
 from ..meta_struct import MetaStruct
 
 
@@ -71,6 +74,22 @@ class Factory(MetaStruct):
         dgl_meta_graph, dgl_graph = self.graph_parser.graph_to_dgl(graph)
         labels = self.data_parser.gen_targets(chunk, target_cols=self.targets)
         return (dgl_meta_graph, dgl_graph), labels
+
+    def produce_dataloader(
+            self, path: str, batch_size, num_workers=0, pin_memory=False, partitions=1, disable=False,
+            **kwargs) -> DataLoader:
+        dir_path = path
+        if not os.path.isdir(path):
+            if dir_path.endswith('.csv') or dir_path.endswith('.zip'):
+                dir_path = dir_path[:-4]
+            os.mkdir(dir_path)
+            print('dir_path: {}'.format(dir_path))
+            split_csv(path, dir_path, chunksize=batch_size, disable=disable, zip=True, **kwargs)
+        dataset = GraphDataset(dir_path, factory=self, partitions=partitions, shuffle=True, disable=disable, **kwargs)
+        return DataLoader(
+            dataset, batch_size=partitions, shuffle=True, num_workers=num_workers, pin_memory=pin_memory,
+            collate_fn=dataset.collate_fn
+        )
 
     def extra_repr(self) -> str:
         return 'data_parser={}\ngraph_parser={}'.format(

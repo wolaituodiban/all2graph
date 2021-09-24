@@ -14,12 +14,15 @@ def dataframe_chunk_iter(data, chunksize, **kwargs):
 
 
 def split_csv(path, dir_path, chunksize, disable=True, zip=True, **kwargs):
+    if not os.path.exists(dir_path):
+        os.mkdir(dir_path)
     chunk_iter = enumerate(dataframe_chunk_iter(path, chunksize=chunksize, **kwargs))
     file_name = os.path.split(path)[-1]
-    if file_name.endwith('.zip') or file_name.endwith('.csv'):
+    if file_name.endswith('.zip') or file_name.endswith('.csv'):
         file_name = file_name[:-4]
     for i, chunk in progress_wrapper(chunk_iter, disable=disable, postfix='spliting csv'):
         if zip:
-            chunk.to_csv(os.path.join(dir_path, '{}.{}.{}'.format(file_name, i, 'zip')))
+            to_file = os.path.join(dir_path, '{}.{}.{}'.format(file_name, i, 'zip'))
         else:
-            chunk.to_csv(os.path.join(dir_path, '{}.{}.{}'.format(file_name, i, 'csv')))
+            to_file = os.path.join(dir_path, '{}.{}.{}'.format(file_name, i, 'csv'))
+        chunk.to_csv(to_file)
