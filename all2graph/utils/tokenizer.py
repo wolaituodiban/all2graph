@@ -1,3 +1,4 @@
+import string
 from abc import abstractmethod
 from typing import List, Iterable
 import re
@@ -55,6 +56,6 @@ try:
         def __repr__(self):
             return '{}(kill_camel={})'.format(self.__class__.__name__, self.kill_camel_pattern is not None)
 
-    default_tokenizer = JiebaTokenizer(kill_camel=True, stopwords={SEP}, join_token=SEP)
+    default_tokenizer = JiebaTokenizer(kill_camel=True, stopwords={SEP}.union(string.punctuation), join_token=SEP)
 except ImportError:
     default_tokenizer = None
