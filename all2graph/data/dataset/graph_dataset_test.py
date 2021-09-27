@@ -20,7 +20,7 @@ def test_graph_file():
     nrows = 1000
 
     json_parser = JsonParser(
-        'json', flatten_dict=True, local_index_names={'name'}, segment_value=True
+        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True
     )
 
     factory = Factory(data_parser=json_parser)

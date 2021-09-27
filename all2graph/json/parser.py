@@ -25,8 +25,8 @@ class JsonParser(DataParser):
             list_dst_degree=1,
             list_inner_degree=-1,
             r_list_inner_degree=-1,
-            local_index_names: Set[str] = None,
-            global_index_names: Set[str] = None,
+            local_id_keys: Set[str] = None,
+            global_id_keys: Set[str] = None,
             segment_value=False,
             self_loop=False,
             # 预处理
@@ -41,8 +41,8 @@ class JsonParser(DataParser):
         :param list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
         :param list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
         :param r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
-        :param local_index_names:
-        :param global_index_names:
+        :param local_id_keys:
+        :param global_id_keys:
         :param segment_value:
         :param self_loop:
         :param processors: JsonPathTree的参数
@@ -53,8 +53,8 @@ class JsonParser(DataParser):
         self.list_dst_degree = list_dst_degree
         self.list_inner_degree = list_inner_degree
         self.r_list_inner_degree = r_list_inner_degree
-        self.local_index_names = local_index_names
-        self.global_index_names = global_index_names
+        self.local_id_keys = local_id_keys
+        self.global_id_keys = global_id_keys
         self.segment_value = segment_value
         self.self_loop = self_loop
         if processors is not None:
@@ -74,25 +74,22 @@ class JsonParser(DataParser):
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int],
     ):
+        # local index和global index的逻辑有点问题
         for k, v in value.items():
-            if self.local_index_names is not None and k in self.local_index_names:
+            if self.local_id_keys is not None and k in self.local_id_keys:
                 if v in local_index_mapper:
                     node_id = local_index_mapper[v]
                 else:
                     node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     local_index_mapper[v] = node_id
-                new_dsts = dsts
-                new_srcs = [node_id] * len(dsts)
-                graph.insert_edges(dsts=new_dsts + new_srcs, srcs=new_srcs + new_dsts)
-            elif self.global_index_names is not None and k in self.global_index_names:
+                graph.insert_edges(dsts=[dsts[-1]], srcs=[node_id], bidirection=True)
+            elif self.global_id_keys is not None and k in self.global_id_keys:
                 if v in global_index_mapper:
                     node_id = global_index_mapper[v]
                 else:
                     node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     global_index_mapper[v] = node_id
-                new_dsts = dsts
-                new_srcs = [node_id] * len(dsts)
-                graph.insert_edges(dsts=new_dsts + new_srcs, srcs=new_srcs + new_dsts)
+                graph.insert_edges(dsts=[dsts[-1]], srcs=[node_id], bidirection=True)
             elif self.flatten_dict and isinstance(v, dict):
                 self.insert_component(
                     graph=graph, component_id=component_id, key=k, value=v, dsts=dsts,

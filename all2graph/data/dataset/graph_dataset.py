@@ -13,7 +13,7 @@ from ...utils import progress_wrapper
 
 class GraphDataset(Dataset):
     def __init__(self, paths, factory, partitions=1, shuffle=False, disable=True, **kwargs):
-        if os.path.isdir(paths):
+        if isinstance(paths, str) and os.path.isdir(paths):
             paths = [os.path.join(paths, path) for path in os.listdir(paths)]
         partitions = int(partitions)
         self.factory = factory

@@ -14,7 +14,7 @@ def test():
     nrows = 1000
 
     json_parser = JsonParser(
-        'json', flatten_dict=True, local_index_names={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
+        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
     )
 
     with Timer('工厂封装模式') as timer:

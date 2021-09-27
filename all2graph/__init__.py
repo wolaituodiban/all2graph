@@ -12,7 +12,7 @@ from .version import __version__
 # 解决在服务器上运行时，dgl写config文件时，没有权限的问题
 import platform
 system = platform.system()
-if 'windows' not in platform.system().lower():
+if 'linux' in platform.system().lower():
     import os
     old_home = os.environ['HOME']
     new_home = os.getcwd()

@@ -64,9 +64,13 @@ class Graph(MetaStruct):
     def num_types(self):
         return np.unique(self.type).shape[0]
 
-    def insert_edges(self, srcs: List[int], dsts: List[int]):
-        self.src += srcs
-        self.dst += dsts
+    def insert_edges(self, srcs: List[int], dsts: List[int], bidirection=False):
+        if bidirection:
+            self.src += srcs + dsts
+            self.dst += dsts + srcs
+        else:
+            self.src += srcs
+            self.dst += dsts
 
     def insert_node(
             self,
@@ -164,6 +168,15 @@ class Graph(MetaStruct):
         meta_graph = Graph(
             component_id=meta_component_id, key=meta_key, value=meta_value, src=meta_src, dst=meta_dst, type=meta_key)
         return meta_graph, meta_node_id, meta_edge_id
+
+    def to_df(self, *attrs):
+        import pandas as pd
+        node_df = pd.DataFrame({attr: getattr(self, attr) for attr in attrs})
+        edge_df = pd.DataFrame({'src': self.src, 'dst': self.dst})
+        for col, series in node_df.iteritems():
+            edge_df['src_{}'.format(col)] = series[edge_df.src].values
+            edge_df['dst_{}'.format(col)] = series[edge_df.dst].values
+        return edge_df
 
     @classmethod
     def from_data(cls, **kwargs):
