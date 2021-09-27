@@ -10,6 +10,10 @@ class ValueEmbedding(torch.nn.Module):
         self.embedding = torch.nn.Embedding(embedding_dim=embedding_dim, num_embeddings=num_embeddings, **kwargs)
         self.number_norm = torch.nn.BatchNorm1d(1)
 
+    @property
+    def device(self):
+        return self.embedding.weight.device
+
     def forward(self, g: dgl.DGLGraph) -> torch.Tensor:
         output = self.embedding(g.ndata[VALUE])
         if NUMBER in g.ndata:

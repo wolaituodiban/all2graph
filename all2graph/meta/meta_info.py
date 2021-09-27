@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Set, Tuple
 
 import numpy as np
 import pandas as pd
@@ -17,24 +17,44 @@ class MetaInfo(MetaStruct):
             meta_string: MetaString,
             meta_numbers: Dict[str, MetaNumber],
             meta_name: MetaString,
+            edge_type: Set[Tuple[str, str]],
             **kwargs
     ):
         super().__init__(**kwargs)
         self.meta_string = meta_string
         self.meta_numbers = meta_numbers
         self.meta_name = meta_name
+        self.edge_type = edge_type
+
+    @property
+    def num_strings(self):
+        return len(self.meta_string)
+
+    @property
+    def num_numbers(self):
+        return len(self.meta_numbers)
+
+    @property
+    def num_keys(self):
+        return len(self.meta_name)
+
+    @property
+    def num_etypes(self):
+        return len(self.edge_type)
 
     def __eq__(self, other):
         return super().__eq__(other)\
                and self.meta_string == other.meta_string\
                and self.meta_numbers == other.meta_numbers\
-               and self.meta_name == other.meta_name
+               and self.meta_name == other.meta_name\
+               and self.edge_type == other.edge_type
 
     def to_json(self) -> dict:
         output = super().to_json()
         output['meta_string'] = self.meta_string.to_json()
         output['meta_numbers'] = {k: v.to_json() for k, v in self.meta_numbers.items()}
         output['meta_name'] = self.meta_name.to_json()
+        output['edge_type'] = self.edge_type
         return output
 
     @classmethod
@@ -56,6 +76,8 @@ class MetaInfo(MetaStruct):
         )
         node_df[COMPONENT_ID] = node_df[COMPONENT_ID].abs()
         num_samples = node_df[COMPONENT_ID].unique().shape[0]
+
+        edge_type = set(graph.edge_type)
 
         # # # # # 生成meta_name # # # # #
         meta_name = MetaString.from_data(
@@ -94,7 +116,8 @@ class MetaInfo(MetaStruct):
             progress_bar=progress_bar, **kwargs
         )
 
-        return super().from_data(meta_string=meta_string, meta_numbers=meta_numbers, meta_name=meta_name, **kwargs)
+        return super().from_data(meta_string=meta_string, meta_numbers=meta_numbers, meta_name=meta_name,
+                                 edge_type=edge_type, **kwargs)
 
     @classmethod
     def reduce(cls, structs, weights=None, progress_bar=False, **kwargs):
@@ -138,11 +161,17 @@ class MetaInfo(MetaStruct):
             [struct.meta_name for struct in structs], weights=weights, progress_bar=progress_bar,
             postfix='reducing meta name', **kwargs
         )
+        # # # # # 合并edge_type # # # # #
+        edge_type = set()
+        for struct in structs:
+            edge_type = edge_type.union(struct.edge_type)
+
         return super().reduce(
-            structs, weights=weights, meta_numbers=meta_numbers, meta_string=meta_string, meta_name=meta_name, **kwargs
+            structs, weights=weights, meta_numbers=meta_numbers, meta_string=meta_string, meta_name=meta_name,
+            edge_type=edge_type, **kwargs
         )
 
     def extra_repr(self) -> str:
-        return 'num_strings={}, num_numbers={}, num_keys={}'.format(
-            len(self.meta_string), len(self.meta_numbers), len(self.meta_name)
+        return 'num_strings={}, num_numbers={}, num_keys={}, num_etypes={}'.format(
+            self.meta_string, self.num_numbers, self.num_keys, self.num_etypes
         )

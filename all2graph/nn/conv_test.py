@@ -80,14 +80,14 @@ def test_statistics():
     graph.ndata[HeteroAttnConv.NODE_BIAS] = node_bias.repeat(num_nodes, 1)
 
     feat = torch.randn(num_nodes, emb_dim)
-    conv = HeteroAttnConv(None, activation=None, dropout=0, residual=False)
-    node_feat, edge_feat, attn_weight = conv(graph, feat)
+    conv = HeteroAttnConv(None, node_activation=None, dropout=0, residual=False)
+    out_feat, key, value, attn_weight = conv(graph, feat)
     print(u)
     print(v)
     print(feat)
-    print(edge_feat)
+    print(value)
     print(attn_weight)
-    print(node_feat)
+    print(out_feat)
 
 
 def test_shape():
@@ -96,8 +96,8 @@ def test_shape():
     out_dim = emb_dim
     dim_per_head = out_dim // nhead
 
-    num_nodes = random.randint(0, 30)
-    num_edges = random.randint(0, 100)
+    num_nodes = random.randint(1, 30)
+    num_edges = random.randint(1, 100)
     graph = dgl.graph(
         (torch.randint(num_nodes-1, (num_edges,)), torch.randint(num_nodes-1, (num_edges,))),
         num_nodes=num_nodes)
@@ -118,7 +118,7 @@ def test_shape():
 
     feat = torch.randn(num_nodes, emb_dim)
     conv = HeteroAttnConv(out_dim)
-    node_feat, edge_feat, attn_weight = conv(graph, feat)
+    node_feat, key, edge_feat, attn_weight = conv(graph, feat)
     assert node_feat.shape == (num_nodes, out_dim)
     assert edge_feat.shape == (num_edges, out_dim)
     assert attn_weight.shape == (num_edges, nhead)

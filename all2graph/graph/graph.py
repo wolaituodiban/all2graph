@@ -118,6 +118,10 @@ class Graph(MetaStruct):
                     new_graph.insert_edges([i], [target_id])
         return new_graph
 
+    @property
+    def edge_type(self):
+        return [(self.key[src], self.key[dst]) for src, dst in zip(self.src, self.dst)]
+
     def _meta_node_info(self) -> Tuple[
         List[int], List[str], Dict[Tuple[int, str], int], List[int]
     ]:

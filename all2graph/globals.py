@@ -7,7 +7,7 @@ FALSE = json.dumps([False])[1:-1]
 
 del json
 
-SEP = ' '
+SEP = '_'
 ID = 'id'
 META = 'meta'
 COMPONENT = 'component'

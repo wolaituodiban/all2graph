@@ -1,4 +1,4 @@
-from typing import Dict, Tuple, List
+from typing import Dict, Tuple, List, Set
 
 import dgl
 import numpy as np
@@ -6,15 +6,16 @@ import pandas as pd
 import torch
 
 from ..graph import Graph
-from ..globals import NULL, PRESERVED_WORDS, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, VALUE, NUMBER, TYPE, META
+from ..globals import NULL, PRESERVED_WORDS, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, VALUE, NUMBER, TYPE, META, \
+    READOUT, KEY
 from ..meta import MetaInfo, MetaNumber
 from ..utils import Tokenizer
 from ..meta_struct import MetaStruct
 
 
 class GraphParser(MetaStruct):
-    def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list,
-                 keys: List[str], targets: List[str] = None, tokenizer: Tokenizer = None):
+    def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str],
+                 edge_type: Set[Tuple[str, str]], targets: List[str] = None, tokenizer: Tokenizer = None):
         """
         Graph与dgl.DiGraph的转换器
         :param meta_numbers: 数值分布
@@ -23,9 +24,13 @@ class GraphParser(MetaStruct):
         """
         super().__init__(initialized=True)
         self.meta_numbers = meta_numbers
-        self.keys = keys
         self.tokenizer = tokenizer
         self.targets = list(targets or [])
+        self.etype_mapper = {t: i for i, t in enumerate(edge_type)}
+        for target in targets:
+            if (READOUT, target) not in self.etype_mapper:
+                self.etype_mapper[(READOUT, target)] = len(self.etype_mapper)
+        self.key_mapper = {k: i for i, k in enumerate(keys + self.targets)}
         all_words = PRESERVED_WORDS + strings
         if self.tokenizer is not None:
             for key in keys + self.targets:
@@ -43,6 +48,10 @@ class GraphParser(MetaStruct):
             len(self.string_mapper), len(set(self.string_mapper.values()))
         )
         assert len(self.string_mapper) == max(list(self.string_mapper.values())) + 1
+        self.meta_mode = True
+
+    def set_meta_mode(self, mode: bool):
+        self.meta_mode = mode
 
     @property
     def num_strings(self):
@@ -51,6 +60,18 @@ class GraphParser(MetaStruct):
     @property
     def num_targets(self):
         return len(self.targets)
+
+    @property
+    def num_keys(self):
+        return len(self.key_mapper)
+
+    @property
+    def num_numbers(self):
+        return len(self.meta_numbers)
+
+    @property
+    def num_etypes(self):
+        return len(self.etype_mapper)
 
     @property
     def reverse_string_mapper(self):
@@ -112,11 +133,13 @@ class GraphParser(MetaStruct):
         meta_numbers = {key: ecdf for key, ecdf in meta_info.meta_numbers.items() if ecdf.value_ecdf.mean_var[1] > 0}
 
         all_keys = list(meta_info.meta_name)
-        return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer, targets=targets)
+        return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer, targets=targets,
+                   edge_type=meta_info.edge_type)
 
     def _graph_to_dgl(
-            self, src: List[int], dst: List[int], value: List[str], type: List[str] = None, key: List[str] = None,
-            component_id: List[int] = None, meta_node_id: List[int] = None, meta_edge_id: List[int] = None,
+            self, src: List[int], dst: List[int], value: List[str], number: bool, type: List[str] = None,
+            key: List[str] = None, component_id: List[int] = None, meta_node_id: List[int] = None,
+            meta_edge_id: List[int] = None, add_key=False, edge_type: List[Tuple[str, str]] = None
     ) -> dgl.DGLGraph:
         # 构造dgl graph
         graph = dgl.graph(
@@ -126,7 +149,7 @@ class GraphParser(MetaStruct):
         graph.ndata[VALUE] = torch.tensor(list(map(self.encode, value)), dtype=torch.long)
         graph.ndata[TYPE] = torch.tensor(list(map(self.encode, type)), dtype=torch.long)
 
-        if key is not None:
+        if number:
             # 特殊情况：values = [[]]，此时需要先转成pandas.Series
             numbers = pd.to_numeric(pd.Series(value).values, errors='coerce')
             unique_names, inverse_indices = np.unique(key, return_inverse=True)
@@ -144,23 +167,34 @@ class GraphParser(MetaStruct):
         if meta_edge_id is not None:
             graph.edata[META_EDGE_ID] = torch.tensor(meta_edge_id, dtype=torch.long)
 
+        if add_key:
+            graph.ndata[KEY] = torch.tensor([self.key_mapper[k] for k in key], dtype=torch.long)
+
+        if edge_type is not None:
+            graph.edata[TYPE] = torch.tensor([self.etype_mapper[e] for e in edge_type], dtype=torch.long)
+
         return graph
 
-    def graph_to_dgl(self, graph: Graph) -> Tuple[dgl.DGLGraph, dgl.DGLGraph]:
+    def graph_to_dgl(self, graph: Graph):
         """
 
         :param graph:
         :return:
         """
         graph = graph.add_targets(self.targets)
-        meta_graph, meta_node_id, meta_edge_id = graph.meta_graph(self.tokenizer)
-        dgl_meta_graph = self._graph_to_dgl(
-            src=meta_graph.src, dst=meta_graph.dst, value=meta_graph.value, type=meta_graph.type,
-            component_id=meta_graph.component_id)
-        dgl_graph = self._graph_to_dgl(
-            src=graph.src, dst=graph.dst, value=graph.value, key=graph.key, type=graph.type,
-            meta_node_id=meta_node_id, meta_edge_id=meta_edge_id)
-        return dgl_meta_graph, dgl_graph
+        if self.meta_mode:
+            meta_graph, meta_node_id, meta_edge_id = graph.meta_graph(self.tokenizer)
+            dgl_meta_graph = self._graph_to_dgl(
+                src=meta_graph.src, dst=meta_graph.dst, value=meta_graph.value, number=False, type=meta_graph.type,
+                component_id=meta_graph.component_id)
+            dgl_graph = self._graph_to_dgl(
+                src=graph.src, dst=graph.dst, value=graph.value, key=graph.key, type=graph.type,
+                meta_node_id=meta_node_id, meta_edge_id=meta_edge_id, number=True)
+            return dgl_meta_graph, dgl_graph
+        else:
+            return self._graph_to_dgl(
+                src=graph.src, dst=graph.dst, value=graph.value, number=True, key=graph.key, type=graph.type,
+                component_id=graph.component_id, add_key=True, edge_type=graph.edge_type)
 
     __call__ = graph_to_dgl
 
@@ -219,6 +253,6 @@ class GraphParser(MetaStruct):
         raise NotImplementedError
 
     def extra_repr(self) -> str:
-        return 'num_numbers={}, num_strings={}, num_keys={}, targets={}'.format(
-            len(self.meta_numbers), len(self.string_mapper), len(self.keys), self.targets
+        return 'num_numbers={}, num_strings={}, num_keys={}, targets={}, num_etype={}'.format(
+            self.num_numbers, self.num_strings, self.num_keys, self.targets, self.num_etypes
         )

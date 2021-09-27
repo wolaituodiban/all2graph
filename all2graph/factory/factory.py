@@ -71,9 +71,9 @@ class Factory(MetaStruct):
 
     def produce_dgl_graph_and_label(self, chunk: pd.DataFrame):
         graph, *_ = self._produce_graph(chunk)
-        dgl_meta_graph, dgl_graph = self.graph_parser.graph_to_dgl(graph)
+        x = self.graph_parser.graph_to_dgl(graph)
         labels = self.data_parser.gen_targets(chunk, target_cols=self.targets)
-        return (dgl_meta_graph, dgl_graph), labels
+        return x, labels
 
     def produce_dataloader(
             self, path: Union[str, List[str]], batch_size, num_workers=0, pin_memory=False, partitions=1, disable=False,

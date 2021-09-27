@@ -8,14 +8,14 @@ def edgewise_linear(
         feat: torch.Tensor,
         u_weight: torch.Tensor,
         v_weight: torch.Tensor,
-        v_bias: torch.Tensor,
-        u_bias: torch.Tensor,
         dropout: torch.nn.Module,
+        v_bias: torch.Tensor = None,
+        u_bias: torch.Tensor = None,
         activation: torch.nn.Module = None,
 ) -> torch.Tensor:
     """
     u表示前置节点的特征向量，v表示后置节点的特征向量
-    norm(dropout(dropout(activation(u * W_u + b_u + v * W_v + b_v)) * W_e + b_e) + u + v)
+    activation(dropout(u) * W_u + b_u + dropout(v) * W_v + b_v)
 
     :param graph     : 图
     :param feat      : num_nodes * in_dim
@@ -33,9 +33,12 @@ def edgewise_linear(
         graph.edata['v_weight'] = v_weight
         graph.apply_edges(fn.u_dot_e('feat', 'u_weight', 'u_feat'))
         graph.apply_edges(fn.v_dot_e('feat', 'v_weight', 'v_feat'))
-        u_feat = graph.edata['u_feat']
-        v_feat = graph.edata['v_feat']
-        e_feat = u_feat.view(u_feat.shape[:-1]) + u_bias + v_feat.view(v_feat.shape[:-1]) + v_bias
+        e_feat = graph.edata['u_feat'] + graph.edata['v_feat']
+        e_feat = e_feat.view(e_feat.shape[:-1])
+        if u_bias is not None:
+            e_feat = e_feat + u_bias
+        if v_bias is not None:
+            e_feat = e_feat + v_bias
         if activation is not None:
             e_feat = activation(e_feat)
         return e_feat
@@ -49,8 +52,6 @@ def nodewise_linear(
         activation: torch.nn.Module = None,
 ) -> torch.Tensor:
     """
-    u表示前置节点的特征向量，v表示后置节点的特征向量
-    norm(dropout(dropout(activation(u * W_u + b_u + v * W_v + b_v)) * W_e + b_e) + u + v)
 
     :param feat      : (num_nodes, in_dim)
     :param weight    : (num_nodes, *, in_dim)
