@@ -50,9 +50,13 @@ def test_ugfm():
     num_layers = [3, 1]
     num_meta_layers = [1, 2]
     model1 = UGFMEncoder(graph_parser, d_model=d_model, num_latent=num_latent, nhead=nhead, num_layers=num_layers,
-                         share_conv=True, edge_bias=True, num_meta_layers=num_meta_layers)
+                         share_conv=True, edge_bias=True, node_bias=True, num_meta_layers=num_meta_layers,
+                         key_activation='relu', value_activation='relu', node_norm=True, key_norm=True, value_norm=True,
+                         conv_residual=True)
     model2 = UGFMEncoder(graph_parser, d_model=d_model, num_latent=num_latent, nhead=nhead, num_layers=num_layers,
-                         share_conv=False, edge_bias=True, num_meta_layers=num_meta_layers)
+                         share_conv=False, edge_bias=True, node_bias=True, num_meta_layers=num_meta_layers,
+                         key_activation='relu', value_activation='relu', node_norm=True, key_norm=True, value_norm=True,
+                         conv_residual=True)
     assert num_parameters(model1) < num_parameters(model2)
     print(model1.eval())
     with torch.no_grad():
@@ -77,7 +81,8 @@ def test_ugfm():
             model1(graph, details=True)
         with Timer('gpu forward'):
             out = model1(graph, details=True)
-    for n, o in zip(['output', 'meta_feats', 'meta_keys', 'meta_values', 'meta_attn_weights', 'feats', 'keys', 'values', 'attn_weights'], out):
+    for n, o in zip(['output', 'meta_feats', 'meta_keys', 'meta_values', 'meta_attn_weights', 'feats', 'keys',
+                     'values', 'attn_weights'], out):
         print(n)
         print(o)
     out[0]['a'].mean().backward()

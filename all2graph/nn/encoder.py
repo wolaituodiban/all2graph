@@ -21,12 +21,14 @@ from ..utils import progress_wrapper
 
 def _gen_conv_blocks(
         num_layers, d_model, dropout, node_activation, key_activation, value_activation, residual, edge_bias,
-        node_bias, share_conv
+        node_bias, share_conv, norm, node_norm, key_norm, value_norm
 ):
     blocks = torch.nn.ModuleList()
     base_conv = HeteroAttnConv(
         d_model, dropout=dropout, node_activation=node_activation, key_activation=key_activation,
-        value_activation=value_activation, residual=residual, edge_bias=edge_bias, node_bias=node_bias)
+        value_activation=value_activation, residual=residual, edge_bias=edge_bias, node_bias=node_bias, norm=norm,
+        node_norm=node_norm, key_norm=key_norm, value_norm=value_norm
+    )
     for n1 in num_layers:
         if share_conv:
             conv = torch.nn.ModuleList([base_conv] * n1)
@@ -40,14 +42,16 @@ class GFMEncoder(Module):
     """graph factorization machine"""
     def __init__(self, graph_parser: GraphParser, d_model, nhead, num_layers: List[int],
                  dropout=0.1, node_activation='relu', key_activation=None, value_activation=None, conv_residual=False,
-                 block_residual=True, share_conv=False, norm=True, edge_bias=True, node_bias=True, **kwargs):
+                 block_residual=True, share_conv=False, norm=True, edge_bias=True, node_bias=True, node_norm=False,
+                 key_norm=False, value_norm=False, **kwargs):
         super().__init__()
         self.graph_parser = graph_parser
         self.embedding = ValueEmbedding(num_embeddings=graph_parser.num_strings, embedding_dim=d_model, **kwargs)
         self.blocks = _gen_conv_blocks(
-            num_layers=num_layers, d_model=d_model if norm else None, dropout=dropout, node_activation=node_activation,
+            num_layers=num_layers, d_model=d_model, dropout=dropout, node_activation=node_activation,
             key_activation=key_activation, value_activation=value_activation, residual=conv_residual,
-            edge_bias=edge_bias, node_bias=node_bias, share_conv=share_conv)
+            edge_bias=edge_bias, node_bias=node_bias, share_conv=share_conv, norm=norm, node_norm=node_norm,
+            key_norm=key_norm, value_norm=value_norm)
         self.block_residual = block_residual
         self.target = Target(targets=torch.tensor([self.graph_parser.encode(TARGET)]))
         self.loss = None
@@ -190,18 +194,20 @@ class UGFMEncoder(GFMEncoder):
     def __init__(self, graph_parser: GraphParser, d_model, num_latent, nhead, num_layers: List[int],
                  num_meta_layers: List[int], dropout=0.1, node_activation='relu', key_activation=None,
                  value_activation=None, conv_residual=False, block_residual=True, share_conv=False, norm=True,
-                 edge_bias=True, node_bias=True, **kwargs):
+                 edge_bias=True, node_bias=True, node_norm=False, key_norm=False, value_norm=False, **kwargs):
         assert len(num_layers) == len(num_meta_layers)
         super(UGFMEncoder, self).__init__(
             graph_parser=graph_parser, d_model=d_model, nhead=nhead, num_layers=num_layers, dropout=dropout,
             node_activation=node_activation, key_activation=key_activation, value_activation=value_activation,
             conv_residual=conv_residual, block_residual=block_residual, share_conv=share_conv, norm=norm,
-            edge_bias=edge_bias, node_bias=node_bias, **kwargs)
+            edge_bias=edge_bias, node_bias=node_bias, node_norm=node_norm, key_norm=key_norm, value_norm=value_norm,
+            **kwargs)
         self.meta_learner = MetaLearner(d_model, num_latent, nhead, d_model // nhead, dropout=dropout)
         self.meta_blocks = _gen_conv_blocks(
-            num_layers=num_meta_layers, d_model=d_model if norm else None, dropout=dropout,
+            num_layers=num_meta_layers, d_model=d_model, dropout=dropout,
             node_activation=node_activation, key_activation=key_activation, value_activation=value_activation,
-            residual=conv_residual, edge_bias=edge_bias, node_bias=node_bias, share_conv=share_conv)
+            residual=conv_residual, edge_bias=edge_bias, node_bias=node_bias, share_conv=share_conv, norm=norm,
+            node_norm=node_norm, key_norm=key_norm, value_norm=value_norm)
 
         self._meta_feats = None
         self._meta_values = None

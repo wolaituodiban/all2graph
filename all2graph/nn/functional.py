@@ -11,6 +11,7 @@ def edgewise_linear(
         dropout: torch.nn.Module,
         v_bias: torch.Tensor = None,
         u_bias: torch.Tensor = None,
+        norm: torch.nn.Module = None,
         activation: torch.nn.Module = None,
 ) -> torch.Tensor:
     """
@@ -23,6 +24,7 @@ def edgewise_linear(
     :param v_weight  : num_edges * nheads * out_dim * in_dim
     :param u_bias    : num_edges * nheads * out_dim
     :param v_bias    : num_edges * nheads * out_dim
+    :param norm      : 激活层之前的归一化
     :param activation:
     :param dropout   :
     :return          : num_edges * nheads * out_dim
@@ -39,6 +41,9 @@ def edgewise_linear(
             e_feat = e_feat + u_bias
         if v_bias is not None:
             e_feat = e_feat + v_bias
+        if norm is not None:
+            shape = e_feat.shape
+            e_feat = norm(e_feat.view(*shape[:-2], -1)).view(shape)
         if activation is not None:
             e_feat = activation(e_feat)
         return e_feat
@@ -49,6 +54,7 @@ def nodewise_linear(
         weight: torch.Tensor,
         bias: torch.Tensor = None,
         dropout: torch.nn.Module = None,
+        norm: torch.nn.Module = None,
         activation: torch.nn.Module = None,
 ) -> torch.Tensor:
     """
@@ -56,6 +62,7 @@ def nodewise_linear(
     :param feat      : (num_nodes, in_dim)
     :param weight    : (num_nodes, *, in_dim)
     :param bias      : (num_nodes, *)
+    :param norm      : 激活层之前的归一化
     :param activation: 激活层
     :param dropout   :
     :return          : (num_nodes, *)
@@ -66,6 +73,9 @@ def nodewise_linear(
     output = (feat.view(shape) * weight).sum(-1)
     if bias is not None:
         output += bias
+    if norm is not None:
+        shape = output.shape
+        output = norm(output.view(*shape[:-2], -1)).view(shape)
     if activation is not None:
         output = activation(output)
     return output

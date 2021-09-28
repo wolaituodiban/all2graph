@@ -15,12 +15,16 @@ from ..meta_struct import MetaStruct
 
 class GraphParser(MetaStruct):
     def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str],
-                 edge_type: Set[Tuple[str, str]], targets: List[str] = None, tokenizer: Tokenizer = None):
+                 edge_type: Set[Tuple[str, str]], targets: List[str] = None, tokenizer: Tokenizer = None,
+                 meta_mode=True):
         """
         Graph与dgl.DiGraph的转换器
         :param meta_numbers: 数值分布
         :param strings: 字符串编码字典
         :param keys: 如果是dict，那么dict的元素必须是list，代表name的分词
+        :param edge_type:
+        :param targets:
+        :parma meta_mode: 如果是True，那么graph_to_dgl会生成一个元图和一个值图，否则只生成一个值图
         """
         super().__init__(initialized=True)
         self.meta_numbers = meta_numbers
@@ -48,7 +52,7 @@ class GraphParser(MetaStruct):
             len(self.string_mapper), len(set(self.string_mapper.values()))
         )
         assert len(self.string_mapper) == max(list(self.string_mapper.values())) + 1
-        self.meta_mode = True
+        self.meta_mode = meta_mode
 
     def set_meta_mode(self, mode: bool):
         self.meta_mode = mode

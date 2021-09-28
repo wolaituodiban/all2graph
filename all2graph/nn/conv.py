@@ -44,7 +44,8 @@ class HeteroAttnConv(torch.nn.Module):
     EDGE_PARAMS_2D = [SRC_KEY_WEIGHT, DST_KEY_WEIGHT, SRC_VALUE_WEIGHT, DST_VALUE_WEIGHT]
 
     def __init__(self, normalized_shape, dropout=0.1, node_activation='relu', key_activation=None,
-                 value_activation=None, residual=True, edge_bias=False, node_bias=False):
+                 value_activation=None, residual=True, edge_bias=False, node_bias=False, norm=True, node_norm=False,
+                 key_norm=False, value_norm=False):
         super().__init__()
         self.key_dropout = torch.nn.Dropout(dropout)
         self.value_dropout = torch.nn.Dropout(dropout)
@@ -55,10 +56,10 @@ class HeteroAttnConv(torch.nn.Module):
         self.value_activation = _get_activation(value_activation)
         self.node_activation = _get_activation(node_activation)
 
-        if normalized_shape is not None:
-            self.norm = torch.nn.LayerNorm(normalized_shape)
-        else:
-            self.norm = None
+        self.norm = torch.nn.LayerNorm(normalized_shape) if norm else None
+        self.node_norm = torch.nn.LayerNorm(normalized_shape) if node_norm else None
+        self.key_norm = torch.nn.LayerNorm(normalized_shape) if key_norm else None
+        self.value_norm = torch.nn.LayerNorm(normalized_shape) if value_norm else None
 
         self.residual = residual
         self.edge_bias = edge_bias
@@ -103,7 +104,7 @@ class HeteroAttnConv(torch.nn.Module):
                 v_weight=graph.edata[self.DST_KEY_WEIGHT],
                 u_bias=graph.edata[self.SRC_KEY_BIAS] if self.edge_bias else None,
                 v_bias=graph.edata[self.DST_KEY_BIAS] if self.edge_bias else None, dropout=self.key_dropout,
-                activation=self.key_activation)  # (, nheads, out_dim // nheads)
+                norm=self.key_norm, activation=self.key_activation)  # (, nheads, out_dim // nheads)
 
             # 通过feature计算value
             graph.edata[VALUE] = edgewise_linear(
@@ -111,7 +112,7 @@ class HeteroAttnConv(torch.nn.Module):
                 v_weight=graph.edata[self.DST_VALUE_WEIGHT],
                 u_bias=graph.edata[self.SRC_VALUE_BIAS] if self.edge_bias else None,
                 v_bias=graph.edata[self.DST_VALUE_BIAS] if self.edge_bias else None, dropout=self.value_dropout,
-                activation=self.value_activation)  # (, nheads, out_dim // nheads)
+                norm=self.value_norm, activation=self.value_activation)  # (, nheads, out_dim // nheads)
 
             # attention
             graph.apply_edges(fn.e_dot_v(KEY, QUERY, ATTENTION))
@@ -123,7 +124,8 @@ class HeteroAttnConv(torch.nn.Module):
             out_feat = graph.ndata[FEATURE].view(graph.num_nodes(), -1)
             out_feat = nodewise_linear(
                 out_feat, weight=graph.ndata[self.NODE_WEIGHT],
-                bias=graph.ndata[self.NODE_BIAS] if self.node_bias else None, activation=self.node_activation)
+                bias=graph.ndata[self.NODE_BIAS] if self.node_bias else None, norm=self.node_norm,
+                activation=self.node_activation)
             # out_feat = self.node_dropout(out_feat)
             out_feat = out_feat.view(graph.num_nodes(), -1)
 
