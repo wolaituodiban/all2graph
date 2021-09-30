@@ -7,11 +7,12 @@ from .utils import num_parameters
 
 class MetaLearner(torch.nn.Module):
     """parameter projection"""
+    # todo 考虑weight和bias是否需要解藕
     def __init__(self, dim, num_latent, *inner_shape, dropout=0, gain=1):
         super().__init__()
         self.a = torch.nn.Parameter(torch.Tensor(num_latent, dim))
-        self.u = torch.nn.Parameter(torch.Tensor(1, num_latent, *inner_shape, dim))
-        self.v = torch.nn.Parameter(torch.Tensor(1, *[1] * len(inner_shape), dim))
+        self.u = torch.nn.Parameter(torch.Tensor(*inner_shape, dim, num_latent))
+        self.v = torch.nn.Parameter(torch.Tensor(1, dim))
         self.dropout = torch.nn.Dropout(dropout)
         self.norm = torch.nn.LayerNorm(dim)
         # 根据kaiming initialization 的理论，Var[W] = gain ** 2 / fan_mode
@@ -34,12 +35,13 @@ class MetaLearner(torch.nn.Module):
         """
         emb = self.dropout(emb)
         e_mul_a = linear(emb, self.a)  # (, num_latent)
-        e_mul_a = e_mul_a.view(*e_mul_a.shape, *[1] * (len(self.u.shape) - len(e_mul_a.shape)))
-        weight = (e_mul_a * self.u).sum(1)  # (, *, dim)
+        weight = linear(e_mul_a, self.u.view(-1, self.u.shape[-1]))
+        weight = weight.view(*e_mul_a.shape[:-1], *self.u.shape[:-1])  # (, *, dim)
         # 根据kaiming initialization 的理论，Var[W] = gain ** 2 / fan_mode
         # 因此，此处要乘上一个系数
         weight = self.norm(weight) * self.scale
-        bias = (weight * self.v).sum(-1)
+        bias = linear(weight, self.v)
+        bias = bias.view(*bias.shape[:-1])
         return weight, bias
 
     def extra_repr(self) -> str:

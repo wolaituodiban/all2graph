@@ -1,11 +1,13 @@
 import torch
 
+import all2graph
 from all2graph import Graph, PRESERVED_WORDS, Timer, MetaInfo
 from all2graph.graph.parser import GraphParser
 from all2graph.nn import GFMEncoder, UGFMEncoder, num_parameters
 
 
 def test_gfm():
+    print('PRESERVED_WORDS:', PRESERVED_WORDS)
     graph = Graph(component_id=[0, 0], key=['readout', 'meta haha'], value=['value', 'node'],
                   type=['readout', 'value'], src=[0, 1, 1], dst=[0, 0, 1])
 
@@ -27,9 +29,9 @@ def test_gfm():
             model1(graph, details=True)
         with Timer('gpu forward'):
             out = model1(graph, details=True)
-    for n, o in zip(['output', 'feats', 'keys', 'values', 'attn_weights'], out):
-        print(n)
-        print(o)
+    # for n, o in zip(['output', 'feats', 'keys', 'values', 'attn_weights'], out):
+    #     print(n)
+    #     print(o)
     out[0]['a'].mean().backward()
     assert len(out[0]) == graph_parser.num_targets
     for v in out[0].values():
@@ -41,9 +43,8 @@ def test_ugfm():
                   type=['readout', 'value'], src=[0, 1, 1], dst=[0, 0, 1])
 
     meta_info = MetaInfo.from_data(graph)
-    graph_parser = GraphParser.from_data(meta_info, targets=['a', 'b'])
+    graph_parser = GraphParser.from_data(meta_info, targets=['a', 'b'], tokenizer=all2graph.default_tokenizer)
 
-    print('PRESERVED_WORDS:', PRESERVED_WORDS)
     d_model = 8
     num_latent = 4
     nhead = 2
@@ -81,14 +82,17 @@ def test_ugfm():
             model1(graph, details=True)
         with Timer('gpu forward'):
             out = model1(graph, details=True)
-    for n, o in zip(['output', 'meta_feats', 'meta_keys', 'meta_values', 'meta_attn_weights', 'feats', 'keys',
-                     'values', 'attn_weights'], out):
-        print(n)
-        print(o)
+    # for n, o in zip(['output', 'meta_feats', 'meta_keys', 'meta_values', 'meta_attn_weights', 'feats', 'keys',
+    #                  'values', 'attn_weights'], out):
+    #     print(n)
+    #     print(o)
     out[0]['a'].mean().backward()
     assert len(out[0]) == graph_parser.num_targets
     for v in out[0].values():
         assert v.shape == (graph.num_components, )
+
+    print(model1._param_key_dgl_graph.ndata)
+    print(model1._param_key_dgl_graph.edges())
 
 
 if __name__ == '__main__':

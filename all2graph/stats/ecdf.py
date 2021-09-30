@@ -115,16 +115,16 @@ class ECDF(Distribution):
         return output
 
     @classmethod
-    def from_data(cls, array, num_bins: int = None, **kwargs):
+    def from_data(cls, array, num_bins: int = None):
         # pd.value_counts sort by frequency，并不是我想要的功能
         counts = pd.value_counts(array, sort=False)
         counts = counts.sort_index(ascending=True)
         counts_cumsum = counts.cumsum()
         counts_cumsum /= counts_cumsum.iloc[-1]
-        return super().from_data(quantiles=counts_cumsum.index, probs=counts_cumsum.values, num_bins=num_bins, **kwargs)
+        return super().from_data(quantiles=counts_cumsum.index, probs=counts_cumsum.values, num_bins=num_bins)
 
     @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
+    def reduce(cls, structs, weights=None, num_bins=num_bins):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -137,7 +137,7 @@ class ECDF(Distribution):
         probs = [w * struct.get_probs(quantiles, kind='previous') for w, struct in zip(weights, structs)]
         probs = np.sum(probs, axis=0)
 
-        return super().reduce(structs, weights=weights, quantiles=quantiles, probs=probs, **kwargs)
+        return super().reduce(structs, weights=weights, quantiles=quantiles, probs=probs, num_bins=num_bins)
 
     def extra_repr(self) -> str:
         p = np.arange(0, 1, 0.1)[1:]

@@ -43,27 +43,27 @@ class HeteroAttnConv(torch.nn.Module):
     EDGE_PARAMS_1D = [SRC_KEY_BIAS, DST_KEY_BIAS, SRC_VALUE_BIAS, DST_VALUE_BIAS]
     EDGE_PARAMS_2D = [SRC_KEY_WEIGHT, DST_KEY_WEIGHT, SRC_VALUE_WEIGHT, DST_VALUE_WEIGHT]
 
-    def __init__(self, normalized_shape, dropout=0.1, node_activation='relu', key_activation=None,
-                 value_activation=None, residual=True, edge_bias=False, node_bias=False, norm=True, node_norm=False,
-                 key_norm=False, value_norm=False):
+    def __init__(self, normalized_shape, dropout=0.1, key_norm=False, key_activation=None,
+                 value_norm=False, value_activation=None, node_norm=False, node_activation='relu',
+                 residual=True, norm=True):
         super().__init__()
         self.key_dropout = torch.nn.Dropout(dropout)
         self.value_dropout = torch.nn.Dropout(dropout)
-        self.attn_dropout = torch.nn.Dropout(dropout)
-        # self.node_dropout = torch.nn.Dropout(dropout)
 
+        self.key_norm = torch.nn.LayerNorm(normalized_shape) if key_norm else None
         self.key_activation = _get_activation(key_activation)
+
+        self.value_norm = torch.nn.LayerNorm(normalized_shape) if value_norm else None
         self.value_activation = _get_activation(value_activation)
+
+        self.attn_dropout = torch.nn.Dropout(dropout)
+
+        # self.node_dropout = torch.nn.Dropout(dropout)
+        self.node_norm = torch.nn.LayerNorm(normalized_shape) if node_norm else None
         self.node_activation = _get_activation(node_activation)
 
-        self.norm = torch.nn.LayerNorm(normalized_shape) if norm else None
-        self.node_norm = torch.nn.LayerNorm(normalized_shape) if node_norm else None
-        self.key_norm = torch.nn.LayerNorm(normalized_shape) if key_norm else None
-        self.value_norm = torch.nn.LayerNorm(normalized_shape) if value_norm else None
-
         self.residual = residual
-        self.edge_bias = edge_bias
-        self.node_bias = node_bias
+        self.norm = torch.nn.LayerNorm(normalized_shape) if norm else None
 
     def reset_parameters(self):
         for module in self.children():
@@ -101,17 +101,15 @@ class HeteroAttnConv(torch.nn.Module):
             # 通过feature计算key
             graph.edata[KEY] = edgewise_linear(
                 feat=in_feat, graph=graph, u_weight=graph.edata[self.SRC_KEY_WEIGHT],
-                v_weight=graph.edata[self.DST_KEY_WEIGHT],
-                u_bias=graph.edata[self.SRC_KEY_BIAS] if self.edge_bias else None,
-                v_bias=graph.edata[self.DST_KEY_BIAS] if self.edge_bias else None, dropout=self.key_dropout,
+                v_weight=graph.edata[self.DST_KEY_WEIGHT], u_bias=getattr(graph.edata, self.SRC_KEY_BIAS, None),
+                v_bias=getattr(graph.edata, self.DST_KEY_BIAS, None), dropout=self.key_dropout,
                 norm=self.key_norm, activation=self.key_activation)  # (, nheads, out_dim // nheads)
 
             # 通过feature计算value
             graph.edata[VALUE] = edgewise_linear(
                 feat=in_feat, graph=graph, u_weight=graph.edata[self.SRC_VALUE_WEIGHT],
-                v_weight=graph.edata[self.DST_VALUE_WEIGHT],
-                u_bias=graph.edata[self.SRC_VALUE_BIAS] if self.edge_bias else None,
-                v_bias=graph.edata[self.DST_VALUE_BIAS] if self.edge_bias else None, dropout=self.value_dropout,
+                v_weight=graph.edata[self.DST_VALUE_WEIGHT], u_bias=getattr(graph.edata, self.SRC_VALUE_BIAS, None),
+                v_bias=getattr(graph.edata, self.DST_VALUE_BIAS, None), dropout=self.value_dropout,
                 norm=self.value_norm, activation=self.value_activation)  # (, nheads, out_dim // nheads)
 
             # attention
@@ -123,9 +121,8 @@ class HeteroAttnConv(torch.nn.Module):
             # linear
             out_feat = graph.ndata[FEATURE].view(graph.num_nodes(), -1)
             out_feat = nodewise_linear(
-                out_feat, weight=graph.ndata[self.NODE_WEIGHT],
-                bias=graph.ndata[self.NODE_BIAS] if self.node_bias else None, norm=self.node_norm,
-                activation=self.node_activation)
+                out_feat, weight=graph.ndata[self.NODE_WEIGHT], bias=getattr(graph.ndata, self.NODE_BIAS, None),
+                norm=self.node_norm, activation=self.node_activation)
             # out_feat = self.node_dropout(out_feat)
             out_feat = out_feat.view(graph.num_nodes(), -1)
 
@@ -142,5 +139,5 @@ class HeteroAttnConv(torch.nn.Module):
             return out_feat, key_feat, value_feat, attn_weight
 
     def extra_repr(self) -> str:
-        return 'residual={}, num_parameters={}, edge_bias={}, node_bias={}'.format(
-            self.residual, num_parameters(self), self.edge_bias, self.node_bias)
+        return 'num_parameters={}, residual={}, '.format(
+            num_parameters(self), self.residual)

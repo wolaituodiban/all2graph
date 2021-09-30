@@ -9,13 +9,13 @@ from ..graph import Graph
 from ..globals import NULL, PRESERVED_WORDS, COMPONENT_ID, META_NODE_ID, META_EDGE_ID, VALUE, NUMBER, TYPE, META, \
     READOUT, KEY
 from ..meta import MetaInfo, MetaNumber
-from ..utils import Tokenizer
+from ..utils import Tokenizer, default_tokenizer
 from ..meta_struct import MetaStruct
 
 
 class GraphParser(MetaStruct):
     def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str],
-                 edge_type: Set[Tuple[str, str]], targets: List[str] = None, tokenizer: Tokenizer = None,
+                 edge_type: Set[Tuple[str, str]], targets: List[str] = None, tokenizer: Tokenizer = default_tokenizer,
                  meta_mode=True):
         """
         Graph与dgl.DiGraph的转换器
@@ -30,17 +30,16 @@ class GraphParser(MetaStruct):
         self.meta_numbers = meta_numbers
         self.tokenizer = tokenizer
         self.targets = list(targets or [])
+        self.key_mapper = {k: i for i, k in enumerate(keys + self.targets)}
+
         self.etype_mapper = {t: i for i, t in enumerate(edge_type)}
-        for target in targets:
+        for target in self.targets:
             if (READOUT, target) not in self.etype_mapper:
                 self.etype_mapper[(READOUT, target)] = len(self.etype_mapper)
-        self.key_mapper = {k: i for i, k in enumerate(keys + self.targets)}
+
         all_words = PRESERVED_WORDS + strings
-        if self.tokenizer is not None:
-            for key in keys + self.targets:
-                all_words += self.tokenizer.lcut(key)
-        else:
-            all_words += keys + self.targets
+        for key in keys + self.targets:
+            all_words += self.tokenizer.lcut(key)
         self.string_mapper = {}
         for word in (word.lower() for word in all_words):
             if word not in self.string_mapper:
@@ -102,7 +101,7 @@ class GraphParser(MetaStruct):
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  targets=None, tokenizer: Tokenizer = None):
+                  targets=None, tokenizer: Tokenizer = default_tokenizer, meta_mode=False):
         """
 
         :param meta_info:
@@ -112,6 +111,7 @@ class GraphParser(MetaStruct):
         :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
         :param targets:
         :param tokenizer:
+        :param meta_mode: 如果True，那么graph_to_dgl会返回元图加值图，否则只返回值图
         """
         strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:
@@ -138,7 +138,7 @@ class GraphParser(MetaStruct):
 
         all_keys = list(meta_info.meta_name)
         return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer, targets=targets,
-                   edge_type=meta_info.edge_type)
+                   edge_type=meta_info.edge_type, meta_mode=meta_mode)
 
     def _graph_to_dgl(
             self, src: List[int], dst: List[int], value: List[str], number: bool, type: List[str] = None,

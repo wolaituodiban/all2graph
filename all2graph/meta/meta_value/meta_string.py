@@ -104,7 +104,7 @@ class MetaString(MetaValue):
 
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, progress_bar=False, postfix='constructing meta string',
-                  **kwargs):
+                  num_bins=None):
         # # # # # 计算node count
         node_count_series = pd.value_counts(sample_ids)
 
@@ -130,14 +130,14 @@ class MetaString(MetaValue):
                 old_term_freq = term_freq
                 term_freq = np.zeros(num_samples)
                 term_freq[:old_term_freq.shape[0]] = old_term_freq
-            term_count_ecdf[value] = ECDF.from_data(term_count, **kwargs)
-            term_freq_ecdf[value] = ECDF.from_data(term_freq, **kwargs)
+            term_count_ecdf[value] = ECDF.from_data(term_count, num_bins=num_bins)
+            term_freq_ecdf[value] = ECDF.from_data(term_freq, num_bins=num_bins)
 
-        return super().from_data(term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf, **kwargs)
+        return super().from_data(term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf)
 
     @classmethod
     def reduce(cls, structs, weights=None, progress_bar=False, postfix='reducing meta string',
-               processes=0, chunksize=None, **kwargs):
+               processes=0, chunksize=None, num_bins=None):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -171,14 +171,15 @@ class MetaString(MetaValue):
             term_count_ecdf = {}
             term_freq_ecdf = {}
             for term in progress_wrapper(term_count_ecdfs.keys(), disable=not progress_bar, postfix=postfix):
-                term_count_ecdf[term] = ECDF.reduce(term_count_ecdfs[term], weights=term_weights[term], **kwargs)
-                term_freq_ecdf[term] = ECDF.reduce(term_freq_ecdfs[term], weights=term_weights[term], **kwargs)
+                term_count_ecdf[term] = ECDF.reduce(
+                    term_count_ecdfs[term], weights=term_weights[term], num_bins=num_bins)
+                term_freq_ecdf[term] = ECDF.reduce(term_freq_ecdfs[term], weights=term_weights[term], num_bins=num_bins)
         else:
             terms = term_count_ecdfs.keys()
             term_count_ecdfs = [{'structs': term_count_ecdfs[term], 'weights': term_weights[term]} for term in terms]
             term_freq_ecdfs = [{'structs': term_freq_ecdfs[term], 'weights': term_weights[term]} for term in terms]
 
-            reduce_wrapper = MpMapFuncWrapper(ECDF.reduce, **kwargs)
+            reduce_wrapper = MpMapFuncWrapper(ECDF.reduce, num_bins=num_bins)
 
             with Pool(processes) as pool:
                 if chunksize is None:
@@ -197,8 +198,7 @@ class MetaString(MetaValue):
                 }
 
         return super().reduce(
-            structs, weights=weights, term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf, **kwargs
-        )
+            structs, weights=weights, term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf)
 
     def extra_repr(self) -> str:
         return 'num_strings={}'.format(len(self))

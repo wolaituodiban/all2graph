@@ -42,8 +42,8 @@ class Factory(MetaStruct):
         meta_info = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=False, **self.meta_info_config)
         return meta_info, chunk.shape[0]
 
-    def analyse(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], chunksize=64, progress_bar=False,
-                postfix='reading csv', processes=0, **kwargs) -> MetaInfo:
+    def analyse(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], chunksize=64, progress_bar=True,
+                postfix='reading csv', processes=None, **kwargs) -> MetaInfo:
         if isinstance(data, (str, pd.DataFrame)):
             data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
 

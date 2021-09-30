@@ -36,7 +36,7 @@ class MetaNumber(MetaValue):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, num_samples, sample_ids, values, **kwargs):
+    def from_data(cls, num_samples, sample_ids, values, num_bins=None):
         node_counts = pd.value_counts(sample_ids).values
         if node_counts.shape[0] < num_samples:
             old_node_counts = node_counts
@@ -44,25 +44,24 @@ class MetaNumber(MetaValue):
             node_counts[:old_node_counts.shape[0]] = old_node_counts
         else:
             assert node_counts.shape[0] == num_samples
-        count_ecdf = ECDF.from_data(node_counts, **kwargs)
-        value_ecdf = ECDF.from_data(values, **kwargs)
-        return super().from_data(count_ecdf=count_ecdf, value_ecdf=value_ecdf, **kwargs)
+        count_ecdf = ECDF.from_data(node_counts, num_bins=num_bins)
+        value_ecdf = ECDF.from_data(values, num_bins=num_bins)
+        return super().from_data(count_ecdf=count_ecdf, value_ecdf=value_ecdf)
 
     @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
+    def reduce(cls, structs, weights=None, num_bins=None):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
             weights = np.array(weights) / sum(weights)
 
-        count_ecdf = ECDF.reduce([struct.count_ecdf for struct in structs], weights=weights, **kwargs)
+        count_ecdf = ECDF.reduce([struct.count_ecdf for struct in structs], weights=weights, num_bins=num_bins)
         # meta data的weight可以从freq中推出
         value_ecdf = ECDF.reduce(
             [struct.value_ecdf for struct in structs],
             weights=[w * struct.count_ecdf.mean for w, struct in zip(weights, structs)],
-            **kwargs
-        )
-        return super().reduce(structs, count_ecdf=count_ecdf, value_ecdf=value_ecdf, weights=weights, **kwargs)
+            num_bins=num_bins)
+        return super().reduce(structs, count_ecdf=count_ecdf, value_ecdf=value_ecdf, weights=weights)
 
     def extra_repr(self) -> str:
         return 'count={}\nvalue={}'.format(self.count_ecdf, self.value_ecdf)

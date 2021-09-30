@@ -1,3 +1,4 @@
+import sys
 from abc import ABC, abstractmethod
 
 from .version import __version__
@@ -12,6 +13,8 @@ class MetaStruct(ABC):
         :param initialized: 如果为False，那么将无法给对象增加属性
         :param kwargs:
         """
+        if len(kwargs) > 0:
+            print('{}.__init__ got unused parameters {}'.format(self.__class__.__name__, kwargs), file=sys.stderr)
         self._initialized = initialized
         self.version = __version__
 

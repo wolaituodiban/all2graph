@@ -66,7 +66,7 @@ class MetaInfo(MetaStruct):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, graph: Graph, index_nodes=None, progress_bar=False, **kwargs):
+    def from_data(cls, graph: Graph, index_nodes=None, progress_bar=False, num_bins=None):
         node_df = pd.DataFrame(
             {
                 COMPONENT_ID: graph.component_id,
@@ -82,7 +82,7 @@ class MetaInfo(MetaStruct):
         # # # # # 生成meta_name # # # # #
         meta_name = MetaString.from_data(
             num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[KEY],
-            progress_bar=progress_bar, postfix='constructing meta name', **kwargs
+            progress_bar=progress_bar, postfix='constructing meta name', num_bins=num_bins
         )
 
         # # # # # 生成meta_numbers # # # # #
@@ -96,7 +96,7 @@ class MetaInfo(MetaStruct):
         meta_numbers = {}
         for name, number_df in number_groups:
             meta_numbers[name] = MetaNumber.from_data(
-                num_samples=num_samples, sample_ids=number_df[COMPONENT_ID], values=number_df[NUMBER], **kwargs
+                num_samples=num_samples, sample_ids=number_df[COMPONENT_ID], values=number_df[NUMBER], num_bins=num_bins
             )
 
         # # # # # 生成meta_string # # # # #
@@ -113,14 +113,14 @@ class MetaInfo(MetaStruct):
 
         meta_string = MetaString.from_data(
             num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[VALUE],
-            progress_bar=progress_bar, **kwargs
+            progress_bar=progress_bar, num_bins=num_bins
         )
 
         return super().from_data(meta_string=meta_string, meta_numbers=meta_numbers, meta_name=meta_name,
-                                 edge_type=edge_type, **kwargs)
+                                 edge_type=edge_type)
 
     @classmethod
-    def reduce(cls, structs, weights=None, progress_bar=False, **kwargs):
+    def reduce(cls, structs, weights=None, progress_bar=False, num_bins=None, processes=None):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -140,7 +140,7 @@ class MetaInfo(MetaStruct):
 
         progress = progress_wrapper(meta_numbers.items(), disable=not progress_bar, postfix='reducing meta numbers')
         meta_numbers = {
-            k: MetaNumber.reduce(v, weights=meta_num_w[k], **kwargs) for k, v in progress
+            k: MetaNumber.reduce(v, weights=meta_num_w[k], num_bins=num_bins) for k, v in progress
         }
 
         # 分布补0
@@ -150,16 +150,17 @@ class MetaInfo(MetaStruct):
             if w_sum < 1 - EPSILON:
                 meta_numbers[k].count_ecdf = ECDF.reduce(
                     [meta_numbers[k].count_ecdf, ECDF([0], [1], initialized=True)],
-                    weights=[w_sum, 1-w_sum], **kwargs
+                    weights=[w_sum, 1-w_sum], num_bins=num_bins
                 )
         # # # # # 合并meta_string # # # # #
         meta_string = MetaString.reduce(
-            [struct.meta_string for struct in structs], weights=weights, progress_bar=progress_bar, **kwargs
+            [struct.meta_string for struct in structs], weights=weights, progress_bar=progress_bar, processes=processes,
+            num_bins=num_bins
         )
         # # # # # 合并meta_name # # # # #
         meta_name = MetaString.reduce(
             [struct.meta_name for struct in structs], weights=weights, progress_bar=progress_bar,
-            postfix='reducing meta name', **kwargs
+            postfix='reducing meta name', processes=processes, num_bins=num_bins
         )
         # # # # # 合并edge_type # # # # #
         edge_type = set()
@@ -168,7 +169,7 @@ class MetaInfo(MetaStruct):
 
         return super().reduce(
             structs, weights=weights, meta_numbers=meta_numbers, meta_string=meta_string, meta_name=meta_name,
-            edge_type=edge_type, **kwargs
+            edge_type=edge_type,
         )
 
     def extra_repr(self) -> str:
