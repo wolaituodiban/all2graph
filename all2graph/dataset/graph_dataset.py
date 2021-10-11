@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 
-from ...utils import progress_wrapper
+from all2graph.utils import progress_wrapper
 
 
 class GraphDataset(Dataset):
@@ -22,8 +22,10 @@ class GraphDataset(Dataset):
         for path in progress_wrapper(paths, disable=disable, postfix='checking files'):
             try:
                 df = pd.read_csv(path, **self.kwargs)
-                assert set(self.factory.graph_parser.targets) < set(df.columns)
+                assert set(self.factory.raw_graph_parser.targets) < set(df.columns)
                 unique_component_ids = np.arange(0, df.shape[0], 1)
+            except KeyboardInterrupt:
+                raise KeyboardInterrupt
             except:
                 print(path, file=sys.stderr)
                 print(traceback.format_exc(), file=sys.stderr)
@@ -65,4 +67,4 @@ class GraphDataset(Dataset):
 
     def collate_fn(self, batches):
         df = pd.concat(batches)
-        return self.factory.produce_dgl_graph_and_label(df)
+        return self.factory.produce_graph_and_label(df)

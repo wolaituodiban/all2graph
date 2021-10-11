@@ -9,9 +9,9 @@ class MetaNumber(MetaValue):
     def __init__(self, count_ecdf: ECDF, value_ecdf: ECDF, **kwargs):
         """
 
-        :param count_ecdf: 节点的计数分布
-        :param value_ecdf: 节点的元数据
-        :param kwargs:
+        :param.py count_ecdf: 节点的计数分布
+        :param.py value_ecdf: 节点的元数据
+        :param.py kwargs:
         """
         super().__init__(**kwargs)
         self.count_ecdf = count_ecdf

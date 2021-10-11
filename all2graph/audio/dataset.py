@@ -23,13 +23,13 @@ class AudioDataset(Dataset):
                  cache_resampler=False, transformer: torch.nn.Module = None, **kwargs):
         """
 
-        :param paths: 包含样本文件的路径，如果是文件夹，那么会遍历文件下所有文件，寻找能被读取的音频文件
-        :param resample_rate: 重采样率
-        :param resample_config: dict，重采样参数
-        :param cache_resampler: 是否缓存重采样器，缓存能加速
-        :param transformer: 转换器，如频谱转换器
-        :param item_transform: 是否在get item阶段调用transformer
-        :param kwargs: 加载音频的其他参数，详见torchaudio.load
+        :param.py paths: 包含样本文件的路径，如果是文件夹，那么会遍历文件下所有文件，寻找能被读取的音频文件
+        :param.py resample_rate: 重采样率
+        :param.py resample_config: dict，重采样参数
+        :param.py cache_resampler: 是否缓存重采样器，缓存能加速
+        :param.py transformer: 转换器，如频谱转换器
+        :param.py item_transform: 是否在get item阶段调用transformer
+        :param.py kwargs: 加载音频的其他参数，详见torchaudio.load
         """
         if isinstance(paths, str):
             # 遍历文件夹下所有文件路径

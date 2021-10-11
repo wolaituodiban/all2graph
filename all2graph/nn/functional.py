@@ -18,15 +18,15 @@ def edgewise_linear(
     u表示前置节点的特征向量，v表示后置节点的特征向量
     activation(dropout(u) * W_u + b_u + dropout(v) * W_v + b_v)
 
-    :param graph     : 图
-    :param feat      : num_nodes * in_dim
-    :param u_weight  : num_edges * nheads * out_dim * in_dim
-    :param v_weight  : num_edges * nheads * out_dim * in_dim
-    :param u_bias    : num_edges * nheads * out_dim
-    :param v_bias    : num_edges * nheads * out_dim
-    :param norm      : 激活层之前的归一化
-    :param activation:
-    :param dropout   :
+    :param.py graph     : 图
+    :param.py feat      : num_nodes * in_dim
+    :param.py u_weight  : num_edges * nheads * out_dim * in_dim
+    :param.py v_weight  : num_edges * nheads * out_dim * in_dim
+    :param.py u_bias    : num_edges * nheads * out_dim
+    :param.py v_bias    : num_edges * nheads * out_dim
+    :param.py norm      : 激活层之前的归一化
+    :param.py activation:
+    :param.py dropout   :
     :return          : num_edges * nheads * out_dim
     """
     with graph.local_scope():
@@ -59,12 +59,12 @@ def nodewise_linear(
 ) -> torch.Tensor:
     """
 
-    :param feat      : (num_nodes, in_dim)
-    :param weight    : (num_nodes, *, in_dim)
-    :param bias      : (num_nodes, *)
-    :param norm      : 激活层之前的归一化
-    :param activation: 激活层
-    :param dropout   :
+    :param.py feat      : (num_nodes, in_dim)
+    :param.py weight    : (num_nodes, *, in_dim)
+    :param.py bias      : (num_nodes, *)
+    :param.py norm      : 激活层之前的归一化
+    :param.py activation: 激活层
+    :param.py dropout   :
     :return          : (num_nodes, *)
     """
     if dropout is not None:

@@ -1,4 +1,5 @@
 import copy
+from typing import List, Dict, Tuple
 
 import dgl
 import dgl.function as fn
@@ -7,7 +8,8 @@ import torch
 
 from .functional import edgewise_linear, nodewise_linear
 from .utils import num_parameters
-from ..globals import FEATURE, KEY, VALUE, ATTENTION, QUERY, SEP, SRC, WEIGHT, BIAS, DST, NODE
+from ..globals import FEATURE, ATTENTION, SEP
+from ..preserves import KEY, QUERY, SRC, WEIGHT, BIAS, DST, NODE, VALUE
 
 
 def _get_activation(act):
@@ -19,7 +21,7 @@ def _get_activation(act):
         return copy.deepcopy(act)
 
 
-class HeteroAttnConv(torch.nn.Module):
+class Conv(torch.nn.Module):
     QUERY = QUERY
 
     SRC_KEY_WEIGHT = SEP.join([SRC, KEY, WEIGHT])
@@ -37,82 +39,130 @@ class HeteroAttnConv(torch.nn.Module):
     NODE_WEIGHT = SEP.join([NODE, WEIGHT])
     NODE_BIAS = SEP.join([NODE, BIAS])
 
-    NODE_PARAMS_1D = [QUERY, NODE_BIAS]
-    NODE_PARAMS_2D = [NODE_WEIGHT]
-
-    EDGE_PARAMS_1D = [SRC_KEY_BIAS, DST_KEY_BIAS, SRC_VALUE_BIAS, DST_VALUE_BIAS]
-    EDGE_PARAMS_2D = [SRC_KEY_WEIGHT, DST_KEY_WEIGHT, SRC_VALUE_WEIGHT, DST_VALUE_WEIGHT]
-
-    def __init__(self, normalized_shape, dropout=0.1, key_norm=False, key_activation=None,
-                 value_norm=False, value_activation=None, node_norm=False, node_activation='relu',
-                 residual=True, norm=True):
+    def __init__(self, normalized_shape, dropout=0.1, key_bias=True, key_norm=False, key_activation=None,
+                 value_bias=True, value_norm=False, value_activation=None, node_bias=True, node_norm=False,
+                 node_activation='relu', residual=True, norm=True):
         super().__init__()
         self.key_dropout = torch.nn.Dropout(dropout)
-        self.value_dropout = torch.nn.Dropout(dropout)
-
+        self.key_bias = key_bias
         self.key_norm = torch.nn.LayerNorm(normalized_shape) if key_norm else None
         self.key_activation = _get_activation(key_activation)
 
+        self.value_dropout = torch.nn.Dropout(dropout)
+        self.value_bias = value_bias
         self.value_norm = torch.nn.LayerNorm(normalized_shape) if value_norm else None
         self.value_activation = _get_activation(value_activation)
 
         self.attn_dropout = torch.nn.Dropout(dropout)
 
         # self.node_dropout = torch.nn.Dropout(dropout)
+        self.node_bias = node_bias
         self.node_norm = torch.nn.LayerNorm(normalized_shape) if node_norm else None
         self.node_activation = _get_activation(node_activation)
 
         self.residual = residual
         self.norm = torch.nn.LayerNorm(normalized_shape) if norm else None
 
+    @property
+    def edge_dynamic_parameter_names_2d(self):
+        return [self.SRC_KEY_WEIGHT, self.DST_KEY_WEIGHT, self.SRC_VALUE_WEIGHT, self.DST_VALUE_WEIGHT]
+
+    @property
+    def edge_dynamic_parameter_names_1d(self):
+        output = []
+        if self.key_bias:
+            output += [self.SRC_KEY_BIAS, self.DST_KEY_BIAS]
+        if self.value_bias:
+            output += [self.SRC_VALUE_BIAS, self.DST_VALUE_BIAS]
+        return output
+
+    @property
+    def node_dynamic_parameter_names_2d(self):
+        return [self.NODE_WEIGHT]
+
+    @property
+    def node_dynamic_parameter_names_1d(self):
+        output = [self.QUERY]
+        if self.node_bias:
+            output.append(self.NODE_BIAS)
+        return output
+
+    @property
+    def node_dynamic_parameter_names(self):
+        return self.node_dynamic_parameter_names_2d + self.node_dynamic_parameter_names_1d
+
+    @property
+    def edge_dynamic_parameter_names(self):
+        return self.edge_dynamic_parameter_names_2d + self.edge_dynamic_parameter_names_1d
+
+    @property
+    def dynamic_parameter_names_2d(self):
+        return self.node_dynamic_parameter_names_2d + self.edge_dynamic_parameter_names_2d
+
+    @property
+    def dynamic_parameter_names_1d(self):
+        return self.node_dynamic_parameter_names_1d + self.edge_dynamic_parameter_names_1d
+
     def reset_parameters(self):
         for module in self.children():
             if hasattr(module, 'reset_parameters'):
                 module.reset_parameters()
 
-    def forward(self, graph: dgl.DGLGraph, in_feat: torch.Tensor) -> (torch.Tensor, torch.Tensor):
+    def _forward(
+            self, graph: dgl.DGLGraph, in_feat: torch.Tensor, parameters: Dict[str, torch.Tensor]
+    ) -> (torch.Tensor, torch.Tensor):
         """
         K = dot(u, w_uk) + b_uk + dot(v, w_vk) + b_vk
         V = dot(u, w_uv) + b_uv + dot(v, w_vv) + b_vv
         attn_out = softmax(dot(Q, K_T)) * V
         out = dot(attn_out, w_o) + b_o
-        :param graph:
-            ndata:
-                QUERY            : (, nhead, out_dim // nhead)
-                NODE_WEIGHT      : (, out_dim, in_dim)
-                NODE_BIAS        : (, out_dim)
-            edata:
-                SRC_KEY_WEIGHT   : (, nhead, out_dim // nhead, in_dim)
-                DST_KEY_WEIGHT   : (, nhead, out_dim // nhead, in_dim)
-                SRC_KEY_BIAS     : (, nhead, out_dim // nhead)
-                DST_KEY_BIAS     : (, nhead, out_dim // nhead)
 
-                SRC_VALUE_WEIGHT : (, nhead, out_dim // nhead, in_dim)
-                DST_VALUE_WEIGHT : (, nhead, out_dim // nhead, in_dim)
-                SRC_VALUE_BIAS   : (, nhead, out_dim // nhead)
-                DST_VALUE_BIAS   : (, nhead, out_dim // nhead)
+        :param graph:
         :param in_feat: num_nodes * in_dim
+
+        edge weight
+            src_key_weight   : (, nhead, out_dim // nhead, in_dim)
+            dst_key_weight   : (, nhead, out_dim // nhead, in_dim)
+            src_key_bias     : (, nhead, out_dim // nhead)
+            dst_key_bias     : (, nhead, out_dim // nhead)
+
+            src_value_weight : (, nhead, out_dim // nhead, in_dim)
+            dst_value_weight : (, nhead, out_dim // nhead, in_dim)
+            src_value_bias   : (, nhead, out_dim // nhead)
+            dst_value_bias   : (, nhead, out_dim // nhead)
+
+        node weight
+            query            : (, nhead, out_dim // nhead)
+            node_weight      : (, out_dim, in_dim)
+            node_bias        : (, out_dim)
+
         :return:
-            node_feat  : (num_nodes, out_dim)
-            edge_feat  : (num_edges, out_dim)
-            attn_weight: (num_edges, nhead)
+            out_feat    : (num_nodes, out_dim)
+            key_feat    : (num_nodes, out_dim)
+            value_feat  : (num_edges, out_dim)
+            attn_weight : (num_edges, nhead)
         """
         with graph.local_scope():
             # 通过feature计算key
             graph.edata[KEY] = edgewise_linear(
-                feat=in_feat, graph=graph, u_weight=graph.edata[self.SRC_KEY_WEIGHT],
-                v_weight=graph.edata[self.DST_KEY_WEIGHT], u_bias=getattr(graph.edata, self.SRC_KEY_BIAS, None),
-                v_bias=getattr(graph.edata, self.DST_KEY_BIAS, None), dropout=self.key_dropout,
-                norm=self.key_norm, activation=self.key_activation)  # (, nheads, out_dim // nheads)
+                feat=in_feat, graph=graph, u_weight=parameters[self.SRC_KEY_WEIGHT],
+                v_weight=parameters[self.DST_KEY_WEIGHT],
+                u_bias=parameters[self.SRC_KEY_BIAS] if self.key_bias else None,
+                v_bias=parameters[self.DST_KEY_BIAS] if self.key_bias else None,
+                dropout=self.key_dropout, norm=self.key_norm, activation=self.key_activation
+            )  # (, nheads, out_dim // nheads)
 
             # 通过feature计算value
             graph.edata[VALUE] = edgewise_linear(
-                feat=in_feat, graph=graph, u_weight=graph.edata[self.SRC_VALUE_WEIGHT],
-                v_weight=graph.edata[self.DST_VALUE_WEIGHT], u_bias=getattr(graph.edata, self.SRC_VALUE_BIAS, None),
-                v_bias=getattr(graph.edata, self.DST_VALUE_BIAS, None), dropout=self.value_dropout,
-                norm=self.value_norm, activation=self.value_activation)  # (, nheads, out_dim // nheads)
+                feat=in_feat, graph=graph, u_weight=parameters[self.SRC_VALUE_WEIGHT],
+                v_weight=parameters[self.DST_VALUE_WEIGHT],
+                u_bias=parameters[self.SRC_VALUE_BIAS] if self.key_bias else None,
+                v_bias=parameters[self.DST_VALUE_BIAS] if self.key_bias else None,
+                dropout=self.key_dropout, norm=self.key_norm, activation=self.key_activation
+            )  # (, nheads, out_dim // nheads)
 
             # attention
+            graph.ndata[QUERY] = parameters[self.QUERY]
             graph.apply_edges(fn.e_dot_v(KEY, QUERY, ATTENTION))
             graph.edata[ATTENTION] = self.attn_dropout(edge_softmax(graph, graph.edata[ATTENTION]))
             graph.edata[FEATURE] = graph.edata[VALUE] * graph.edata[ATTENTION]
@@ -121,7 +171,8 @@ class HeteroAttnConv(torch.nn.Module):
             # linear
             out_feat = graph.ndata[FEATURE].view(graph.num_nodes(), -1)
             out_feat = nodewise_linear(
-                out_feat, weight=graph.ndata[self.NODE_WEIGHT], bias=getattr(graph.ndata, self.NODE_BIAS, None),
+                out_feat, weight=parameters[self.NODE_WEIGHT],
+                bias=parameters[self.NODE_BIAS] if self.node_bias else None,
                 norm=self.node_norm, activation=self.node_activation)
             # out_feat = self.node_dropout(out_feat)
             out_feat = out_feat.view(graph.num_nodes(), -1)
@@ -138,6 +189,175 @@ class HeteroAttnConv(torch.nn.Module):
             attn_weight = graph.edata[ATTENTION].view(graph.num_edges(), -1)
             return out_feat, key_feat, value_feat, attn_weight
 
+    def forward(
+            self, graph: dgl.DGLGraph, in_feat: torch.Tensor, parameters: Dict[str, torch.Tensor],
+            meta_node_id=None, meta_edge_id=None) -> (torch.Tensor, torch.Tensor):
+        new_params = {}
+        if meta_node_id is None:
+            for name in self.edge_dynamic_parameter_names:
+                parameter = parameters[name]
+                new_params[name] = parameter.repeat(graph.num_edges(), *[1] * len(parameter.shape))
+
+            for name in self.node_dynamic_parameter_names:
+                parameter = parameters[name]
+                new_params[name] = parameter.repeat(graph.num_nodes(), *[1] * len(parameter.shape))
+
+        else:
+            for name in self.edge_dynamic_parameter_names:
+                new_params[name] = parameters[name][meta_edge_id]
+
+            for name in self.node_dynamic_parameter_names:
+                new_params[name] = parameters[name][meta_node_id]
+
+        return self._forward(graph=graph, in_feat=in_feat, parameters=new_params)
+
     def extra_repr(self) -> str:
-        return 'num_parameters={}, residual={}, '.format(
-            num_parameters(self), self.residual)
+        return 'key_bias={}, value_bias={}, node_bias={}, residual={}, num_parameters={}'.format(
+            self.key_bias, self.value_bias, self.node_bias, self.residual, num_parameters(self))
+
+
+class Block(torch.nn.ModuleList):
+    def __init__(self, conv_layer: Conv, num_layers: int, share_layer: bool, residual=True):
+        if share_layer:
+            conv_layers = torch.nn.ModuleList([conv_layer] * num_layers)
+        else:
+            conv_layers = torch.nn.ModuleList([copy.deepcopy(conv_layer) for _ in range(num_layers)])
+        super().__init__(conv_layers)
+        self.residual = residual
+
+    @property
+    def node_dynamic_parameter_names(self):
+        return self[0].node_dynamic_parameter_names
+
+    @property
+    def edge_dynamic_parameter_names(self):
+        return self[0].edge_dynamic_parameter_names
+
+    @property
+    def dynamic_parameter_names_2d(self):
+        return self[0].dynamic_parameter_names_2d
+
+    @property
+    def dynamic_parameter_names_1d(self):
+        return self[0].dynamic_parameter_names_1d
+
+    def reset_parameters(self):
+        for layer in self:
+            layer.reset_parameters()
+
+    def forward(
+            self, graph, in_feat, parameters: Dict[str, torch.Tensor], meta_node_id=None, meta_edge_id=None
+    ) -> (List[torch.Tensor], List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]):
+        out_feats = []
+        keys = []
+        values = []
+        attn_weights = []
+        for conv in self:
+            out_feat, key, value, attn_weight = conv(
+                graph, in_feat, parameters, meta_node_id=meta_node_id, meta_edge_id=meta_edge_id)
+            out_feats.append(out_feat)
+            keys.append(key)
+            values.append(value)
+            attn_weights.append(attn_weight)
+            in_feat = out_feat
+        if self.residual:
+            out_feats[-1] = out_feats[-1] + in_feat
+        return out_feats, keys, values, attn_weights
+
+    def extra_repr(self) -> str:
+        return 'residual={}, num_parameters={}'.format(self.residual, num_parameters(self))
+
+
+class Body(torch.nn.ModuleList):
+    def __init__(self, conv_layer: Conv, num_layers: List[int], share_layer: bool, residual=True):
+        blocks = [Block(conv_layer, n, share_layer=share_layer, residual=residual) for n in num_layers]
+        super().__init__(blocks)
+        assert set(self.node_dynamic_parameter_names+self.edge_dynamic_parameter_names) ==\
+               set(self.dynamic_parameter_names)
+
+    @property
+    def node_dynamic_parameter_names(self):
+        return self[0].node_dynamic_parameter_names
+
+    @property
+    def edge_dynamic_parameter_names(self):
+        return self[0].edge_dynamic_parameter_names
+
+    @property
+    def dynamic_parameter_names_2d(self):
+        return self[0].dynamic_parameter_names_2d
+
+    @property
+    def dynamic_parameter_names_1d(self):
+        return self[0].dynamic_parameter_names_1d
+
+    @property
+    def dynamic_parameter_names(self):
+        return self.dynamic_parameter_names_1d + self.dynamic_parameter_names_2d
+
+    def reset_parameters(self):
+        for layer in self:
+            layer.reset_parameters()
+
+    def forward(
+            self, graph, in_feat, parameters: List[Dict[str, torch.Tensor]], meta_node_id=None, meta_edge_id=None
+    ) -> (List[List[torch.Tensor]], List[List[torch.Tensor]], List[List[torch.Tensor]], List[List[torch.Tensor]]):
+        out_feats = []
+        keys = []
+        values = []
+        attn_weights = []
+        for conv, param in zip(self, parameters):
+            out_feat, key, value, attn_weight = conv(
+                graph, in_feat, param, meta_node_id=meta_node_id, meta_edge_id=meta_edge_id)
+            out_feats.append(out_feat)
+            keys.append(key)
+            values.append(value)
+            attn_weights.append(attn_weight)
+            in_feat = out_feat[-1]
+        return out_feats, keys, values, attn_weights
+
+    def extra_repr(self) -> str:
+        return 'num_parameters={}'.format(num_parameters(self))
+
+
+class MockBody(torch.nn.Module):
+    def __init__(self, num_layers: int):
+        super().__init__()
+        self.num_layers = num_layers
+
+    def __len__(self):
+        return self.num_layers
+
+    @property
+    def node_dynamic_parameter_names(self):
+        return []
+
+    @property
+    def edge_dynamic_parameter_names(self):
+        return []
+
+    @property
+    def dynamic_parameter_names_2d(self):
+        return []
+
+    @property
+    def dynamic_parameter_names_1d(self):
+        return []
+
+    @property
+    def dynamic_parameter_names(self):
+        return []
+
+    def reset_parameters(self):
+        pass
+
+    def forward(
+            self, graph, **kwargs
+    ) -> (List[List[torch.Tensor]], None, List[Tuple[torch.Tensor]], None):
+        mock_feats = [[graph.ndata[KEY]]] * self.num_layers
+        mock_values = [[graph.edata[KEY]]] * self.num_layers
+
+        return mock_feats, None, mock_values, None
+
+    def extra_repr(self) -> str:
+        return 'num_layers={}'.format(self.num_layers)

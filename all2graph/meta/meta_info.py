@@ -4,9 +4,11 @@ import numpy as np
 import pandas as pd
 
 from .meta_value import MetaNumber, MetaString
-from ..graph import Graph
+from ..graph import RawGraph
 from ..meta_struct import MetaStruct
-from ..globals import NULL, TRUE, FALSE, EPSILON, COMPONENT_ID, KEY, VALUE, NUMBER
+from ..globals import EPSILON, COMPONENT_ID
+from ..preserves import NUMBER
+from ..preserves import NULL, TRUE, FALSE, KEY, VALUE
 from ..stats import ECDF
 from ..utils import progress_wrapper
 
@@ -66,7 +68,7 @@ class MetaInfo(MetaStruct):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, graph: Graph, index_nodes=None, progress_bar=False, num_bins=None):
+    def from_data(cls, graph: RawGraph, index_nodes=None, progress_bar=False, num_bins=None):
         node_df = pd.DataFrame(
             {
                 COMPONENT_ID: graph.component_id,
@@ -77,7 +79,7 @@ class MetaInfo(MetaStruct):
         node_df[COMPONENT_ID] = node_df[COMPONENT_ID].abs()
         num_samples = node_df[COMPONENT_ID].unique().shape[0]
 
-        edge_type = set(graph.edge_type)
+        edge_type = set(graph.edge_key)
 
         # # # # # 生成meta_name # # # # #
         meta_name = MetaString.from_data(

@@ -3,7 +3,7 @@ import shutil
 from torch.utils.data import DataLoader
 import all2graph as ag
 from all2graph import JsonParser, Timer
-from all2graph.data.dataset import GraphDataset
+from all2graph.dataset import GraphDataset
 from all2graph.factory import Factory
 
 import platform
@@ -13,7 +13,6 @@ if 'darwin' in platform.system().lower():
 
 def test_graph_file():
     path = os.path.dirname(__file__)
-    path = os.path.dirname(path)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
@@ -45,7 +44,7 @@ def test_graph_file():
             dataset3, batch_size=64, shuffle=True, num_workers=os.cpu_count(), pin_memory=True,
             collate_fn=dataset3.collate_fn
         )
-        for (meta_graph, graph), labels in ag.progress_wrapper(data_loader1):
+        for graph, labels in ag.progress_wrapper(data_loader1):
             pass
 
     shutil.rmtree(save_path)

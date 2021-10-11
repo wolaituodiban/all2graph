@@ -5,37 +5,57 @@ from typing import Iterable, Tuple, List, Union
 import pandas as pd
 from torch.utils.data import DataLoader
 
+from ..dataset import GraphDataset
+from ..graph import RawGraph
 from ..meta import MetaInfo
-from ..data import DataParser
-from ..data.dataset import GraphDataset
-from ..graph.parser import GraphParser
+from ..parsers import DataParser, RawGraphParser
 from ..utils import progress_wrapper
 from ..utils.pd_utils import dataframe_chunk_iter, split_csv
 from ..meta_struct import MetaStruct
 
 
+def _verify_kwargs(func, *args, kwargs):
+    unexpected = []
+    for k, v in kwargs.items():
+        try:
+            func(*args, **{k: v})
+        except TypeError:
+            unexpected.append(k)
+        except:
+            pass
+    return unexpected
+
+
 class Factory(MetaStruct):
-    def __init__(self, data_parser: DataParser,
-                 meta_info_config: dict = None, graph_parser_config: dict = None, **kwargs):
+    def __init__(
+            self, data_parser: DataParser, meta_info_config: dict = None, raw_graph_parser_config: dict = None,
+            **kwargs):
         super().__init__(initialized=True, **kwargs)
+        if meta_info_config is not None:
+            unexp_args = _verify_kwargs(MetaInfo.from_data, RawGraph(), kwargs=meta_info_config)
+            assert len(unexp_args) == 0, 'meta_info_config got unexpected keyword argument {}'.format(unexp_args)
+        if raw_graph_parser_config is not None:
+            unexp_args = _verify_kwargs(RawGraphParser.from_data, None, kwargs=raw_graph_parser_config)
+            assert len(unexp_args) == 0, 'raw_graph_parser_config got unexpected keyword argument {}'.format(unexp_args)
+
         self.data_parser = data_parser
         self.meta_info_config = meta_info_config or {}
-        self.graph_parser_config = graph_parser_config or {}
-        self.graph_parser: Union[GraphParser, None] = None
+        self.graph_parser_config = raw_graph_parser_config or {}
+        self.raw_graph_parser: Union[RawGraphParser, None] = None
         self.save_path = None  # 多进程的cache
 
     @property
     def targets(self):
-        if self.graph_parser is None:
+        if self.raw_graph_parser is None:
             return []
         else:
-            return self.graph_parser.targets
+            return self.raw_graph_parser.targets
 
-    def _produce_graph(self, chunk):
+    def _produce_raw_graph(self, chunk):
         return self.data_parser.parse(chunk, progress_bar=False)
 
     def _analyse(self, chunk: pd.DataFrame) -> Tuple[MetaInfo, int]:
-        graph, global_index_mapper, local_index_mappers = self._produce_graph(chunk)
+        graph, global_index_mapper, local_index_mappers = self._produce_raw_graph(chunk)
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
@@ -66,12 +86,12 @@ class Factory(MetaStruct):
         meta_info = MetaInfo.reduce(
             meta_infos, weights=weights, progress_bar=progress_bar, processes=processes, **self.meta_info_config
         )
-        self.graph_parser = GraphParser.from_data(meta_info, **self.graph_parser_config)
+        self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.graph_parser_config)
         return meta_info
 
-    def produce_dgl_graph_and_label(self, chunk: pd.DataFrame):
-        graph, *_ = self._produce_graph(chunk)
-        x = self.graph_parser.graph_to_dgl(graph)
+    def produce_graph_and_label(self, chunk: pd.DataFrame):
+        graph, *_ = self._produce_raw_graph(chunk)
+        x = self.raw_graph_parser.parse(graph)
         labels = self.data_parser.gen_targets(chunk, target_cols=self.targets)
         return x, labels
 
@@ -93,12 +113,12 @@ class Factory(MetaStruct):
 
     def extra_repr(self) -> str:
         return 'data_parser: {}\ngraph_parser: {}'.format(
-            self.data_parser, self.graph_parser
+            self.data_parser, self.raw_graph_parser
         )
 
     def __eq__(self, other):
-        return super().__eq__(other)\
-               and self.graph_parser == other.graph_parser and self.data_parser == other.graph_parser
+        return super().__eq__(other) \
+               and self.raw_graph_parser == other.raw_graph_parser and self.data_parser == other.raw_graph_parser
 
     @classmethod
     def from_data(cls, **kwargs):

@@ -1,6 +1,6 @@
 from typing import Tuple, List
 import pandas as pd
-from ..graph import Graph
+from ..graph import RawGraph
 from ..meta_struct import MetaStruct
 
 
@@ -19,7 +19,7 @@ class DataParser(MetaStruct):
             for k in target_cols
         }
 
-    def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[Graph, dict, List[dict]]:
+    def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
         raise NotImplementedError
 
     def __eq__(self, other):

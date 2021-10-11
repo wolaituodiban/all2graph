@@ -7,8 +7,8 @@ import pandas as pd
 
 
 from .path import JsonPathTree
-from ..data import DataParser
-from ..graph import Graph
+from ..parsers import DataParser
+from ..graph import RawGraph
 from ..utils import progress_wrapper, Tokenizer, default_tokenizer
 
 
@@ -36,16 +36,16 @@ class JsonParser(DataParser):
     ):
         """
 
-        :param flatten_dict:
-        :param dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
-        :param list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
-        :param list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
-        :param r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
-        :param local_id_keys:
-        :param global_id_keys:
-        :param segment_value:
-        :param self_loop:
-        :param processors: JsonPathTree的参数
+        :param.py flatten_dict:
+        :param.py dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
+        :param.py list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
+        :param.py list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
+        :param.py r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
+        :param.py local_id_keys:
+        :param.py global_id_keys:
+        :param.py segment_value:
+        :param.py self_loop:
+        :param.py processors: JsonPathTree的参数
         """
         super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, **kwargs)
         self.flatten_dict = flatten_dict
@@ -67,7 +67,7 @@ class JsonParser(DataParser):
 
     def insert_dict(
             self,
-            graph: Graph,
+            graph: RawGraph,
             component_id: int,
             value: Union[Dict, List, str, int, float, None],
             dsts: Union[List[int], None],
@@ -105,7 +105,7 @@ class JsonParser(DataParser):
 
     def insert_array(
             self,
-            graph: Graph,
+            graph: RawGraph,
             component_id: int,
             key: str,
             value: Union[Dict, List, str, int, float, None],
@@ -145,7 +145,7 @@ class JsonParser(DataParser):
 
     def insert_component(
             self,
-            graph: Graph,
+            graph: RawGraph,
             component_id: int,
             value: Union[Dict, List, str, int, float, None],
             dsts: List[int],
@@ -184,8 +184,8 @@ class JsonParser(DataParser):
             targets: List[str] = None,
             progress_bar: bool = False,
             **kwargs
-    ) -> (Graph, dict, List[dict]):
-        graph = Graph()
+    ) -> (RawGraph, dict, List[dict]):
+        graph = RawGraph()
         global_index_mapper = {}
         local_index_mappers = []
 
@@ -221,7 +221,7 @@ class JsonParser(DataParser):
         return graph, global_index_mapper, local_index_mappers
 
     def extra_repr(self) -> str:
-        s = '\n'.join(
+        s = ', '.join(
             '{}={}'.format(k, v) for k, v in self.__dict__.items()
             if not ismethod(v) and not isinstance(v, JsonPathTree) and not k.startswith('_')
         )

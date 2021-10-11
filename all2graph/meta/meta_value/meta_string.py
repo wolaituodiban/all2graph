@@ -26,9 +26,9 @@ class MetaString(MetaValue):
     def __init__(self, term_count_ecdf: Dict[str, ECDF], term_freq_ecdf: Dict[str, ECDF], **kwargs):
         """
 
-        :param term_count_ecdf:
-        :param term_freq_ecdf:
-        :param kwargs:
+        :param.py term_count_ecdf:
+        :param.py term_freq_ecdf:
+        :param.py kwargs:
         """
         assert len(term_count_ecdf) > 0, '频率分布函数不能为空'
         assert all(isinstance(value, str) for value in term_count_ecdf)
