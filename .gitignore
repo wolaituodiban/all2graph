@@ -12,3 +12,4 @@ notebooks
 *.dgl*
 /build
 *.pkl
+*.torch

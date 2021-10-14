@@ -1,18 +1,6 @@
-import dgl
 import torch
 from ..globals import SEP
-from ..preserves import NUMBER, WEIGHT, VALUE, KEY, BIAS
-
-
-class ValueEmbedding(torch.nn.Embedding):
-    def forward(self, graph: dgl.DGLGraph) -> torch.Tensor:
-        return super().forward(graph.ndata[VALUE])
-
-
-class MockValueEmbedding(torch.nn.Module):
-    @staticmethod
-    def forward(graph: dgl.DGLGraph) -> torch.Tensor:
-        return graph.ndata[KEY]
+from ..preserves import NUMBER, WEIGHT, KEY, BIAS
 
 
 class NodeEmbedding(torch.nn.Module):

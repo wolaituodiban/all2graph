@@ -44,6 +44,14 @@ class Graph:
         return 'Meta{}\n{}'.format(self.meta_graph, self.value_graph)
 
     @property
+    def meta_value(self):
+        return self.meta_graph.ndata[VALUE]
+
+    @property
+    def value(self):
+        return self.value_graph.ndata[VALUE]
+
+    @property
     def meta_key(self):
         return self.meta_graph.ndata[KEY]
 
@@ -62,3 +70,6 @@ class Graph:
     @property
     def edge_key(self):
         return self.meta_edge_key[self.meta_edge_id]
+
+    def target_mask(self, target_symbol: list):
+        return (self.symbol.view(-1, 1) == torch.tensor(target_symbol, dtype=torch.long)).any(-1)

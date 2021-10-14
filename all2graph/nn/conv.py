@@ -247,7 +247,7 @@ class Block(torch.nn.ModuleList):
 
     def forward(
             self, graph, in_feat, parameters: Dict[str, torch.Tensor], meta_node_id=None, meta_edge_id=None
-    ) -> (List[torch.Tensor], List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]):
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         out_feats = []
         keys = []
         values = []
@@ -262,6 +262,10 @@ class Block(torch.nn.ModuleList):
             in_feat = out_feat
         if self.residual:
             out_feats[-1] = out_feats[-1] + in_feat
+        out_feats = torch.stack(out_feats, dim=0)
+        keys = torch.stack(keys, dim=0)
+        values = torch.stack(values, dim=0)
+        attn_weights = torch.stack(attn_weights, dim=0)
         return out_feats, keys, values, attn_weights
 
     def extra_repr(self) -> str:
@@ -300,15 +304,29 @@ class Body(torch.nn.ModuleList):
             layer.reset_parameters()
 
     def forward(
-            self, graph, in_feat, parameters: List[Dict[str, torch.Tensor]], meta_node_id=None, meta_edge_id=None
-    ) -> (List[List[torch.Tensor]], List[List[torch.Tensor]], List[List[torch.Tensor]], List[List[torch.Tensor]]):
+            self, graph, in_feat, parameters: Dict[str, torch.Tensor], meta_node_id=None, meta_edge_id=None
+    ) -> Tuple[List[torch.Tensor], List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:
+        """
+
+        :param graph:
+        :param in_feat:
+        :param parameters: dict of tensor with shape(num_blocks, *), 其中*是特定参数的维度
+        :param meta_node_id:
+        :param meta_edge_id:
+        :return:
+            out_feat    : (num_layers, num_nodes, out_dim)
+            key_feat    : (num_layers, num_nodes, out_dim)
+            value_feat  : (num_layers, num_edges, out_dim)
+            attn_weight : (num_layers, num_edges, nhead)
+        """
         out_feats = []
         keys = []
         values = []
         attn_weights = []
-        for conv, param in zip(self, parameters):
+        for i, conv in enumerate(self):
             out_feat, key, value, attn_weight = conv(
-                graph, in_feat, param, meta_node_id=meta_node_id, meta_edge_id=meta_edge_id)
+                graph, in_feat, {k: v[i] for k, v in parameters.items()},
+                meta_node_id=meta_node_id, meta_edge_id=meta_edge_id)
             out_feats.append(out_feat)
             keys.append(key)
             values.append(value)
@@ -318,46 +336,3 @@ class Body(torch.nn.ModuleList):
 
     def extra_repr(self) -> str:
         return 'num_parameters={}'.format(num_parameters(self))
-
-
-class MockBody(torch.nn.Module):
-    def __init__(self, num_layers: int):
-        super().__init__()
-        self.num_layers = num_layers
-
-    def __len__(self):
-        return self.num_layers
-
-    @property
-    def node_dynamic_parameter_names(self):
-        return []
-
-    @property
-    def edge_dynamic_parameter_names(self):
-        return []
-
-    @property
-    def dynamic_parameter_names_2d(self):
-        return []
-
-    @property
-    def dynamic_parameter_names_1d(self):
-        return []
-
-    @property
-    def dynamic_parameter_names(self):
-        return []
-
-    def reset_parameters(self):
-        pass
-
-    def forward(
-            self, graph, **kwargs
-    ) -> (List[List[torch.Tensor]], None, List[Tuple[torch.Tensor]], None):
-        mock_feats = [[graph.ndata[KEY]]] * self.num_layers
-        mock_values = [[graph.edata[KEY]]] * self.num_layers
-
-        return mock_feats, None, mock_values, None
-
-    def extra_repr(self) -> str:
-        return 'num_layers={}'.format(self.num_layers)

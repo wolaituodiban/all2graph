@@ -6,23 +6,25 @@ from ..globals import SEP
 from ..preserves import WEIGHT, TARGET, BIAS
 
 
-class Output(torch.nn.Module):
+class FC(torch.nn.Module):
     TARGET_WEIGHT = SEP.join([TARGET, WEIGHT])
     TARGET_BIAS = SEP.join([TARGET, BIAS])
 
-    def __init__(self, targets: List[str], symbols: List[int], last_block_only=False, last_layer_only=False):
+    def __init__(
+            self, last_block_only=False, last_layer_only=False, share_block_param=False, bias=True
+    ):
         """
 
-        :param targets: 目标的名称
-        :param symbols: 目标的标记
         :param last_block_only: 只使用最后一个block的特征
         :param last_layer_only: 只使用每个block最后一层的特征
+        :param share_block_param: 同一个block公用
+        :param bias: 是否使用bias
         """
         super().__init__()
-        self.targets = targets
-        self.register_buffer('symbols', torch.tensor(symbols, dtype=torch.long))
         self.last_block_only = last_block_only
         self.last_layer_only = last_layer_only
+        self.share_block_param = share_block_param
+        self.bias = bias
 
     @property
     def num_targets(self):
@@ -30,7 +32,10 @@ class Output(torch.nn.Module):
 
     @property
     def dynamic_parameter_names_0d(self):
-        return [self.TARGET_BIAS]
+        if self.bias:
+            return [self.TARGET_BIAS]
+        else:
+            return []
 
     @property
     def dynamic_parameter_names_1d(self):
@@ -45,41 +50,42 @@ class Output(torch.nn.Module):
         return self.dynamic_parameter_names
 
     def forward(
-            self, feats: List[List[torch.Tensor]], symbols: torch.Tensor, parameters: List[Dict[str, torch.Tensor]],
-            meta_node_id: torch.Tensor) -> Dict[str, torch.Tensor]:
+            self, feats: List[torch.Tensor], parameters: List[Dict[str, torch.Tensor]], mask: torch.Tensor,
+            meta_node_id: torch.Tensor, targets=List[str]) -> Dict[str, torch.Tensor]:
         """
 
-        :param feats
-        :param symbols:
-        :param parameters:
-        :param meta_node_id:
+        :param feats: 长度为num_blocks的list， 每个元素是tensor with shape(num_layers, num_nodes, emb_dim)，
+                      ！注意每一个block的num_layers可能不一样！
+        :param parameters: 长度为num_blocks的list， 每个元素是Dict of tensor,
+                           TARGET_WEIGHT: (num_layers, num_nodes, emb_dim)
+                           TARGET_BIAS: (num_layers, num_nodes, 1)
+                           ！注意每一个block的num_layers可能不一样！但是与feats相同
+        :param mask: (num_nodes, )
+        :param meta_node_id: (num_nodes, )
+        :param targets:
         :return:
+            {target: tensor(num_samples, ) for target in self.targets}
         """
 
         outputs = []
-        mask = (symbols.view(-1, 1) == self.symbols).any(-1)
+        masked_id = meta_node_id[mask]
 
-        if self.last_block_only:
-            feats = [feats[-1]]
-            parameters = [parameters[-1]]
-        for feat, param in zip(feats, parameters):
-            masked_id = meta_node_id[mask]
-            weight = param[self.TARGET_WEIGHT][masked_id]
-            weight = weight.view(weight.shape[0], -1)
-            bias = param[self.TARGET_BIAS][masked_id]
-
-            if self.last_layer_only:
-                feat = [feat[-1]]
-            for layer_feat in feat:
-                layer_feat = layer_feat[mask]
-                output = (layer_feat * weight).sum(-1, keepdim=True) + bias
-                outputs.append(output)
+        for feat, param in zip(feats[-self.last_block_only:], parameters[-self.last_block_only:]):
+            feat = feat[-self.last_layer_only:, mask]  # (num_layers, num_nodes, emb_dim)
+            weight = param[self.TARGET_WEIGHT][-self.last_layer_only:, masked_id]  # (num_layers, num_nodes, emb_dim)
+            weight = weight.view(feat.shape)  # 兼容性
+            output = (feat * weight).sum(dim=-1, keepdim=True)
+            if self.bias:
+                bias = param[self.TARGET_BIAS][-self.last_layer_only:, masked_id]  # (num_layers, num_nodes, 1)
+                output += bias
+            output = output.mean(dim=0)  # (num_nodes, 1)
+            outputs.append(output)
         outputs = torch.stack(outputs, dim=0)
         outputs = outputs.mean(dim=0)
-        outputs = outputs.view(-1, self.num_targets)
-        outputs = {target: outputs[:, i] for i, target in enumerate(self.targets)}
+        outputs = outputs.view(-1, len(targets))
+        outputs = {target: outputs[:, i] for i, target in enumerate(targets)}
         return outputs
 
     def extra_repr(self) -> str:
-        return 'targets={}, last_block_only={}, last_layer_only={}'.format(
-            self.targets, self.last_block_only, self.last_layer_only)
+        return 'last_block_only={}, last_layer_only={}, share_block_param={}, bias={}'.format(
+            self.last_block_only, self.last_layer_only, self.share_block_param, self.bias)
