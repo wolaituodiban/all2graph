@@ -66,6 +66,7 @@ def reverse_dict(d: dict):
 
 class EncoderMetaLearner(MyModule):
     def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder, num_latent, dropout=0.1, norm=True):
+        assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings
         super().__init__()
         self.raw_graph_parser = raw_graph_parser
         self.param_graph = raw_graph_parser.gen_param_graph(encoder.dynamic_parameter_shapes)
@@ -199,24 +200,35 @@ class EncoderMetaLearnerMocker(MyModule):
 
             else:
                 raise KeyError('unknown parameter name ({}), check source code!'.format(name))
+        self.reset_parameters(reset_encoder=False)
         self.encoder = encoder
 
-    def reset_parameters(self):
-        for param in self.parameters():
+    def reset_parameters(self, reset_encoder=True):
+        for param in self.parameters(recurse=False):
             fan = param.shape[-1]
             gain = torch.nn.init.calculate_gain('relu')
             std = gain / math.sqrt(fan)
             bound = math.sqrt(3.0) * std  # Calculate uniform bounds from standard deviation
             torch.nn.init.uniform_(param, -bound, bound)
+        if reset_encoder:
+            self.encoder.reset_parameters()
 
     def forward(self, graph: Union[RawGraph, Graph], details=False):
         if isinstance(graph, RawGraph):
             graph = self.raw_graph_parser.parse(graph)
 
-        emb_param = {name: getattr(self, name) for name in self.encoder.node_embedding.dynamic_parameter_names}
-        conv_param = {name: getattr(self, name) for name in self.encoder.body.dynamic_parameter_names}
+        emb_param = {
+            name: getattr(self, name)[graph.meta_key] for name in self.encoder.node_embedding.dynamic_parameter_names}
+        conv_param = {
+            name: getattr(self, name)[:, graph.meta_key] for name in self.encoder.body.node_dynamic_parameter_names}
+        conv_param.update({
+            name: getattr(self, name)[:, graph.meta_edge_key]
+            for name in self.encoder.body.edge_dynamic_parameter_names})
         output_params = [
-            {name: getattr(self, '{}_{}'.format(name, i)) for name in self.encoder.output.dynamic_parameter_names}
+            {
+                name: getattr(self, '{}_{}'.format(name, i))[:, graph.meta_key]
+                for name in self.encoder.output.dynamic_parameter_names
+            }
             for i in range(self.encoder.num_blocks)
         ]
         target_mask = graph.target_mask(self.raw_graph_parser.target_symbol)
