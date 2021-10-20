@@ -44,12 +44,28 @@ class MetaInfo(MetaStruct):
     def num_etypes(self):
         return len(self.edge_type)
 
-    def __eq__(self, other):
-        return super().__eq__(other)\
-               and self.meta_string == other.meta_string\
-               and self.meta_numbers == other.meta_numbers\
-               and self.meta_name == other.meta_name\
-               and self.edge_type == other.edge_type
+    def __eq__(self, other, debug=False):
+        if not super().__eq__(other):
+            if debug:
+                print('super not equal')
+            return False
+        if self.meta_numbers != other.meta_numbers:
+            if debug:
+                print('meta_numebrs not equal')
+            return False
+        if self.meta_name != other.meta_name:
+            if debug:
+                print('meta_name not equal')
+            return False
+        if self.meta_string != other.meta_string:
+            if debug:
+                print('meta_string not equal')
+            return False
+        if self.edge_type != other.edge_type:
+            if debug:
+                print('edge_type not equal')
+            return False
+        return True
 
     def to_json(self) -> dict:
         output = super().to_json()

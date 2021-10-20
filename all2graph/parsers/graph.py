@@ -26,17 +26,17 @@ class RawGraphParser(MetaStruct):
         :parma meta_mode: 如果是True，那么graph_to_dgl会生成一个元图和一个值图，否则只生成一个值图
         """
         super().__init__(initialized=True)
-        self.meta_numbers = meta_numbers
+        self.meta_numbers = {k: MetaNumber.from_json(v.to_json()) for k, v in meta_numbers.items()}
         self.tokenizer = tokenizer
-        self.targets = list(targets or [])
-        self.key_mapper = {k: i for i, k in enumerate(set(keys + self.targets))}
+        self.targets = sorted(list(targets or []))
+        self.key_mapper = {k: i for i, k in enumerate(sorted(set(keys + self.targets)))}
 
-        self.etype_mapper = {t: i for i, t in enumerate(set(edge_type))}
+        self.etype_mapper = {t: i for i, t in enumerate(sorted(set(edge_type)))}
         for target in self.targets:
             if (READOUT, target) not in self.etype_mapper:
                 self.etype_mapper[(READOUT, target)] = len(self.etype_mapper)
 
-        all_words = PRESERVED_WORDS + strings
+        all_words = PRESERVED_WORDS + sorted(strings)
         for key in keys + self.targets:
             all_words += self.tokenizer.lcut(key)
         self.string_mapper = {}
@@ -150,8 +150,32 @@ class RawGraphParser(MetaStruct):
         raw_graph.drop_duplicated_edges()
         return ParamGraph(graph=raw_graph, value=self.encode_string(raw_graph.value), mapper=param_mapper)
 
-    def __eq__(self, other):
-        raise NotImplementedError
+    def __eq__(self, other, debug=False):
+        if not super().__eq__(other):
+            if debug:
+                print('super not equal')
+            return False
+        if self.targets != other.targets:
+            if debug:
+                print('targets not equal')
+            return False
+        if self.meta_numbers != other.meta_numbers:
+            if debug:
+                print('meta_numbers not equal')
+            return False
+        if self.string_mapper != other.string_mapper:
+            if debug:
+                print('string_mapper not equal')
+            return False
+        if self.key_mapper != other.key_mapper:
+            if debug:
+                print('key_mapper not equal')
+            return False
+        if self.etype_mapper != other.etype_mapper:
+            if debug:
+                print('etype_mapper not equal')
+            return False
+        return True
 
     def to_json(self) -> dict:
         raise NotImplementedError
@@ -161,8 +185,26 @@ class RawGraphParser(MetaStruct):
         raise NotImplementedError
 
     @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
-        raise NotImplementedError
+    def reduce(cls, parsers: list, tokenizer=None, weights=None, num_bins=None):
+        meta_numbers = {}
+        strings = []
+        keys = []
+        edge_type = set()
+        targets = []
+        tokenizer = tokenizer or parsers[0].tokenizer
+        for parser in parsers:
+            for k, v in parser.meta_numbers.items():
+                if k in meta_numbers:
+                    meta_numbers[k] = MetaNumber.reduce([meta_numbers[k], v], weights=weights, num_bins=num_bins)
+                else:
+                    meta_numbers[k] = v
+            strings += list(parser.string_mapper)
+            keys += list(parser.key_mapper)
+            edge_type = edge_type.union(parser.etype_mapper)
+            targets += list(parser.targets)
+        return cls(
+            meta_numbers=meta_numbers, strings=strings, keys=keys, edge_type=edge_type, targets=targets,
+            tokenizer=tokenizer)
 
     def extra_repr(self) -> str:
         return 'num_numbers={}, num_strings={}, num_keys={}, targets={}, num_etype={}'.format(

@@ -9,6 +9,7 @@ from torch.nn.functional import linear
 from .encoder import Encoder
 from .utils import num_parameters, MyModule
 from ..graph import RawGraph, Graph
+from ..meta import MetaNumber
 from ..parsers import RawGraphParser
 
 
@@ -67,8 +68,7 @@ def reverse_dict(d: dict):
 class EncoderMetaLearner(MyModule):
     def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder, num_latent, dropout=0.1, norm=True):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings
-        super().__init__()
-        self.raw_graph_parser = raw_graph_parser
+        super().__init__(raw_graph_parser=raw_graph_parser)
         self.param_graph = raw_graph_parser.gen_param_graph(encoder.dynamic_parameter_shapes)
         self.linear = torch.nn.Linear(in_features=encoder.d_model, out_features=num_latent)
 
@@ -178,8 +178,8 @@ class EncoderMetaLearner(MyModule):
 
 class EncoderMetaLearnerMocker(MyModule):
     def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder):
-        super().__init__()
-        self.raw_graph_parser = raw_graph_parser
+        assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings, 'parser与encoder不对应'
+        super().__init__(raw_graph_parser=raw_graph_parser)
         for name, shape in encoder.dynamic_parameter_shapes.items():
             if name in encoder.output.dynamic_parameter_names:
                 for i, num_layers in enumerate(encoder.num_layers):
@@ -245,3 +245,59 @@ class EncoderMetaLearnerMocker(MyModule):
         output += '\n'.join(
             '{}: {}'.format(name, tuple(param.shape)) for name, param in self.named_parameters(recurse=False))
         return output
+
+    def load_pretrained(self, other, load_meta_number=False):
+        """
+        如果预测样本中包含一些字符串，不存在于预训练模型，但是存在于当前模型中，那么预训练模型的结果将无法复现！
+        :param other: 预训练
+        :param load_meta_number:
+            raw_graph_parser会根据内部储存的number分布对number型数据进行归一化处理。如果load_meta_number=True，
+            那么会加载预训练模型储存的分布数据，并且复现预训练模型的结果；否则，预测结果会存在一些偏差
+        :return:
+        """
+        if load_meta_number:
+            for name, meta_number in other.raw_graph_parser.meta_numbers.items():
+                if name in self.raw_graph_parser.meta_numbers:
+                    self.raw_graph_parser.meta_numbers[name] = MetaNumber.from_json(meta_number.to_json())
+
+        with torch.no_grad():
+            for name in other.encoder.output.dynamic_parameter_names:
+                for layer_i in range(other.encoder.num_blocks):
+                    name_i = '{}_{}'.format(name, layer_i)
+                    if not hasattr(other, name_i) or not hasattr(self, name_i):
+                        continue
+                    for key, key_i in other.raw_graph_parser.key_mapper.items():
+                        if key not in self.raw_graph_parser.key_mapper:
+                            continue
+                        key_j = self.raw_graph_parser.key_mapper[key]
+                        getattr(self, name_i)[:, key_j] = getattr(other, name_i)[:, key_i]
+
+            for name in other.encoder.node_embedding.node_dynamic_parameter_names:
+                if not hasattr(other, name) or not hasattr(self, name):
+                    continue
+                for key, key_i in other.raw_graph_parser.key_mapper.items():
+                    if key not in self.raw_graph_parser.key_mapper:
+                        continue
+                    key_j = self.raw_graph_parser.key_mapper[key]
+                    getattr(self, name)[key_j] = getattr(other, name)[key_i]
+
+            for name in other.encoder.body.node_dynamic_parameter_names:
+                if not hasattr(other, name) or not hasattr(self, name):
+                    continue
+                for key, key_i in other.raw_graph_parser.key_mapper.items():
+                    if key not in self.raw_graph_parser.key_mapper:
+                        continue
+                    key_j = self.raw_graph_parser.key_mapper[key]
+                    getattr(self, name)[:, key_j] = getattr(other, name)[:, key_i]
+
+            for name in other.encoder.body.edge_dynamic_parameter_names:
+                if not hasattr(other, name) or not hasattr(self, name):
+                    continue
+                for key, key_i in other.raw_graph_parser.etype_mapper.items():
+                    if key not in self.raw_graph_parser.etype_mapper:
+                        continue
+                    key_j = self.raw_graph_parser.etype_mapper[key]
+                    getattr(self, name)[:, key_j] = getattr(other, name)[:, key_i]
+
+        self.encoder.load_pretrained(other.encoder, self.raw_graph_parser, other.raw_graph_parser)
+

@@ -2,7 +2,8 @@ import numpy as np
 import torch
 
 from toad.nn import Module
-from torch.utils.data import DataLoader
+from ..parsers import RawGraphParser
+from ..data import DataLoader
 from ..version import __version__
 from ..utils import progress_wrapper
 
@@ -15,9 +16,10 @@ def num_parameters(module: torch.nn.Module):
 
 
 class MyModule(Module):
-    def __init__(self):
+    def __init__(self, raw_graph_parser: RawGraphParser):
         super().__init__()
         self.version = __version__
+        self.raw_graph_parser = raw_graph_parser
         self._loss = None
         self._optimizer = None
 
@@ -52,3 +54,11 @@ class MyModule(Module):
 
     def optimizer(self):
         return self._optimizer
+
+    def fit(self, loader, epoch=10, callback=None):
+        if not isinstance(loader, DataLoader):
+            print('recieved a not all2graph.DataLoader, function check can not be done')
+        else:
+            if loader.parser is not self.raw_graph_parser:
+                print('loader.parser and module.parser are not the same, which may cause undefined behavior')
+        return super().fit(loader=loader, epoch=epoch, callback=callback)

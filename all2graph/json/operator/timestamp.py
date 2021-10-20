@@ -31,7 +31,8 @@ class Timestamp(Operator):
         return obj
 
     def __repr__(self):
-        return '{}(name={}, units={})'.format(self.__class__.__name__, self.name, list(self.units))
+        return '{}(name={}, units={})'.format(
+            self.__class__.__name__, self.name, list(self.units))
 
 
 class Timestamp2(Operator):
@@ -59,3 +60,36 @@ class Timestamp2(Operator):
 
     def __repr__(self):
         return '{}(units={})'.format(self.__class__.__name__, list(self.units))
+
+
+class Timestamp3(Operator):
+    def __init__(self, name, _format, units, error=False):
+        super().__init__()
+        self.name = name
+        self.format = _format
+        self.units = units
+        self.error = error
+
+    def __call__(self, obj, now: datetime = None, **kwargs):
+        if self.name in obj:
+            date_string = obj[self.name]
+            try:
+                time = datetime.strptime(date_string, self.format)
+            except ValueError:
+                print('{}不满足{}格式'.format(date_string, self.format), file=sys.stderr)
+                return None
+            if now is not None:
+                diff = now - time
+                obj['diff_day'.format(self.name)] = diff.days + int(diff.seconds > 0)
+            for unit, feat_name in self.units.items():
+                if unit == 'weekday':
+                    obj[feat_name] = time.weekday()
+                elif hasattr(time, unit):
+                    obj[feat_name] = getattr(time, unit)
+        elif self.error:
+            raise KeyError('object do not have ({}): {}'.format(self.name, obj))
+        return obj
+
+    def __repr__(self):
+        return '{}(name={}, units={}, error={})'.format(
+            self.__class__.__name__, self.name, list(self.units), self.error)

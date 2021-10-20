@@ -1,4 +1,5 @@
 from typing import Tuple, List
+import numpy as np
 import pandas as pd
 from ..graph import RawGraph
 from ..meta_struct import MetaStruct
@@ -16,7 +17,7 @@ class DataParser(MetaStruct):
         import torch
         return {
             k: torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32)
-            for k in target_cols
+            for k in target_cols if k in pd
         }
 
     def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
@@ -39,3 +40,14 @@ class DataParser(MetaStruct):
     @classmethod
     def reduce(cls, structs, weights=None, **kwargs):
         raise NotImplementedError
+
+
+class DataAugmenter(DataParser):
+    def __init__(self, parsers: List[DataParser], weights: List[float] = None):
+        super(MetaStruct, self).__init__(initialized=True)
+        self.parsers = parsers
+        self.weights = np.array(weights or [1] * len(parsers)) / np.sum(weights)
+
+    def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
+        parser = np.random.choice(self.parsers, 1, p=self.weights)
+        return parser.parse(data=data, progress_bar=progress_bar, **kwargs)

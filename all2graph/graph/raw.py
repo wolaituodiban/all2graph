@@ -4,13 +4,11 @@ from typing import Dict, List, Union, Tuple
 import numpy as np
 
 from ..preserves import KEY, VALUE, TARGET, READOUT, META
-from ..meta_struct import MetaStruct
 from ..utils import Tokenizer
 
 
-class RawGraph(MetaStruct):
+class RawGraph:
     def __init__(self, component_id=None, key=None, value=None, src=None, dst=None, symbol=None):
-        super().__init__(initialized=True)
         self.component_id: List[int] = list(component_id or [])
         self.key: List[str] = list(key or [])
         self.value: List[Union[Dict, List, str, int, float, None]] = list(value or [])
@@ -29,13 +27,6 @@ class RawGraph(MetaStruct):
                and self.src == other.src \
                and self.dst == other.dst \
                and self.symbol == other.symbol
-
-    def to_json(self) -> dict:
-        raise NotImplementedError
-
-    @classmethod
-    def from_json(cls, obj: dict):
-        raise NotImplementedError
 
     @property
     def num_nodes(self):
@@ -164,8 +155,8 @@ class RawGraph(MetaStruct):
                     meta_component_id += [meta_component_id[i]] * len(segmented_key)
                     meta_type += [META] * len(segmented_key)
         meta_graph = RawGraph(
-            component_id=meta_component_id, key=meta_value, value=meta_value, src=meta_src, dst=meta_dst, symbol=meta_type
-        )
+            component_id=meta_component_id, key=meta_value, value=meta_value, src=meta_src, dst=meta_dst,
+            symbol=meta_type)
         return meta_graph, meta_node_id, meta_edge_id
 
     def to_df(self, *attrs):
@@ -183,16 +174,17 @@ class RawGraph(MetaStruct):
         self.dst = df.dst.tolist()
 
     @classmethod
-    def from_data(cls, **kwargs):
-        raise NotImplementedError
-
-    @classmethod
-    def reduce(cls, structs, **kwargs):
-        raise NotImplementedError
-
-    @classmethod
-    def merge(cls, structs, **kwargs):
-        raise NotImplementedError
+    def batch(cls, graphs: list):
+        new_graph = cls()
+        for graph in graphs:
+            num_components = new_graph.num_components
+            new_graph.component_id += [i + num_components for i in graph.component_id]
+            new_graph.key += graph.key
+            new_graph.value += graph.value
+            new_graph.src += graph.src
+            new_graph.dst += graph.dst
+            new_graph.symbol += graph.symbol
+        return new_graph
 
     def extra_repr(self) -> str:
         return 'num_nodes={}, num_edges={}, num_components={}, num_keys={}, num_types={}'.format(

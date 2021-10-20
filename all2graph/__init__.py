@@ -1,4 +1,5 @@
-from .dataset import *
+from . import nn
+from .data import *
 from .factory import *
 from .graph import *
 from .json import *

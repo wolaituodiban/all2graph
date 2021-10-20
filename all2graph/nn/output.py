@@ -74,9 +74,13 @@ class FC(torch.nn.Module):
             feat = feat[-self.last_layer_only:, mask]  # (num_layers, num_nodes, emb_dim)
             weight = param[self.TARGET_WEIGHT][-self.last_layer_only:, masked_id]  # (num_layers, num_nodes, emb_dim)
             weight = weight.view(feat.shape)  # 兼容性
+            if self.share_block_param:
+                weight = weight[[-1]]
             output = (feat * weight).sum(dim=-1, keepdim=True)
             if self.bias:
                 bias = param[self.TARGET_BIAS][-self.last_layer_only:, masked_id]  # (num_layers, num_nodes, 1)
+                if self.share_block_param:
+                    bias = bias[[-1]]
                 output += bias
             output = output.mean(dim=0)  # (num_nodes, 1)
             outputs.append(output)

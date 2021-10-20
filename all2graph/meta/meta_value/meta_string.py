@@ -37,10 +37,20 @@ class MetaString(MetaValue):
         self.term_count_ecdf = term_count_ecdf
         self.term_freq_ecdf = term_freq_ecdf
 
-    def __eq__(self, other):
-        return super().__eq__(other)\
-               and self.term_count_ecdf == other.term_count_ecdf\
-               and self.term_freq_ecdf == other.term_freq_ecdf
+    def __eq__(self, other, debug=False):
+        if not super().__eq__(other):
+            if debug:
+                print('super not equal')
+            return False
+        if self.term_count_ecdf != other.term_count_ecdf:
+            if debug:
+                print('term_count_ecdf not equal')
+            return False
+        if self.term_freq_ecdf != other.term_freq_ecdf:
+            if debug:
+                print('term_freq_ecdf not equal')
+            return False
+        return True
 
     def __iter__(self):
         return iter(self.term_count_ecdf)

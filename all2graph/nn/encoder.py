@@ -14,7 +14,7 @@ class Encoder(torch.nn.Module):
     """graph factorization machine"""
     def __init__(self, num_embeddings: int, d_model: int, nhead: int, num_layers: List[int], emb_config: dict = None,
                  num_weight: bool = True, key_emb: bool = True, dropout: float = 0.1, conv_config: dict = None,
-                 share_layer: bool = False, residual: bool = False, target_configs: dict = None):
+                 share_layer: bool = False, residual: bool = False, output_configs: dict = None):
         super().__init__()
         self.value_embedding = torch.nn.Embedding(
             num_embeddings=num_embeddings, embedding_dim=d_model, **emb_config or {})
@@ -23,7 +23,7 @@ class Encoder(torch.nn.Module):
         conv_layer = Conv(normalized_shape=d_model, dropout=dropout, **conv_config or {})
         self.body = Body(
             num_layers=num_layers, conv_layer=conv_layer, share_layer=share_layer, residual=residual)
-        self.output = FC(**target_configs or {})
+        self.output = FC(**output_configs or {})
         # assert set(self.dynamic_parameter_shapes) \
         #        == set(self.node_dynamic_parameter_names + self.edge_dynamic_parameter_names)
 
@@ -98,3 +98,15 @@ class Encoder(torch.nn.Module):
 
     def extra_repr(self) -> str:
         return 'num_parameters={}'.format(num_parameters(self))
+
+    def load_pretrained(self, other, self_parser, other_parser):
+        with torch.no_grad():
+            state_dict = other.state_dict()
+            # 根据parser的string mapper重新映射embedding weight
+            emb_weight = self.value_embedding.weight.clone().detach()  # 复制原来的embedding
+            for word, i in other_parser.string_mapper.items():
+                if word in self_parser.string_mapper:
+                    j = self_parser.string_mapper[word]
+                    emb_weight[j] = other.value_embedding.weight[i]
+            state_dict['value_embedding.weight'] = emb_weight
+            return self.load_state_dict(state_dict, strict=False)

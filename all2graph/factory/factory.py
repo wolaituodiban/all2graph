@@ -1,16 +1,15 @@
-import os
 from multiprocessing import Pool
 from typing import Iterable, Tuple, List, Union
 
 import pandas as pd
-from torch.utils.data import DataLoader
 
-from ..dataset import GraphDataset
+from ..data import Dataset, DataLoader
 from ..graph import RawGraph
 from ..meta import MetaInfo
+from ..nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
 from ..parsers import DataParser, RawGraphParser
 from ..utils import progress_wrapper
-from ..utils.pd_utils import dataframe_chunk_iter, split_csv
+from ..utils.file_utils import dataframe_chunk_iter, split_csv
 from ..meta_struct import MetaStruct
 
 
@@ -96,20 +95,30 @@ class Factory(MetaStruct):
         return x, labels
 
     def produce_dataloader(
-            self, path: Union[str, List[str]], batch_size, num_workers=0, pin_memory=False, partitions=1, disable=False,
-            **kwargs) -> DataLoader:
-        dir_path = path
-        if isinstance(path, str) and not os.path.isdir(path):
-            if dir_path.endswith('.csv') or dir_path.endswith('.zip'):
-                dir_path = dir_path[:-4]
-            os.mkdir(dir_path)
-            print('dir_path: {}'.format(dir_path))
-            split_csv(path, dir_path, chunksize=batch_size, disable=disable, zip=True, **kwargs)
-        dataset = GraphDataset(dir_path, factory=self, partitions=partitions, shuffle=True, disable=disable, **kwargs)
-        return DataLoader(
-            dataset, batch_size=partitions, shuffle=True, num_workers=num_workers, pin_memory=pin_memory,
-            collate_fn=dataset.collate_fn
-        )
+            self, src, dst=None, disable=False, zip=True, error=True, warning=True,
+            concat_chip=True, chunksize=64, shuffle=True, csv_configs=None, **kwargs) -> DataLoader:
+        if dst is not None:
+            split_csv(
+                src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
+                concat_chip=concat_chip)
+            src = dst
+        dataset = Dataset(
+            src, parser=self.data_parser, target_cols=self.targets, chunksize=chunksize, shuffle=shuffle,
+            disable=disable, error=error, warning=warning, **(csv_configs or {}))
+        return DataLoader(dataset, parser=self.raw_graph_parser, shuffle=shuffle, **kwargs)
+
+    def produce_model(
+            self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,
+            mock=False):
+        encoder = Encoder(
+            num_embeddings=self.raw_graph_parser.num_strings, d_model=d_model, nhead=nhead,
+            num_layers=num_layers, **(encoder_configs or {}))
+        if mock:
+            model = EncoderMetaLearnerMocker(raw_graph_parser=self.raw_graph_parser, encoder=encoder)
+        else:
+            model = EncoderMetaLearner(
+                raw_graph_parser=self.raw_graph_parser, encoder=encoder, **(learner_configs or {}))
+        return model
 
     def extra_repr(self) -> str:
         return 'data_parser: {}\ngraph_parser: {}'.format(

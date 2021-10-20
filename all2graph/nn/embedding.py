@@ -43,7 +43,7 @@ class NodeEmbedding(torch.nn.Module):
         mask = torch.bitwise_not(mask)
         output = torch.masked_fill(output, mask.view(-1, 1), 0)
         number = number[mask].view(-1, 1)
-        if self.num_weight:
+        if self.num_weight and number.shape[0] > 0:
             num_weight = parameters[self.NUMBER_WEIGHT][meta_node_id[mask]]
             number = number * num_weight.view(num_weight.shape[0], -1)
         output[mask] += self.num_norm(number)

@@ -1,12 +1,12 @@
 import os
-
+import shutil
 import numpy as np
 import pandas as pd
-from all2graph import MetaInfo, JsonParser, Timer, JiebaTokenizer
+from all2graph import MetaInfo, JsonParser, Timer, JiebaTokenizer, progress_wrapper
 from all2graph.factory import Factory
 
 
-def test():
+def test_analyse():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
@@ -42,5 +42,49 @@ def test():
     assert used_time1 < used_time2
 
 
+def test_produce_dataloader():
+    path = os.path.dirname(__file__)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
+    save_path = os.path.join(path, 'test_data', 'temp')
+    nrows = 1000
+
+    cpu_count = os.cpu_count()
+    json_parser = JsonParser(
+        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
+    )
+    factory = Factory(data_parser=json_parser)
+    factory.analyse(
+        csv_path, chunksize=int(nrows//cpu_count), progress_bar=True, processes=cpu_count, nrows=nrows
+    )
+    dataloader = factory.produce_dataloader(
+        csv_path, dst=save_path, csv_configs={'nrows': nrows}, num_workers=cpu_count)
+    for _ in progress_wrapper(dataloader):
+        pass
+    shutil.rmtree(save_path)
+
+
+def test_produce_model():
+    path = os.path.dirname(__file__)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
+    nrows = 1000
+
+    cpu_count = os.cpu_count()
+    json_parser = JsonParser(
+        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
+    )
+    factory = Factory(data_parser=json_parser)
+    factory.analyse(
+        csv_path, chunksize=int(nrows//cpu_count), progress_bar=True, processes=cpu_count, nrows=nrows
+    )
+    model = factory.produce_model(d_model=8, nhead=2, num_layers=[2], mock=True)
+    print(model)
+
+
 if __name__ == '__main__':
-    test()
+    test_analyse()
+    test_produce_dataloader()
+    test_produce_model()
