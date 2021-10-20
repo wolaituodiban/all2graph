@@ -67,7 +67,7 @@ class Timestamp3(Operator):
         super().__init__()
         self.name = name
         self.format = _format
-        self.units = units
+        self.units = list(units)
         self.error = error
 
     def __call__(self, obj, now: datetime = None, **kwargs):
@@ -81,11 +81,11 @@ class Timestamp3(Operator):
             if now is not None:
                 diff = now - time
                 obj['diff_day'.format(self.name)] = diff.days + int(diff.seconds > 0)
-            for unit, feat_name in self.units.items():
+            for unit in self.units:
                 if unit == 'weekday':
-                    obj[feat_name] = time.weekday()
+                    obj[unit] = time.weekday()
                 elif hasattr(time, unit):
-                    obj[feat_name] = getattr(time, unit)
+                    obj[unit] = getattr(time, unit)
         elif self.error:
             raise KeyError('object do not have ({}): {}'.format(self.name, obj))
         return obj

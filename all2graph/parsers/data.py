@@ -17,7 +17,7 @@ class DataParser(MetaStruct):
         import torch
         return {
             k: torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32)
-            for k in target_cols if k in pd
+            for k in target_cols if k in df
         }
 
     def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
@@ -44,10 +44,13 @@ class DataParser(MetaStruct):
 
 class DataAugmenter(DataParser):
     def __init__(self, parsers: List[DataParser], weights: List[float] = None):
-        super(MetaStruct, self).__init__(initialized=True)
+        super(DataParser, self).__init__(initialized=True)
         self.parsers = parsers
-        self.weights = np.array(weights or [1] * len(parsers)) / np.sum(weights)
+        if weights is None:
+            self.weights = np.ones(len(self.parsers)) / len(self.parsers)
+        else:
+            self.weights = np.array(weights) / np.sum(weights)
 
     def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
-        parser = np.random.choice(self.parsers, 1, p=self.weights)
-        return parser.parse(data=data, progress_bar=progress_bar, **kwargs)
+        parser = np.random.choice(self.parsers, p=self.weights)
+        return parser.parse(data, progress_bar=progress_bar, **kwargs)

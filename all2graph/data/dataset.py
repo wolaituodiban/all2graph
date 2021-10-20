@@ -18,7 +18,7 @@ class Dataset(TorchDataset):
             self, src, parser: DataParser, target_cols, chunksize=64, shuffle=False, disable=True, error=True,
             warning=True, **kwargs):
         self.parser = parser
-        self.target_cols = target_cols
+        self.target_cols = target_cols or []
         self.kwargs = kwargs
 
         paths: List[Tuple[str, int]] = []
@@ -55,6 +55,7 @@ class Dataset(TorchDataset):
             usecols = [self.parser.json_col]
         else:
             usecols = [self.parser.json_col, self.parser.time_col]
+        usecols += self.target_cols
         return pd.read_csv(path, usecols=usecols, **self.kwargs)
 
     @property

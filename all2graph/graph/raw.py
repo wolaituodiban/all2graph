@@ -4,11 +4,13 @@ from typing import Dict, List, Union, Tuple
 import numpy as np
 
 from ..preserves import KEY, VALUE, TARGET, READOUT, META
+from ..meta_struct import MetaStruct
 from ..utils import Tokenizer
 
 
-class RawGraph:
+class RawGraph(MetaStruct):
     def __init__(self, component_id=None, key=None, value=None, src=None, dst=None, symbol=None):
+        super().__init__(initialized=True)
         self.component_id: List[int] = list(component_id or [])
         self.key: List[str] = list(key or [])
         self.value: List[Union[Dict, List, str, int, float, None]] = list(value or [])
@@ -190,3 +192,18 @@ class RawGraph:
         return 'num_nodes={}, num_edges={}, num_components={}, num_keys={}, num_types={}'.format(
             self.num_nodes, self.num_edges, self.num_components, self.num_keys, self.num_types
         )
+
+    def to_json(self) -> dict:
+        raise NotImplementedError
+
+    @classmethod
+    def from_json(cls, obj: dict):
+        raise NotImplementedError
+
+    @classmethod
+    def from_data(cls, **kwargs):
+        raise NotImplementedError
+
+    @classmethod
+    def reduce(cls, structs, weights=None, **kwargs):
+        raise NotImplementedError

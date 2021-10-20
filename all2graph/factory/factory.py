@@ -100,7 +100,7 @@ class Factory(MetaStruct):
         if dst is not None:
             split_csv(
                 src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
-                concat_chip=concat_chip)
+                concat_chip=concat_chip, **csv_configs)
             src = dst
         dataset = Dataset(
             src, parser=self.data_parser, target_cols=self.targets, chunksize=chunksize, shuffle=shuffle,
