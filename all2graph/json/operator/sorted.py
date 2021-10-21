@@ -8,7 +8,7 @@ class Sorted(Operator):
         self.reverse = reverse
 
     def __call__(self, obj, **kwargs):
-        if self.key is None:
+        if self.key is not None:
             return sorted(obj, key=lambda x: x[self.key] if self.key in x else None, reverse=self.reverse)
         else:
             return sorted(obj, reverse=self.reverse)

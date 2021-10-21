@@ -63,9 +63,7 @@ class Factory(MetaStruct):
 
     def analyse(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], chunksize=64, progress_bar=True,
                 postfix='reading csv', processes=None, **kwargs) -> MetaInfo:
-        if isinstance(data, (str, pd.DataFrame)):
-            data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
-
+        data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
         meta_infos: List[MetaInfo] = []
         weights = []
         if processes == 0:

@@ -16,10 +16,10 @@ def test_flatten_dict():
         }
     }
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
-    jg1, *_ = JsonParser('json').parse(inputs)
+    jg1, *_ = JsonParser('json', self_loop=False).parse(inputs)
     assert jg1.num_nodes == 5 and jg1.num_edges == 4, '{}\n{}'.format(jg1.src, jg1.dst)
 
-    jg2, *_ = JsonParser('json', flatten_dict=True).parse(inputs)
+    jg2, *_ = JsonParser('json', flatten_dict=True, self_loop=False).parse(inputs)
     assert jg2.num_nodes == 3 and jg2.num_edges == 2
 
 
@@ -30,13 +30,12 @@ def test_list_dst_degree():
         }
     }
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
-    jg1, *_ = JsonParser('json').parse(inputs)
-    assert jg1.num_nodes == 7 and jg1.num_edges == 6
+    jg1, *_ = JsonParser('json', self_loop=False, list_inner_degree=-1).parse(inputs)
+    assert jg1.num_nodes == 7, jg1.value
+    assert jg1.num_edges == 6, jg1.to_df('value')
 
-    jg2, *_ = JsonParser('json', list_dst_degree=0).parse(inputs)
-    assert jg2.num_nodes == 7 and jg2.num_edges == 14, '\n{}\n{}\n{}\n{}'.format(
-        jg2.key, jg2.value, jg2.src, jg2.dst
-    )
+    jg2, *_ = JsonParser('json', list_dst_degree=0, self_loop=False, list_inner_degree=-1).parse(inputs)
+    assert jg2.num_nodes == 7 and jg2.num_edges == 14, jg2.to_df('value')
 
 
 def test_list_inner_degree():
@@ -47,16 +46,14 @@ def test_list_inner_degree():
         ]
     }
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
-    jg1, *_ = JsonParser('json').parse(inputs)
-    assert jg1.num_nodes == 10 and jg1.num_edges == 9
+    jg1, *_ = JsonParser('json', self_loop=False, list_inner_degree=-1).parse(inputs)
+    assert jg1.num_nodes == 10 and jg1.num_edges == 9, jg1.to_df('value')
 
-    jg2, *_ = JsonParser('json', list_inner_degree=0).parse(inputs)
-    assert jg2.num_nodes == 10 and jg2.num_edges == 16, '\n{}\n{}\n{}\n{}'.format(
-        jg2.key, jg2.value, jg2.src, jg2.dst)
+    jg2, *_ = JsonParser('json', list_inner_degree=0, self_loop=False).parse(inputs)
+    assert jg2.num_nodes == 10 and jg2.num_edges == 16, jg2.to_df('value')
 
-    jg2, *_ = JsonParser('json', list_inner_degree=0, r_list_inner_degree=1).parse(inputs)
-    assert jg2.num_nodes == 10 and jg2.num_edges == 21, '\n{}\n{}\n{}\n{}'.format(
-        jg2.key, jg2.value, jg2.src, jg2.dst)
+    jg2, *_ = JsonParser('json', list_inner_degree=0, r_list_inner_degree=1, self_loop=False).parse(inputs)
+    assert jg2.num_nodes == 10 and jg2.num_edges == 21, jg2.to_df('value')
 
 
 def test_complicated_situation():
@@ -70,10 +67,8 @@ def test_complicated_situation():
     }
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
     jg1, *_ = JsonParser('json', flatten_dict=True, dict_dst_degree=0, list_dst_degree=0, list_inner_degree=2,
-                         r_list_inner_degree=1, target_cols=['a', 'b']).parse(inputs)
-    assert jg1.num_nodes == 10 and jg1.num_edges == 34, '\n{}\n{}\n{}\n{}'.format(
-        jg1.key, jg1.value, jg1.src, jg1.dst
-    )
+                         r_list_inner_degree=1, target_cols=['a', 'b'], self_loop=False).parse(inputs)
+    assert jg1.num_nodes == 10 and jg1.num_edges == 34, jg1.to_df('value')
 
 
 def speed():

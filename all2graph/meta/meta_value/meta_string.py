@@ -115,6 +115,7 @@ class MetaString(MetaValue):
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, progress_bar=False, postfix='constructing meta string',
                   num_bins=None):
+        # todo 兼容全部都是null的情况
         # # # # # 计算node count
         node_count_series = pd.value_counts(sample_ids)
 

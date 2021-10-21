@@ -39,7 +39,7 @@ def iter_files(inputs, error=True, warning=True):
         print('path {} dose not exists'.format(inputs), file=sys.stderr)
 
 
-def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chip=False, **kwargs):
+def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chip=True, **kwargs):
     """
 
     :param inputs: panda DataFrame或者"文件路径、文件夹路径或者Iterable的任意嵌套"
@@ -65,8 +65,6 @@ def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chi
                     if buffer.shape[0] >= chunksize:
                         yield buffer.iloc[:chunksize]
                         buffer = buffer.iloc[chunksize:]
-            except KeyboardInterrupt:
-                raise KeyboardInterrupt
             except (ParserError, ValueError):
                 if error:
                     raise ValueError('read "{}" encountered error'.format(path))

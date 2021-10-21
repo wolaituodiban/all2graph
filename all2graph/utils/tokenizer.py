@@ -1,5 +1,4 @@
 import string
-from abc import abstractmethod
 from typing import List, Iterable
 import re
 
@@ -18,14 +17,16 @@ class Tokenizer:
         return self.kill_camel_pattern.sub(r'\1 \2', s)
 
     def cut(self, s: str, **kwargs) -> Iterable[str]:
-        raise NotImplementedError
+        return []
 
     def lcut(self, s: str, **kwargs) -> List[str]:
-        raise NotImplementedError
+        return []
 
     def join(self, x: List[str], **kwargs) -> str:
         return self.join_token.join(x)
 
+
+null_tokenizer = Tokenizer(kill_camel=False, join_token='_')
 
 try:
     import jieba
@@ -42,10 +43,10 @@ try:
             self.tokenizer = tokenizer
             self.stopwords = stopwords
 
-        def cut(self, s: str, cut_all=False, HMM=True, use_paddle=False, **kwargs) -> Iterable[str]:
+        def cut(self, s: str, **kwargs) -> Iterable[str]:
             if self.kill_camel_pattern is not None:
                 s = self.kill_camel(s)
-            output = self.tokenizer.cut(s, cut_all=cut_all, HMM=HMM, use_paddle=use_paddle)
+            output = self.tokenizer.cut(s, **kwargs)
             if self.stopwords is not None:
                 output = (x for x in output if x not in self.stopwords)
             return output

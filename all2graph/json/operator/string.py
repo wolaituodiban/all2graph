@@ -1,3 +1,5 @@
+import sys
+import traceback
 from .operator import Operator
 
 
@@ -38,3 +40,27 @@ class Cut(Operator):
         else:
             return obj
 
+
+class Rename(Operator):
+    def __init__(self, old, new, error=True, warning=True):
+        super().__init__()
+        self.old = old
+        self.new = new
+        self.error = error
+        self.warning = warning
+
+    def __call__(self, obj, **kwargs):
+        if self.new in obj:
+            if self.error:
+                raise KeyError('{} already exists'.format(self.new))
+            elif self.warning:
+                print('{} already exists'.format(self.new), file=sys.stderr)
+        try:
+            obj[self.new] = obj[self.old]
+            del obj[self.old]
+        except (KeyError, ValueError, IndexError, TypeError) as e:
+            if self.error:
+                raise e
+            elif self.warning:
+                traceback.print_exc(file=sys.stderr)
+        return obj

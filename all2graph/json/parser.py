@@ -1,4 +1,6 @@
 import json
+import sys
+import traceback
 from inspect import ismethod
 from datetime import datetime as ddt
 from typing import Dict, List, Union, Set
@@ -32,20 +34,25 @@ class JsonParser(DataParser):
             # 预处理
             processors=None,
             tokenizer: Tokenizer = None,
+            error=True,
+            warning=True,
             **kwargs
     ):
         """
 
-        :param.py flatten_dict:
-        :param.py dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
-        :param.py list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
-        :param.py list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
-        :param.py r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
-        :param.py local_id_keys:
-        :param.py global_id_keys:
-        :param.py segment_value:
-        :param.py self_loop:
-        :param.py processors: JsonPathTree的参数
+        :param flatten_dict:
+        :param dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
+        :param list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
+        :param list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
+        :param r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
+        :param local_id_keys:
+        :param global_id_keys:
+        :param segment_value:
+        :param self_loop:
+        :param processors: JsonPathTree的参数,
+        :param error: 如果遇到错误，会报错
+        :param warning: 如果遇到错误，会报警
+        :param
         """
         super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, **kwargs)
         self.flatten_dict = flatten_dict
@@ -64,6 +71,8 @@ class JsonParser(DataParser):
         self.tokenizer = tokenizer
         if self.segment_value and self.tokenizer is None:
             self.tokenizer = default_tokenizer
+        self.error = error
+        self.warning = warning
 
     def insert_dict(
             self,
@@ -178,13 +187,40 @@ class JsonParser(DataParser):
                 graph=graph, component_id=component_id, key=key, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
 
+    def preprocess(self, row):
+        # json load
+        try:
+            obj = json.loads(row[1])
+        except (json.JSONDecodeError, TypeError, ValueError, IndexError) as e:
+            if self.error:
+                raise e
+            elif self.warning:
+                traceback.print_exc(file=sys.stderr)
+            obj = row[1]
+
+        # json预处理
+        if self.json_path_tree is not None:
+            if row[2] is None:
+                now = None
+            else:
+                try:
+                    now = ddt.strptime(row[2], self.time_format)
+                except (TypeError, ValueError, IndexError) as e:
+                    if self.error:
+                        raise e
+                    elif self.warning:
+                        traceback.print_exc(file=sys.stderr)
+                    now = None
+            obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)
+        return obj
+
     def parse(
             self,
             df: pd.DataFrame,
-            targets: List[str] = None,
             progress_bar: bool = False,
             **kwargs
     ) -> (RawGraph, dict, List[dict]):
+        # todo 抛异常的机制需要重新设计
         graph = RawGraph()
         global_index_mapper = {}
         local_index_mappers = []
@@ -195,24 +231,8 @@ class JsonParser(DataParser):
         for component_id, row in progress_wrapper(
                 enumerate(df[[self.json_col, self.time_col]].itertuples()),
                 disable=not progress_bar, postfix='parsing json'):
-            # json load
-            try:
-                obj = json.loads(row[1])
-            except (json.JSONDecodeError, TypeError):
-                obj = row[1]
-
-            # json预处理
-            if self.json_path_tree is not None:
-                if isinstance(row[2], str):
-                    try:
-                        now = ddt.strptime(row[2], self.time_format)
-                    except (TypeError, ValueError):
-                        now = None
-                else:
-                    now = None
-
-                obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)
-
+            obj = self.preprocess(row)
+            # 插入图
             local_index_mapper = {}
             self.insert_component(
                 graph=graph, component_id=component_id, value=obj, dsts=[],

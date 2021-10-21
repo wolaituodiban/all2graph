@@ -18,11 +18,11 @@ class RawGraphParser(MetaStruct):
                  edge_type: Set[Tuple[str, str]], targets: List[str] = None, tokenizer: Tokenizer = default_tokenizer):
         """
         Graph与dgl.DiGraph的转换器
-        :param.py meta_numbers: 数值分布
-        :param.py strings: 字符串编码字典
-        :param.py keys: 如果是dict，那么dict的元素必须是list，代表name的分词
-        :param.py edge_type:
-        :param.py targets:
+        :param meta_numbers: 数值分布
+        :param strings: 字符串编码字典
+        :param keys: 如果是dict，那么dict的元素必须是list，代表name的分词
+        :param edge_type:
+        :param targets:
         :parma meta_mode: 如果是True，那么graph_to_dgl会生成一个元图和一个值图，否则只生成一个值图
         """
         super().__init__(initialized=True)
