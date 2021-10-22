@@ -115,7 +115,7 @@ class RawGraphParser(MetaStruct):
     def parse(self, graph: RawGraph) -> Graph:
         """
 
-        :param.py graph:
+        :param graph:
         :return:
         """
         graph = graph.add_targets(self.targets)
@@ -207,8 +207,8 @@ class RawGraphParser(MetaStruct):
             tokenizer=tokenizer)
 
     def extra_repr(self) -> str:
-        return 'num_numbers={}, num_strings={}, num_keys={}, targets={}, num_etype={}'.format(
-            self.num_numbers, self.num_strings, self.num_keys, self.targets, self.num_etypes
+        return 'num_numbers={}, num_strings={}, num_keys={}, num_etype={}, targets={}'.format(
+            self.num_numbers, self.num_strings, self.num_keys, self.num_etypes, self.targets
         )
 
     @classmethod
@@ -216,13 +216,13 @@ class RawGraphParser(MetaStruct):
                   targets=None, tokenizer: Tokenizer = default_tokenizer):
         """
 
-        :param.py meta_info:
-        :param.py min_df: 字符串最小文档平吕
-        :param.py max_df: 字符串最大文档频率
-        :param.py top_k: 选择前k个字符串
-        :param.py top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
-        :param.py targets:
-        :param.py tokenizer:
+        :param meta_info:
+        :param min_df: 字符串最小文档平吕
+        :param max_df: 字符串最大文档频率
+        :param top_k: 选择前k个字符串
+        :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
+        :param targets:
+        :param tokenizer:
         """
         strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:

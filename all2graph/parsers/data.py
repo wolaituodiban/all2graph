@@ -12,6 +12,12 @@ class DataParser(MetaStruct):
         self.time_col = time_col
         self.time_format = time_format
 
+    def disable_preprocessing(self):
+        raise NotImplementedError
+
+    def enable_preprocessing(self):
+        raise NotImplementedError
+
     @staticmethod
     def gen_targets(df: pd.DataFrame, target_cols):
         import torch
@@ -19,6 +25,9 @@ class DataParser(MetaStruct):
             k: torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32)
             for k in target_cols if k in df
         }
+
+    def save_inter_csv(self, df, dst, progress_bar=False):
+        raise NotImplementedError
 
     def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
         raise NotImplementedError
@@ -54,3 +63,11 @@ class DataAugmenter(DataParser):
     def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
         parser = np.random.choice(self.parsers, p=self.weights)
         return parser.parse(data, progress_bar=progress_bar, **kwargs)
+
+    def disable_preprocessing(self):
+        for parser in self.parsers:
+            parser.disable_preprocessing()
+
+    def enable_preprocessing(self):
+        for parser in self.parsers:
+            parser.enable_preprocessing()

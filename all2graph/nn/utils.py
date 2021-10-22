@@ -1,11 +1,14 @@
+from multiprocessing import Pool
+
 import numpy as np
 import torch
 
 from toad.nn import Module
 from ..parsers import RawGraphParser
 from ..data import DataLoader
+from ..parsers import DataParser
 from ..version import __version__
-from ..utils import progress_wrapper
+from ..utils import progress_wrapper, dataframe_chunk_iter
 
 
 def num_parameters(module: torch.nn.Module):
@@ -16,12 +19,44 @@ def num_parameters(module: torch.nn.Module):
 
 
 class MyModule(Module):
-    def __init__(self, raw_graph_parser: RawGraphParser):
+    def __init__(self, raw_graph_parser: RawGraphParser, data_parser: DataParser = None):
         super().__init__()
         self.version = __version__
         self.raw_graph_parser = raw_graph_parser
+        self.data_parser = data_parser
         self._loss = None
         self._optimizer = None
+
+    def enable_preprocessing(self):
+        self.data_parser.enable_preprocessing()
+
+    def disable_preprocessing(self):
+        self.data_parser.disable_preprocessing()
+
+    def predict(self, src, disable=False, processes=None, postfix='predicting', **kwargs):
+        with torch.no_grad():
+            self.eval()
+            outputs = None
+            data = dataframe_chunk_iter(src, **kwargs)
+            data = progress_wrapper(data, disable=disable, postfix=postfix)
+            if processes == 0:
+                for graph, *_ in map(self.data_parser.parse, data):
+                    output = self(graph)
+                    if outputs is None:
+                        outputs = {k: [v.detach().cpu()] for k, v in output.items()}
+                    else:
+                        for k in output:
+                            outputs[k].append(output[k].detach().cpu())
+            else:
+                with Pool(processes) as pool:
+                    for graph, *_ in pool.imap(self.data_parser.parse, data):
+                        output = self(graph)
+                        if outputs is None:
+                            outputs = {k: [v.detach().cpu()] for k, v in output.items()}
+                        else:
+                            for k in output:
+                                outputs[k].append(output[k].detach().cpu())
+            return outputs
 
     def predict_dataloader(self, dataloader: DataLoader, postfix=''):
         with torch.no_grad():

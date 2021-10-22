@@ -33,24 +33,25 @@ class CallBack:
         train_pred, train_label = self.model.predict_dataloader(self.train_dataloader, 'eval train')
         valid_pred, valid_label = self.model.predict_dataloader(self.valid_dataloader, 'eval valid')
 
-        train_auc = roc_auc_score(train_label[self.target], train_pred[self.target])
-        valid_auc = roc_auc_score(valid_label[self.target], valid_pred[self.target])
-        adjust_auc = valid_auc - max((train_auc - valid_auc) * self.adj_factor, 0)
+        metrics = {}
+        for k in train_label:
+            train_auc = roc_auc_score(train_label[k], train_pred[k])
+            valid_auc = roc_auc_score(valid_label[k], valid_pred[k])
+            adjust_auc = valid_auc - max((train_auc - valid_auc) * self.adj_factor, 0)
 
-        train_ks = ks_score(train_label[self.target], train_pred[self.target])
-        valid_ks = ks_score(valid_label[self.target], valid_pred[self.target])
-        adjust_ks = valid_ks - max((train_ks - valid_ks) * self.adj_factor, 0)
+            train_ks = ks_score(train_label[k], train_pred[k])
+            valid_ks = ks_score(valid_label[k], valid_pred[k])
+            adjust_ks = valid_ks - max((train_ks - valid_ks) * self.adj_factor, 0)
 
-        self.history.append(
-            {
+            metrics[k] = {
                 'train_auc': train_auc, 'valid_auc': valid_auc, 'adjust_auc': adjust_auc,
                 'train_ks': train_ks, 'valid_ks': valid_ks, 'adjust_ks': adjust_ks
             }
-        )
-        print(', '.join('{}={:.3}'.format(k, v) for k, v in self.history[-1].items()))
+            print('{}:'.format(k), ', '.join('{}={:.3}'.format(kk, vv) for kk, vv in metrics[k].items()))
+        self.history.append(metrics)
 
-        best_metric = self.history[self.best_round][self.early_stopping_metric]
-        current_metric = self.history[-1][self.early_stopping_metric]
+        best_metric = self.history[self.best_round][self.target][self.early_stopping_metric]
+        current_metric = metrics[self.target][self.early_stopping_metric]
 
         if best_metric < current_metric:
             self.best_round = ep

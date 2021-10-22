@@ -74,6 +74,14 @@ class JsonParser(DataParser):
         self.error = error
         self.warning = warning
 
+        self._enable_preprocessing = True
+
+    def enable_preprocessing(self):
+        self._enable_preprocessing = True
+
+    def disable_preprocessing(self):
+        self._enable_preprocessing = False
+
     def insert_dict(
             self,
             graph: RawGraph,
@@ -187,32 +195,63 @@ class JsonParser(DataParser):
                 graph=graph, component_id=component_id, key=key, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
 
-    def preprocess(self, row):
+    def parse_json(self, obj, now=None):
         # json load
         try:
-            obj = json.loads(row[1])
+            obj = json.loads(obj)
         except (json.JSONDecodeError, TypeError, ValueError, IndexError) as e:
             if self.error:
                 raise e
             elif self.warning:
                 traceback.print_exc(file=sys.stderr)
-            obj = row[1]
 
         # json预处理
         if self.json_path_tree is not None:
-            if row[2] is None:
-                now = None
-            else:
+            # todo 抛异常的机制需要重新设计
+            if now is not None:
                 try:
-                    now = ddt.strptime(row[2], self.time_format)
+                    now = ddt.strptime(now, self.time_format)
                 except (TypeError, ValueError, IndexError) as e:
                     if self.error:
                         raise e
                     elif self.warning:
                         traceback.print_exc(file=sys.stderr)
-                    now = None
             obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)
         return obj
+
+    def parse_df(
+            self,
+            df: pd.DataFrame,
+            progress_bar: bool = False,
+    ):
+        if self.time_col not in df:
+            for obj in progress_wrapper(df[self.json_col], disable=not progress_bar, postfix='parsing json'):
+                yield self.parse_json(obj)
+        else:
+            for obj, now in progress_wrapper(
+                    zip(df[self.json_col], df[self.time_col]),
+                    disable=not progress_bar, postfix='parsing json'):
+                yield self.parse_json(obj, now)
+
+    def save_inter_csv(self, df, dst, progress_bar=False):
+        assert self.global_id_keys is None
+        self.enable_preprocessing()
+
+        local_index_mappers = []
+        graphs = []
+        for obj in self.parse_df(df=df, progress_bar=progress_bar):
+            graph = RawGraph()
+            local_index_mapper = {}
+            self.insert_component(
+                graph=graph, component_id=0, value=obj, dsts=[],
+                local_index_mapper=local_index_mapper, global_index_mapper={})
+            graphs.append(graph)
+            local_index_mappers.append(local_index_mapper)
+
+        df = df.copy()
+        df[self.json_col] = [json.dumps(graph.to_json(drop_nested_value=True)) for graph in graphs]
+        df['local_index_mapper'] = list(map(json.dumps, local_index_mappers))
+        df.to_csv(dst)
 
     def parse(
             self,
@@ -220,24 +259,20 @@ class JsonParser(DataParser):
             progress_bar: bool = False,
             **kwargs
     ) -> (RawGraph, dict, List[dict]):
-        # todo 抛异常的机制需要重新设计
-        graph = RawGraph()
         global_index_mapper = {}
-        local_index_mappers = []
-
-        if self.time_col not in df:
-            df[self.time_col] = None
-
-        for component_id, row in progress_wrapper(
-                enumerate(df[[self.json_col, self.time_col]].itertuples()),
-                disable=not progress_bar, postfix='parsing json'):
-            obj = self.preprocess(row)
-            # 插入图
-            local_index_mapper = {}
-            self.insert_component(
-                graph=graph, component_id=component_id, value=obj, dsts=[],
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
-            local_index_mappers.append(local_index_mapper)
+        if self._enable_preprocessing:
+            graph = RawGraph()
+            local_index_mappers = []
+            for component_id, obj in enumerate(self.parse_df(df=df, progress_bar=progress_bar)):
+                local_index_mapper = {}
+                self.insert_component(
+                    graph=graph, component_id=component_id, value=obj, dsts=[],
+                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+                local_index_mappers.append(local_index_mapper)
+        else:
+            assert self.global_id_keys is None
+            graph = RawGraph.batch(RawGraph.from_json(json.loads(obj)) for obj in df[self.json_col])
+            local_index_mappers = [json.loads(obj) for obj in df['local_index_mapper']]
         return graph, global_index_mapper, local_index_mappers
 
     def extra_repr(self) -> str:

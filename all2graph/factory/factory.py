@@ -1,3 +1,4 @@
+import os.path
 from multiprocessing import Pool
 from typing import Iterable, Tuple, List, Union
 
@@ -50,6 +51,12 @@ class Factory(MetaStruct):
         else:
             return self.raw_graph_parser.targets
 
+    def enable_preprocessing(self):
+        self.data_parser.enable_preprocessing()
+
+    def disable_preprocessing(self):
+        self.data_parser.disable_preprocessing()
+
     def _produce_raw_graph(self, chunk):
         return self.data_parser.parse(chunk, progress_bar=False)
 
@@ -85,6 +92,25 @@ class Factory(MetaStruct):
         )
         self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.graph_parser_config)
         return meta_info
+
+    def _save_inter_csv(self, x):
+        self.data_parser.save_inter_csv(x[0], x[1])
+
+    def save_inter_csv(
+            self, src, dst, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
+            postfix='saving intermedia csv', processes=None, **kwargs):
+        assert not os.path.exists(dst), '{} already exists'.format(dst)
+        os.mkdir(dst)
+        generator = dataframe_chunk_iter(
+                src, error=error, warning=warning, concat_chip=concat_chip, chunksize=chunksize, **kwargs)
+        extend_name = 'zip' if zip else 'csv'
+        generator = ((x, os.path.join(dst, '{}.{}'.format(i, extend_name))) for i, x in enumerate(generator))
+        generator = progress_wrapper(generator, disable=disable, postfix=postfix)
+        if processes == 0:
+            list(map(self._save_inter_csv, generator))
+        else:
+            with Pool(processes) as pool:
+                list(pool.imap(self._save_inter_csv, generator))
 
     def produce_graph_and_label(self, chunk: pd.DataFrame):
         graph, *_ = self._produce_raw_graph(chunk)

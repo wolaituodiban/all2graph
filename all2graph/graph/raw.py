@@ -1,5 +1,5 @@
 from itertools import permutations
-from typing import Dict, List, Union, Tuple
+from typing import Dict, List, Union, Tuple, Iterable
 
 import numpy as np
 
@@ -9,8 +9,9 @@ from ..utils import Tokenizer
 
 
 class RawGraph(MetaStruct):
-    def __init__(self, component_id=None, key=None, value=None, src=None, dst=None, symbol=None):
-        super().__init__(initialized=True)
+    def __init__(self, component_id=None, key=None, value=None, src=None, dst=None, symbol=None, initialized=True,
+                 **kwargs):
+        super().__init__(initialized=initialized, **kwargs)
         self.component_id: List[int] = list(component_id or [])
         self.key: List[str] = list(key or [])
         self.value: List[Union[Dict, List, str, int, float, None]] = list(value or [])
@@ -176,15 +177,16 @@ class RawGraph(MetaStruct):
         self.dst = df.dst.tolist()
 
     @classmethod
-    def batch(cls, graphs: list):
+    def batch(cls, graphs: Iterable):
         new_graph = cls()
         for graph in graphs:
             num_components = new_graph.num_components
+            num_nodes = new_graph.num_nodes
             new_graph.component_id += [i + num_components for i in graph.component_id]
             new_graph.key += graph.key
             new_graph.value += graph.value
-            new_graph.src += graph.src
-            new_graph.dst += graph.dst
+            new_graph.src += [i + num_nodes for i in graph.src]
+            new_graph.dst += [i + num_nodes for i in graph.dst]
             new_graph.symbol += graph.symbol
         return new_graph
 
@@ -193,12 +195,22 @@ class RawGraph(MetaStruct):
             self.num_nodes, self.num_edges, self.num_components, self.num_keys, self.num_types
         )
 
-    def to_json(self) -> dict:
-        raise NotImplementedError
+    def to_json(self, drop_nested_value=True) -> dict:
+        output = super().to_json()
+        output['component_id'] = self.component_id
+        output['key'] = self.key
+        if drop_nested_value:
+            output['value'] = [None if isinstance(x, (dict, list)) else x for x in self.value]
+        else:
+            output['value'] = self.value
+        output['src'] = self.src
+        output['dst'] = self.dst
+        output['symbol'] = self.symbol
+        return output
 
     @classmethod
     def from_json(cls, obj: dict):
-        raise NotImplementedError
+        return super().from_json(obj)
 
     @classmethod
     def from_data(cls, **kwargs):

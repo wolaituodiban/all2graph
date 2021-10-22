@@ -48,6 +48,16 @@ def test_batch():
     assert m3.__eq__(m4, debug=True)
 
 
+def test_json():
+    import json
+    s1 = ag.RawGraph(
+        component_id=[0, 0], key=['a', 'b'], value=['a', 'b'], src=[1], dst=[0], symbol=['readout', 'value'])
+    temp = json.dumps(s1.to_json())
+    temp = json.loads(temp)
+    s2 = ag.RawGraph.from_json(temp)
+    assert s1 == s2
+
+
 if __name__ == '__main__':
     test_meta_graph()
     test_batch()
