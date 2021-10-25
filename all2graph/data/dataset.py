@@ -51,12 +51,7 @@ class Dataset(TorchDataset):
             self.paths.append(temp)
 
     def read_csv(self, path):
-        if self.parser.time_col is None:
-            usecols = [self.parser.json_col]
-        else:
-            usecols = [self.parser.json_col, self.parser.time_col]
-        usecols += self.target_cols
-        return pd.read_csv(path, usecols=usecols, **self.kwargs)
+        return pd.read_csv(path, **self.kwargs)
 
     @property
     def chunksize(self):

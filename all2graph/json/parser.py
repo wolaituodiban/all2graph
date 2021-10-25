@@ -257,7 +257,6 @@ class JsonParser(DataParser):
             self,
             df: pd.DataFrame,
             progress_bar: bool = False,
-            **kwargs
     ) -> (RawGraph, dict, List[dict]):
         global_index_mapper = {}
         if self._enable_preprocessing:

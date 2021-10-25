@@ -1,11 +1,14 @@
+import os
 from multiprocessing import Pool
 
 import numpy as np
+import pandas as pd
 import torch
 
 from toad.nn import Module
-from ..parsers import RawGraphParser
+from ..parsers import RawGraphParser, ParserWrapper
 from ..data import DataLoader
+from ..graph import Graph
 from ..parsers import DataParser
 from ..version import __version__
 from ..utils import progress_wrapper, dataframe_chunk_iter
@@ -27,35 +30,46 @@ class MyModule(Module):
         self._loss = None
         self._optimizer = None
 
+    def parser_wrapper(self, temp_file):
+        return ParserWrapper(self.data_parser, self.raw_graph_parser, temp_file=temp_file)
+
+    def set_data_parser(self, data_parser: DataParser):
+        self.data_parser = data_parser
+
     def enable_preprocessing(self):
         self.data_parser.enable_preprocessing()
 
     def disable_preprocessing(self):
         self.data_parser.disable_preprocessing()
 
-    def predict(self, src, disable=False, processes=None, postfix='predicting', **kwargs):
+    def predict(
+            self, src, chunksize=64, disable=False, processes=None, postfix='predicting', temp_file=False,
+            **kwargs) -> pd.DataFrame:
         with torch.no_grad():
             self.eval()
-            outputs = None
-            data = dataframe_chunk_iter(src, **kwargs)
-            data = progress_wrapper(data, disable=disable, postfix=postfix)
+            outputs = []
+            data = dataframe_chunk_iter(src, chunksize=chunksize, **kwargs)
             if processes == 0:
-                for graph, *_ in map(self.data_parser.parse, data):
-                    output = self(graph)
-                    if outputs is None:
-                        outputs = {k: [v.detach().cpu()] for k, v in output.items()}
-                    else:
-                        for k in output:
-                            outputs[k].append(output[k].detach().cpu())
+                for df, graph, *_ in progress_wrapper(
+                        map(self.parser_wrapper(temp_file=False).parser, data), disable=disable, postfix=postfix):
+                    pred = self(graph)
+                    for k, v in pred.items():
+                        df[k+'_output'] = v.detach().cpu().numpy()
+                    outputs.append(df)
             else:
                 with Pool(processes) as pool:
-                    for graph, *_ in pool.imap(self.data_parser.parse, data):
-                        output = self(graph)
-                        if outputs is None:
-                            outputs = {k: [v.detach().cpu()] for k, v in output.items()}
-                        else:
-                            for k in output:
-                                outputs[k].append(output[k].detach().cpu())
+                    for df, graph, *_ in progress_wrapper(
+                            pool.imap(self.parser_wrapper(temp_file=temp_file).parser, data),
+                            disable=disable, postfix=postfix):
+                        if temp_file:
+                            filename = graph
+                            graph = Graph.load(graph)
+                            os.remove(filename)
+                        pred = self(graph)
+                        for k, v in pred.items():
+                            df[k+'_output'] = v.detach().cpu().numpy()
+                        outputs.append(df)
+            outputs = pd.concat(outputs)
             return outputs
 
     def predict_dataloader(self, dataloader: DataLoader, postfix=''):

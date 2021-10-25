@@ -66,9 +66,11 @@ def reverse_dict(d: dict):
 
 
 class EncoderMetaLearner(MyModule):
-    def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder, num_latent, dropout=0.1, norm=True):
+    def __init__(
+            self, raw_graph_parser: RawGraphParser, encoder: Encoder, num_latent, data_parser=None, dropout=0.1,
+            norm=True):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings
-        super().__init__(raw_graph_parser=raw_graph_parser)
+        super().__init__(raw_graph_parser=raw_graph_parser, data_parser=data_parser)
         self.param_graph = raw_graph_parser.gen_param_graph(encoder.dynamic_parameter_shapes)
         self.linear = torch.nn.Linear(in_features=encoder.d_model, out_features=num_latent)
 
@@ -177,9 +179,9 @@ class EncoderMetaLearner(MyModule):
 
 
 class EncoderMetaLearnerMocker(MyModule):
-    def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder):
+    def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder, data_parser=None):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings, 'parser与encoder不对应'
-        super().__init__(raw_graph_parser=raw_graph_parser)
+        super().__init__(raw_graph_parser=raw_graph_parser, data_parser=data_parser)
         for name, shape in encoder.dynamic_parameter_shapes.items():
             if name in encoder.output.dynamic_parameter_names:
                 for i, num_layers in enumerate(encoder.num_layers):

@@ -29,7 +29,7 @@ class DataParser(MetaStruct):
     def save_inter_csv(self, df, dst, progress_bar=False):
         raise NotImplementedError
 
-    def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
+    def parse(self, data, progress_bar: bool = False) -> Tuple[RawGraph, dict, List[dict]]:
         raise NotImplementedError
 
     def __eq__(self, other):
