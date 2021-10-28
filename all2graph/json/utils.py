@@ -1,3 +1,11 @@
+import re
+
+
+def rm_ascii(s):
+    pattern = re.compile(r'[\u4e00-\u9fa5]')
+    return ''.join(pattern.findall(s))
+
+
 def unstructurize_dict(d):
     output = {}
     for k, v in d.items():

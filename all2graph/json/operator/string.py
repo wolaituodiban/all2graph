@@ -1,6 +1,7 @@
 import sys
 import traceback
 from .operator import Operator
+from ..utils import rm_ascii
 
 
 class Lower(Operator):
@@ -64,3 +65,8 @@ class Rename(Operator):
             elif self.warning:
                 traceback.print_exc(file=sys.stderr)
         return obj
+
+
+class RemoveASCII(Operator):
+    def __call__(self, obj, **kwargs):
+        return rm_ascii(obj)

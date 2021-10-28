@@ -1,3 +1,5 @@
+from typing import Union
+
 import dgl
 import torch
 
@@ -8,8 +10,9 @@ from ..preserves import KEY, VALUE
 
 
 class Graph:
-    def __init__(self, meta_graph: RawGraph, graph: RawGraph, meta_key, meta_value, meta_symbol, meta_component_id,
-                 meta_edge_key, value, number, symbol, meta_node_id, meta_edge_id):
+    def __init__(self, meta_graph: Union[RawGraph, dgl.DGLGraph], graph: Union[RawGraph, dgl.DGLGraph], meta_key,
+                 meta_value, meta_symbol, meta_component_id, meta_edge_key, value, number, symbol, meta_node_id,
+                 meta_edge_id):
         self.version = __version__
         if isinstance(meta_graph, RawGraph):
             self.meta_graph: dgl.DGLGraph = dgl.graph(

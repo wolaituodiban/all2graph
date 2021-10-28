@@ -1,17 +1,3 @@
-from . import nn
-from .data import *
-from .factory import *
-from .graph import *
-from .json import *
-from .meta import *
-from .parsers import *
-from .stats import *
-from .utils import *
-from .globals import *
-from .meta_struct import MetaStruct
-from .version import __version__
-
-
 # 解决在服务器上运行时，dgl写config文件时，没有权限的问题
 import platform
 system = platform.system()
@@ -28,3 +14,16 @@ if 'linux' in platform.system().lower():
     except ImportError:
         pass
     os.environ['HOME'] = old_home
+
+from . import nn
+from .data import *
+from .factory import *
+from .graph import *
+from .json import *
+from .meta import *
+from .parsers import *
+from .stats import *
+from .utils import *
+from .globals import *
+from .meta_struct import MetaStruct
+from .version import __version__

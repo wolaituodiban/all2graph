@@ -106,7 +106,7 @@ def test_mock_load_pretrained():
     assert output1 == output2
 
 
-def test_mocker_predict():
+def test_predict():
     sample = {'a': 'b'}
     df = pd.DataFrame({'id': [0], 'json': [sample]})
     json_parser = ag.JsonParser('json', error=False, warning=False)
@@ -114,12 +114,13 @@ def test_mocker_predict():
     meta_info = ag.MetaInfo.from_data(raw_graph)
     raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'])
     encoder = ag.nn.Encoder(raw_graph_parser.num_strings, d_model=8, nhead=2, num_layers=[3, 2])
-    mocker = ag.nn.EncoderMetaLearnerMocker(raw_graph_parser, encoder, data_parser=json_parser).eval()
-    print(mocker.predict(df, processes=None, tempfile=True))
+    mocker = ag.nn.EncoderMetaLearnerMocker(raw_graph_parser, encoder).eval()
+    predictor = ag.nn.Predictor(data_parser=json_parser, module=mocker)
+    print(predictor.predict(df, processes=None, tempfile=True))
 
 
 if __name__ == '__main__':
     test_learner()
     test_mock()
     test_mock_load_pretrained()
-    test_mocker_predict()
+    test_predict()

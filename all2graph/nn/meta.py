@@ -1,6 +1,6 @@
 import copy
 import math
-from typing import Dict, List, Union
+from typing import Dict, List
 
 import dgl.function as fn
 import torch
@@ -8,7 +8,7 @@ from torch.nn.functional import linear
 
 from .encoder import Encoder
 from .utils import num_parameters, MyModule
-from ..graph import RawGraph, Graph
+from ..graph import Graph
 from ..meta import MetaNumber
 from ..parsers import RawGraphParser
 
@@ -67,10 +67,10 @@ def reverse_dict(d: dict):
 
 class EncoderMetaLearner(MyModule):
     def __init__(
-            self, raw_graph_parser: RawGraphParser, encoder: Encoder, num_latent, data_parser=None, dropout=0.1,
+            self, raw_graph_parser: RawGraphParser, encoder: Encoder, num_latent, dropout=0.1,
             norm=True):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings
-        super().__init__(raw_graph_parser=raw_graph_parser, data_parser=data_parser)
+        super().__init__(raw_graph_parser=raw_graph_parser)
         self.param_graph = raw_graph_parser.gen_param_graph(encoder.dynamic_parameter_shapes)
         self.linear = torch.nn.Linear(in_features=encoder.d_model, out_features=num_latent)
 
@@ -158,9 +158,8 @@ class EncoderMetaLearner(MyModule):
             'feats': meta_feats, 'keys': meta_keys, 'values': meta_values, 'attn_weights': meta_attn_weights
         }
 
-    def forward(self, graph: Union[RawGraph, Graph], details=False):
-        if isinstance(graph, RawGraph):
-            graph = self.raw_graph_parser.parse(graph)
+    def forward(self, graph: Graph, details=False):
+        graph = super().forward(graph)
         emb_param, conv_param, output_params, meta_infos = self.meta_forward(graph)
         target_mask = graph.target_mask(self.raw_graph_parser.target_symbol)
         outputs, value_infos = self.encoder(
@@ -179,9 +178,9 @@ class EncoderMetaLearner(MyModule):
 
 
 class EncoderMetaLearnerMocker(MyModule):
-    def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder, data_parser=None):
+    def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings, 'parser与encoder不对应'
-        super().__init__(raw_graph_parser=raw_graph_parser, data_parser=data_parser)
+        super().__init__(raw_graph_parser=raw_graph_parser)
         for name, shape in encoder.dynamic_parameter_shapes.items():
             if name in encoder.output.dynamic_parameter_names:
                 for i, num_layers in enumerate(encoder.num_layers):
@@ -215,10 +214,8 @@ class EncoderMetaLearnerMocker(MyModule):
         if reset_encoder:
             self.encoder.reset_parameters()
 
-    def forward(self, graph: Union[RawGraph, Graph], details=False):
-        if isinstance(graph, RawGraph):
-            graph = self.raw_graph_parser.parse(graph)
-
+    def forward(self, graph: Graph, details=False):
+        graph = super().forward(graph)
         emb_param = {
             name: getattr(self, name)[graph.meta_key] for name in self.encoder.node_embedding.dynamic_parameter_names}
         conv_param = {
@@ -302,4 +299,3 @@ class EncoderMetaLearnerMocker(MyModule):
                     getattr(self, name)[:, key_j] = getattr(other, name)[:, key_i]
 
         self.encoder.load_pretrained(other.encoder, self.raw_graph_parser, other.raw_graph_parser)
-
