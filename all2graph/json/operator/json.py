@@ -1,4 +1,7 @@
 import json as py_json
+
+from typing import Set
+
 from .operator import Operator
 from ..utils import unstructurize_dict
 
@@ -21,6 +24,24 @@ class JsonDumper(Operator):
 
 
 class Unstructurizer(Operator):
-    def __call__(self, obj, **kwargs):
-        return unstructurize_dict(obj)
+    def __init__(self, preserved: Set[str] = None, start_level=0, end_level=0):
+        super().__init__()
+        self.preserved = preserved
+        self.start_level = start_level
+        self.end_level = end_level
 
+    def __call__(self, obj, **kwargs):
+        return unstructurize_dict(obj, preserved=self.preserved, start_level=self.start_level, end_level=self.end_level)
+
+    def __repr__(self):
+        return '{}(preserved={}, start_level={}, end_level={})'.format(
+            self.__class__.__name__, self.preserved, self.start_level, self.end_level)
+
+
+class DictGetter(Operator):
+    def __init__(self, keys: Set[str]):
+        super(DictGetter, self).__init__()
+        self.keys = keys
+
+    def __call__(self, obj, **kwargs):
+        return {k: obj[k] for k in self.keys if k in obj}

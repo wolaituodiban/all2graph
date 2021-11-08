@@ -1,4 +1,5 @@
 import re
+from ..utils import default_tokenizer
 
 
 def rm_ascii(s):
@@ -6,16 +7,21 @@ def rm_ascii(s):
     return ''.join(pattern.findall(s))
 
 
-def unstructurize_dict(d):
+def unstructurize_dict(d, preserved=None, start_level=0, end_level=0):
     output = {}
     for k, v in d.items():
+        if preserved and k in preserved:
+            output[k] = v
+            continue
         temp = output
-        k_split =  k.split('_')
-        for kk in k_split[1:-1]:
+        k_split = default_tokenizer.camel_to_snake(k).split('_')[start_level:]
+        if len(k_split) < end_level + 1:
+            continue
+        for kk in k_split[:-(end_level+1)]:
             if kk not in temp:
                 temp[kk] = {}
             temp = temp[kk]
-        temp[k_split[-1]] = v
+        temp[k_split[-(end_level+1)]] = v
     return output
 
 

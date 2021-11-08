@@ -1,3 +1,5 @@
+import traceback
+
 import torch
 import pandas as pd
 import all2graph as ag
@@ -50,6 +52,7 @@ def test_mock():
         encoder=Encoder(num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3]))
     print(model.eval())
     with Timer('cpu forward'):
+        print(1)
         out = model(graph, details=True)
 
     if torch.cuda.is_available():
@@ -119,8 +122,27 @@ def test_predict():
     print(predictor.predict(df, processes=None, tempfile=True))
 
 
+def test_error_key():
+    # todo 未完成
+    sample = {'a': 'b'}
+    df = pd.DataFrame({'id': [0], 'json': [sample]})
+    json_parser = ag.JsonParser('json', error=False, warning=False)
+    raw_graph, *_ = json_parser.parse(df)
+    meta_info = ag.MetaInfo.from_data(raw_graph)
+    raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'])
+    encoder = ag.nn.Encoder(raw_graph_parser.num_strings, d_model=8, nhead=2, num_layers=[3, 2])
+    mocker = ag.nn.EncoderMetaLearnerMocker(raw_graph_parser, encoder).eval()
+
+    sample2 = {'b': 'a'}
+    df2 = pd.DataFrame({'id': [1], 'json': [sample2]})
+    raw_graph2, *_ = json_parser.parse(df2)
+    graph2 = raw_graph_parser.parse(raw_graph2)
+    mocker.forward(graph2)
+
+
 if __name__ == '__main__':
     test_learner()
     test_mock()
     test_mock_load_pretrained()
     test_predict()
+    # test_error_key()

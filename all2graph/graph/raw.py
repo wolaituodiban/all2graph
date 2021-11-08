@@ -7,6 +7,11 @@ from ..preserves import KEY, VALUE, TARGET, READOUT, META
 from ..meta_struct import MetaStruct
 from ..utils import Tokenizer
 
+# todo 支持点分类和点回归，支持mask自监督
+# 考虑在此模式下，将symbol作为他用，比如用于存储点的label
+# 或者增加设计labels，并设计symbol和labels启用的开关
+# 考虑dataset的兼容性和factory的兼容性
+# 考虑encoder的兼容性
 
 class RawGraph(MetaStruct):
     def __init__(self, component_id=None, key=None, value=None, src=None, dst=None, symbol=None, initialized=True,

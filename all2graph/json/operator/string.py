@@ -66,6 +66,9 @@ class Rename(Operator):
                 traceback.print_exc(file=sys.stderr)
         return obj
 
+    def __repr__(self):
+        return "{}(old={}, new={})".format(self.__class__.__name__, self.old, self.new)
+
 
 class RemoveASCII(Operator):
     def __call__(self, obj, **kwargs):

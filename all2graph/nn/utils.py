@@ -31,8 +31,6 @@ class MyModule(Module):
         self._optimizer = None
 
     def forward(self, inputs) -> Graph:
-        if isinstance(inputs, pd.DataFrame):
-            inputs = self.data_parser.parse(inputs, progress_bar=False)
         if isinstance(inputs, RawGraph):
             inputs = self.raw_graph_parser.parse(inputs)
         return inputs

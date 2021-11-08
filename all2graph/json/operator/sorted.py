@@ -12,3 +12,6 @@ class Sorted(Operator):
             return sorted(obj, key=lambda x: x[self.key] if self.key in x else None, reverse=self.reverse)
         else:
             return sorted(obj, reverse=self.reverse)
+
+    def __repr__(self):
+        return '{}(key={}, reverse={})'.format(self.__class__.__name__, self.key, self.reverse)

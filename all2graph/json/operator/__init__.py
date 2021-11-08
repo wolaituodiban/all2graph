@@ -1,5 +1,5 @@
 from .delete import Delete
-from .json import JsonDumper, Unstructurizer
+from .json import JsonDumper, Unstructurizer, DictGetter
 from .operator import Operator
 from .sorted import Sorted
 from .string import Lower, Split, Cut, Rename, RemoveASCII
