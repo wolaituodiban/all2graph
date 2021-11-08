@@ -66,11 +66,11 @@ def test_statistics():
         norm=False)
     out_feat, key, value, attn_weight = conv(
         graph, feat, dict(
-            src_key_weight=src_key_weight, src_key_bias=src_key_bias, dst_key_weight=dst_key_weight,
-            dst_key_bias=dst_key_bias, src_value_weight=src_value_weight, src_value_bias=src_value_bias,
-            dst_value_weight=dst_value_weight, dst_value_bias=dst_value_bias, query=query, node_weight=node_weight,
-            node_bias=node_bias),
-        meta_node_id=meta_node_id, meta_edge_id=meta_edge_id
+            src_key_weight=src_key_weight[meta_edge_id], src_key_bias=src_key_bias[meta_edge_id],
+            dst_key_weight=dst_key_weight[meta_edge_id], dst_key_bias=dst_key_bias[meta_edge_id],
+            src_value_weight=src_value_weight[meta_edge_id], src_value_bias=src_value_bias[meta_edge_id],
+            dst_value_weight=dst_value_weight[meta_edge_id], dst_value_bias=dst_value_bias[meta_edge_id],
+            query=query[meta_node_id], node_weight=node_weight[meta_node_id], node_bias=node_bias[meta_node_id]),
     )
     print(u)
     print(v)
@@ -113,10 +113,16 @@ def test_shape():
     conv = Conv(out_dim)
     node_feat, key, edge_feat, attn_weight = conv(
         graph, feat, dict(
-            src_key_weight=src_key_weight, src_key_bias=src_key_bias, dst_key_weight=dst_key_weight,
-            dst_key_bias=dst_key_bias, src_value_weight=src_value_weight, src_value_bias=src_value_bias,
-            dst_value_weight=dst_value_weight, dst_value_bias=dst_value_bias, query=query, node_weight=node_weight,
-            node_bias=node_bias)
+            src_key_weight=src_key_weight.expand(num_edges, -1, -1, -1),
+            src_key_bias=src_key_bias.expand(num_edges, -1, -1),
+            dst_key_weight=dst_key_weight.expand(num_edges, -1, -1, -1),
+            dst_key_bias=dst_key_bias.expand(num_edges, -1, -1),
+            src_value_weight=src_value_weight.expand(num_edges, -1, -1, -1),
+            src_value_bias=src_value_bias.expand(num_edges, -1, -1),
+            dst_value_weight=dst_value_weight.expand(num_edges, -1, -1, -1),
+            dst_value_bias=dst_value_bias.expand(num_edges, -1, -1),
+            query=query.expand(num_edges, -1, -1), node_weight=node_weight.expand(num_edges, -1, -1, -1),
+            node_bias=node_bias.expand(num_edges, -1, -1))
     )
     assert node_feat.shape == (num_nodes, out_dim)
     assert key.shape == (num_edges, out_dim)

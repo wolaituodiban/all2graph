@@ -95,16 +95,14 @@ class RawGraphParser(MetaStruct):
         output = [self.string_mapper.get(str(x).lower(), self.string_mapper[NULL]) for x in inputs]
         return output
 
-    # todo 应该建立一个机制，让不存在的key填充越界的值，是的模型的错误调用会报错
-    # 目前牵扯到的问题是，metalearner那边在正常情况下，也在不需要的地方调用了这些不存在的key
-    # 导致越界值会让正确的模型也报错
-    # 此处需要修改模型部分，取消这些不需要的调用
     def encode_key(self, inputs: list) -> List[int]:
-        output = [self.key_mapper.get(key, -1) for key in inputs]
+        # 为了让模型的错误调用会报错，此处故意将不存在的key填了一个会越界的值
+        output = [self.key_mapper.get(key, -self.num_keys-1) for key in inputs]
         return output
 
     def encode_edge_key(self, inputs: list) -> List[int]:
-        output = [self.etype_mapper.get(etype, -1) for etype in inputs]
+        # 为了让模型的错误调用会报错，此处故意将不存在的key填了一个会越界的值
+        output = [self.etype_mapper.get(etype, -self.num_etypes-1) for etype in inputs]
         return output
 
     def normalize(self, key, value) -> np.ndarray:

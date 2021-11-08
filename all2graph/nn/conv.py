@@ -108,7 +108,7 @@ class Conv(torch.nn.Module):
             if hasattr(module, 'reset_parameters'):
                 module.reset_parameters()
 
-    def _forward(
+    def forward(
             self, graph: dgl.DGLGraph, in_feat: torch.Tensor, parameters: Dict[str, torch.Tensor]
     ) -> (torch.Tensor, torch.Tensor):
         """
@@ -119,7 +119,7 @@ class Conv(torch.nn.Module):
 
         :param graph:
         :param in_feat: num_nodes * in_dim
-
+        :param parameters:
         edge weight
             src_key_weight   : (, nhead, out_dim // nhead, in_dim)
             dst_key_weight   : (, nhead, out_dim // nhead, in_dim)
@@ -189,28 +189,6 @@ class Conv(torch.nn.Module):
             attn_weight = graph.edata[ATTENTION].view(graph.num_edges(), -1)
             return out_feat, key_feat, value_feat, attn_weight
 
-    def forward(
-            self, graph: dgl.DGLGraph, in_feat: torch.Tensor, parameters: Dict[str, torch.Tensor],
-            meta_node_id=None, meta_edge_id=None) -> (torch.Tensor, torch.Tensor):
-        new_params = {}
-        if meta_node_id is None:
-            for name in self.edge_dynamic_parameter_names:
-                parameter = parameters[name]
-                new_params[name] = parameter.repeat(graph.num_edges(), *[1] * len(parameter.shape))
-
-            for name in self.node_dynamic_parameter_names:
-                parameter = parameters[name]
-                new_params[name] = parameter.repeat(graph.num_nodes(), *[1] * len(parameter.shape))
-
-        else:
-            for name in self.edge_dynamic_parameter_names:
-                new_params[name] = parameters[name][meta_edge_id]
-
-            for name in self.node_dynamic_parameter_names:
-                new_params[name] = parameters[name][meta_node_id]
-
-        return self._forward(graph=graph, in_feat=in_feat, parameters=new_params)
-
     def extra_repr(self) -> str:
         return 'key_bias={}, value_bias={}, node_bias={}, residual={}, num_parameters={}'.format(
             self.key_bias, self.value_bias, self.node_bias, self.residual, num_parameters(self))
@@ -246,15 +224,14 @@ class Block(torch.nn.ModuleList):
             layer.reset_parameters()
 
     def forward(
-            self, graph, in_feat, parameters: Dict[str, torch.Tensor], meta_node_id=None, meta_edge_id=None
+            self, graph, in_feat, parameters: Dict[str, torch.Tensor]
     ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor]:
         out_feats = []
         keys = []
         values = []
         attn_weights = []
         for conv in self:
-            out_feat, key, value, attn_weight = conv(
-                graph, in_feat, parameters, meta_node_id=meta_node_id, meta_edge_id=meta_edge_id)
+            out_feat, key, value, attn_weight = conv(graph, in_feat, parameters)
             out_feats.append(out_feat)
             keys.append(key)
             values.append(value)
@@ -304,15 +281,13 @@ class Body(torch.nn.ModuleList):
             layer.reset_parameters()
 
     def forward(
-            self, graph, in_feat, parameters: Dict[str, torch.Tensor], meta_node_id=None, meta_edge_id=None
+            self, graph, in_feat, parameters: Dict[str, torch.Tensor]
     ) -> Tuple[List[torch.Tensor], List[torch.Tensor], List[torch.Tensor], List[torch.Tensor]]:
         """
 
         :param graph:
         :param in_feat:
         :param parameters: dict of tensor with shape(num_blocks, *), 其中*是特定参数的维度
-        :param meta_node_id:
-        :param meta_edge_id:
         :return:
             out_feat    : (num_layers, num_nodes, out_dim)
             key_feat    : (num_layers, num_nodes, out_dim)
@@ -324,9 +299,7 @@ class Body(torch.nn.ModuleList):
         values = []
         attn_weights = []
         for i, conv in enumerate(self):
-            out_feat, key, value, attn_weight = conv(
-                graph, in_feat, {k: v[i] for k, v in parameters.items()},
-                meta_node_id=meta_node_id, meta_edge_id=meta_edge_id)
+            out_feat, key, value, attn_weight = conv(graph, in_feat, {k: v[i] for k, v in parameters.items()})
             out_feats.append(out_feat)
             keys.append(key)
             values.append(value)

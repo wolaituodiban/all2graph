@@ -50,9 +50,7 @@ def test_mock():
     model = EncoderMetaLearnerMocker(
         raw_graph_parser=parser,
         encoder=Encoder(num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3]))
-    print(model.eval())
     with Timer('cpu forward'):
-        print(1)
         out = model(graph, details=True)
 
     if torch.cuda.is_available():
@@ -77,10 +75,10 @@ def test_mock_load_pretrained():
 
     # 1、构造两个测试样本s1和s2
     s1 = ag.RawGraph(
-        component_id=[0, 0, 0, 0, 0], key=['k1', 'k2', 'k2', 'k4', 'k4'], value=['v1', 'v2', 'v5', 0.5, 0.4],
+        component_id=[0, 0, 0, 0, 0], key=['readout', 'k2', 'k2', 'k4', 'k4'], value=['v1', 'v2', 'v5', 0.5, 0.4],
         src=[1], dst=[0], symbol=['readout', 'value', 'value', 'value', 'value'])
     s2 = ag.RawGraph(
-        component_id=[0, 0, 0, 0, 0], key=['k1', 'k2', 'k3', 'k4', 'k4'], value=['v3', 'v4', 'v1', -0.5, 0.3],
+        component_id=[0, 0, 0, 0, 0], key=['readout', 'k2', 'k3', 'k4', 'k4'], value=['v3', 'v4', 'v1', -0.5, 0.3],
         src=[1], dst=[0], symbol=['readout', 'value', 'value', 'value', 'value'])
     s3 = ag.RawGraph.batch([s2, s1])
 
@@ -110,6 +108,8 @@ def test_mock_load_pretrained():
 
 
 def test_predict():
+    torch.manual_seed(233)
+
     sample = {'a': 'b'}
     df = pd.DataFrame({'id': [0], 'json': [sample]})
     json_parser = ag.JsonParser('json', error=False, warning=False)
@@ -119,11 +119,11 @@ def test_predict():
     encoder = ag.nn.Encoder(raw_graph_parser.num_strings, d_model=8, nhead=2, num_layers=[3, 2])
     mocker = ag.nn.EncoderMetaLearnerMocker(raw_graph_parser, encoder).eval()
     predictor = ag.nn.Predictor(data_parser=json_parser, module=mocker)
-    print(predictor.predict(df, processes=None, tempfile=True))
+    pred_df = predictor.predict(df, processes=None, tempfile=True)
+    assert abs(pred_df.loc[0, 'target_output'] + 0.168832) < ag.EPSILON
 
 
 def test_error_key():
-    # todo 未完成
     sample = {'a': 'b'}
     df = pd.DataFrame({'id': [0], 'json': [sample]})
     json_parser = ag.JsonParser('json', error=False, warning=False)
@@ -137,12 +137,18 @@ def test_error_key():
     df2 = pd.DataFrame({'id': [1], 'json': [sample2]})
     raw_graph2, *_ = json_parser.parse(df2)
     graph2 = raw_graph_parser.parse(raw_graph2)
-    mocker.forward(graph2)
+    try:
+        mocker.forward(graph2)
+    except IndexError:
+        return
+    else:
+        print(traceback.print_exc())
+        raise IndexError
 
 
 if __name__ == '__main__':
-    test_learner()
+    # test_learner()
     test_mock()
-    test_mock_load_pretrained()
     test_predict()
-    # test_error_key()
+    test_mock_load_pretrained()
+    test_error_key()

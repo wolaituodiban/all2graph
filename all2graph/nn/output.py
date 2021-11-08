@@ -51,7 +51,7 @@ class FC(torch.nn.Module):
 
     def forward(
             self, feats: List[torch.Tensor], parameters: List[Dict[str, torch.Tensor]], mask: torch.Tensor,
-            meta_node_id: torch.Tensor, targets=List[str]) -> Dict[str, torch.Tensor]:
+            targets=List[str]) -> Dict[str, torch.Tensor]:
         """
 
         :param feats: 长度为num_blocks的list， 每个元素是tensor with shape(num_layers, num_nodes, emb_dim)，
@@ -61,24 +61,22 @@ class FC(torch.nn.Module):
                            TARGET_BIAS: (num_layers, num_nodes, 1)
                            ！注意每一个block的num_layers可能不一样！但是与feats相同
         :param mask: (num_nodes, )
-        :param meta_node_id: (num_nodes, )
         :param targets:
         :return:
             {target: tensor(num_samples, ) for target in self.targets}
         """
 
         outputs = []
-        masked_id = meta_node_id[mask]
 
         for feat, param in zip(feats[-self.last_block_only:], parameters[-self.last_block_only:]):
             feat = feat[-self.last_layer_only:, mask]  # (num_layers, num_nodes, emb_dim)
-            weight = param[self.TARGET_WEIGHT][-self.last_layer_only:, masked_id]  # (num_layers, num_nodes, emb_dim)
+            weight = param[self.TARGET_WEIGHT][-self.last_layer_only:, mask]  # (num_layers, num_nodes, emb_dim)
             weight = weight.view(feat.shape)  # 兼容性
             if self.share_block_param:
                 weight = weight[[-1]]
             output = (feat * weight).sum(dim=-1, keepdim=True)
             if self.bias:
-                bias = param[self.TARGET_BIAS][-self.last_layer_only:, masked_id]  # (num_layers, num_nodes, 1)
+                bias = param[self.TARGET_BIAS][-self.last_layer_only:, mask]  # (num_layers, num_nodes, 1)
                 if self.share_block_param:
                     bias = bias[[-1]]
                 output += bias

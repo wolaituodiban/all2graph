@@ -37,18 +37,18 @@ class NodeEmbedding(torch.nn.Module):
     def device(self):
         return self.embedding.weight.device
 
-    def forward(self, feat, number, parameters, meta_node_id) -> torch.Tensor:
+    def forward(self, feat, number, parameters) -> torch.Tensor:
         output = feat
         mask = torch.isnan(number)
         mask = torch.bitwise_not(mask)
         output = torch.masked_fill(output, mask.view(-1, 1), 0)
         number = number[mask].view(-1, 1)
         if self.num_weight and number.shape[0] > 0:
-            num_weight = parameters[self.NUMBER_WEIGHT][meta_node_id[mask]]
+            num_weight = parameters[self.NUMBER_WEIGHT][mask]
             number = number * num_weight.view(num_weight.shape[0], -1)
         output[mask] += self.num_norm(number)
         if self.key_bias:
-            key_bias = parameters[self.KEY_BIAS][meta_node_id]
+            key_bias = parameters[self.KEY_BIAS]
             output += key_bias.view(output.shape)
         return output
 

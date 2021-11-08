@@ -135,6 +135,8 @@ class EncoderMetaLearner(MyModule):
         return output
 
     def meta_forward(self, graph: Graph):
+        # todo 在删除了Conv、Embedding和Output的forward函数的meta_node_id和meta_edge_id参数后，此函数已经不兼容
+        # 原因在于Encoder已经不在处理parameter的映射逻辑
         if self.training:
             self.update_param_emb()
 
@@ -217,15 +219,15 @@ class EncoderMetaLearnerMocker(MyModule):
     def forward(self, graph: Graph, details=False):
         graph = super().forward(graph)
         emb_param = {
-            name: getattr(self, name)[graph.meta_key] for name in self.encoder.node_embedding.dynamic_parameter_names}
+            name: getattr(self, name)[graph.key] for name in self.encoder.node_embedding.dynamic_parameter_names}
         conv_param = {
-            name: getattr(self, name)[:, graph.meta_key] for name in self.encoder.body.node_dynamic_parameter_names}
+            name: getattr(self, name)[:, graph.key] for name in self.encoder.body.node_dynamic_parameter_names}
         conv_param.update({
-            name: getattr(self, name)[:, graph.meta_edge_key]
+            name: getattr(self, name)[:, graph.edge_key]
             for name in self.encoder.body.edge_dynamic_parameter_names})
         output_params = [
             {
-                name: getattr(self, '{}_{}'.format(name, i))[:, graph.meta_key]
+                name: getattr(self, '{}_{}'.format(name, i))[:, graph.key]
                 for name in self.encoder.output.dynamic_parameter_names
             }
             for i in range(self.encoder.num_blocks)
