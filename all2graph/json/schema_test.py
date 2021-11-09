@@ -8,7 +8,7 @@ def test_json_schema():
     obj4 = {'c': 3}
 
     schema = ag.JsonSchema(obj1)
-    assert schema.validate(obj2, strict=False)
+    assert schema.validate(obj2, strict=False), schema.diff(obj2, strict=False)
     assert not schema.validate(obj2)
 
     assert not schema.validate(obj3, strict=False)

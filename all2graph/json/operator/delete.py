@@ -3,6 +3,7 @@ from .operator import Operator
 
 class Delete(Operator):
     def __init__(self, names):
+        assert isinstance(names, (list, tuple))
         super().__init__()
         self.names = names
 
