@@ -5,7 +5,6 @@ import pandas as pd
 
 from .data import DataParser
 from .graph import RawGraphParser
-from ..graph import Graph
 
 
 class ParserWrapper:
@@ -27,7 +26,19 @@ class ParserWrapper:
 
     def parse(
             self, df: pd.DataFrame, disable=True
-    ) -> Tuple[pd.DataFrame, Dict[str, Union[Graph, str]], Dict[str, dict], Dict[str, List[dict]]]:
+    ) -> Tuple[pd.DataFrame, dict, Dict[str, dict], Dict[str, List[dict]]]:
+        """
+
+        Args:
+            df:
+            disable:
+
+        Returns:
+            df: df which drop json cols
+            graphs: dict of all2graph.Graph or str if temp_file == True
+            global_index_mappers:
+            local_index_mapperss
+        """
         graphs = {}
         global_index_mappers = {}
         local_index_mapperss = {}

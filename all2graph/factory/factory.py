@@ -4,10 +4,9 @@ from typing import Iterable, Tuple, List, Union
 
 import pandas as pd
 
-from ..data import Dataset, DataLoader
+
 from ..graph import RawGraph
 from ..meta import MetaInfo
-from ..nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
 from ..parsers import DataParser, RawGraphParser
 from ..utils import progress_wrapper
 from ..utils.file_utils import dataframe_chunk_iter, split_csv
@@ -120,7 +119,8 @@ class Factory(MetaStruct):
 
     def produce_dataloader(
             self, src, dst=None, disable=False, zip=True, error=True, warning=True,
-            concat_chip=True, chunksize=64, shuffle=True, csv_configs=None, **kwargs) -> DataLoader:
+            concat_chip=True, chunksize=64, shuffle=True, csv_configs=None, **kwargs):
+        from ..data import Dataset, DataLoader
         if dst is not None:
             split_csv(
                 src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
@@ -134,6 +134,7 @@ class Factory(MetaStruct):
     def produce_model(
             self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,
             mock=False):
+        from ..nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
         encoder = Encoder(
             num_embeddings=self.raw_graph_parser.num_strings, d_model=d_model, nhead=nhead,
             num_layers=num_layers, **(encoder_configs or {}))

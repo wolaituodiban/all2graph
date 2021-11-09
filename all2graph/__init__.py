@@ -15,8 +15,11 @@ if 'linux' in platform.system().lower():
         pass
     os.environ['HOME'] = old_home
 
-from . import nn
-from .data import *
+try:
+    from . import nn
+    from .data import *
+except ImportError:
+    print('failed to import module nn and module data, no torch installed')
 from .factory import *
 from .graph import *
 from .json import *

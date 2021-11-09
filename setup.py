@@ -19,13 +19,9 @@ setup(
     author_email='wolaituodiban@gmail.com',
     packages=find_packages(include=('all2graph/',), exclude=('*test*',)),
     install_requires=[
-        # 'toad',
+        'toad>=0.0.64',
         # 'dgl',
         # 'networkx',
-        'pandas',
-        'numpy',
-        'scipy',
-        'jieba'
     ],
     # ext_modules=cythonize([
     #     # 'all2graph/graph/graph.py'

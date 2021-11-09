@@ -13,11 +13,23 @@ class Tokenizer:
             self.camel_to_snake_pattern = None
         self.join_token = join_token
 
-    def camel_to_snake(self, s, lower=True):
-        snake = self.camel_to_snake_pattern.sub(r'\1_\2', s)
-        if lower:
-            snake = snake.lower()
-        return snake
+    @staticmethod
+    def camel_to_snake(s):
+        up_index = []
+        for i, c in enumerate(s):
+            if c.isupper():
+                up_index.append(i)  # 获取大写字符索引位置
+        ls = s.lower()  # 原字符串转小写
+        # print(ls)
+        list_ls = list(ls)  # 转列表
+        if up_index:
+            addi = 0
+            for g in up_index:
+                list_ls.insert(g + addi, '_')  # 插入_
+                addi += 1
+        last_ls = ''.join(list_ls)  # 转回字符
+        # print(last_ls)
+        return last_ls
 
     def cut(self, s: str, **kwargs) -> Iterable[str]:
         return []

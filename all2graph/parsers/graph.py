@@ -3,14 +3,12 @@ from typing import Dict, Tuple, List, Set
 import numpy as np
 import pandas as pd
 
-from all2graph.graph.graph import Graph
-from all2graph.graph.param import ParamGraph
-from all2graph.graph.raw import RawGraph
-from all2graph.preserves import NULL, PRESERVED_WORDS, READOUT
-from all2graph.meta import MetaInfo, MetaNumber
-from all2graph.utils import Tokenizer, default_tokenizer
-from all2graph.meta_struct import MetaStruct
-from ..preserves import KEY, TARGET, META
+
+from ..graph import RawGraph
+from ..preserves import NULL, PRESERVED_WORDS, READOUT, KEY, TARGET, META
+from ..meta import MetaInfo, MetaNumber
+from ..utils import Tokenizer, default_tokenizer
+from ..meta_struct import MetaStruct
 
 
 class RawGraphParser(MetaStruct):
@@ -113,12 +111,14 @@ class RawGraphParser(MetaStruct):
             numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]])
         return numbers
 
-    def parse(self, graph: RawGraph) -> Graph:
+    def parse(self, graph: RawGraph):
         """
 
         :param graph:
         :return:
         """
+        from all2graph.graph.graph import Graph
+
         graph = graph.add_targets(self.targets)
         meta_graph, meta_node_id, meta_edge_id = graph.meta_graph(self.tokenizer)
         return Graph(
@@ -129,7 +129,8 @@ class RawGraphParser(MetaStruct):
             symbol=self.encode_string(graph.symbol), meta_node_id=meta_node_id, meta_edge_id=meta_edge_id
         )
 
-    def gen_param_graph(self, param_names) -> ParamGraph:
+    def gen_param_graph(self, param_names):
+        from all2graph.graph.param import ParamGraph
         param_mapper = {}
         raw_graph = RawGraph()
         for name in param_names:
