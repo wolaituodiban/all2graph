@@ -30,7 +30,7 @@ class MetaString(MetaValue):
         :param.py term_freq_ecdf:
         :param.py kwargs:
         """
-        assert len(term_count_ecdf) > 0, '频率分布函数不能为空'
+        # assert len(term_count_ecdf) > 0, '频率分布函数不能为空'
         assert all(isinstance(value, str) for value in term_count_ecdf)
         assert set(term_count_ecdf) == set(term_freq_ecdf)
         super().__init__(**kwargs)
@@ -115,7 +115,6 @@ class MetaString(MetaValue):
     @classmethod
     def from_data(cls, num_samples, sample_ids, values, progress_bar=False, postfix='constructing meta string',
                   num_bins=None):
-        # todo 兼容全部都是null的情况
         # # # # # 计算node count
         node_count_series = pd.value_counts(sample_ids)
 

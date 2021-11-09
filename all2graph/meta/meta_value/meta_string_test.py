@@ -5,10 +5,11 @@ import time
 import numpy as np
 import pandas as pd
 
+import all2graph as ag
 from all2graph import MetaString
 from all2graph.json import JsonParser
 from toad.utils.progress import Progress
-import json_tools
+from all2graph import json_diff
 
 
 def test_from_data():
@@ -80,13 +81,19 @@ def test_merge():
     cat2 = MetaString.reduce(cats, weights=weights)
     print(cat1)
     print(cat2)
-    assert cat1.term_count_ecdf == cat2.term_count_ecdf, json_tools.diff(
+    assert cat1.term_count_ecdf == cat2.term_count_ecdf, json_diff(
         cat1.term_count_ecdf.to_json(), cat2.term_count_ecdf.to_json()
     )
     for k in cat1:
         assert cat1.term_freq_ecdf[k] == cat2.term_freq_ecdf[k], '{}\n{}\n{}'.format(
             k, cat1.term_freq_ecdf[k].to_json(), cat2.term_freq_ecdf[k].to_json()
         )
+
+
+def test_no_data():
+    data = pd.DataFrame({'a': ['1']})
+    factory = ag.Factory(ag.JsonParser(json_col='a'))
+    factory.analyse(data, processes=0)
 
 
 def speed():
@@ -136,4 +143,5 @@ if __name__ == '__main__':
     test_from_data()
     test_not_eq()
     test_merge()
+    test_no_data()
     speed()
