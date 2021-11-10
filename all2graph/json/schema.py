@@ -78,9 +78,9 @@ def _json_schema(obj, output, path):
     """
     def add_type(_type):
         if path in output:
-            output[path].append(_type)
+            output[path].add(_type)
         else:
-            output[path] = [_type]
+            output[path] = {_type}
 
     if isinstance(obj, dict):
         add_type('dict')
@@ -103,7 +103,7 @@ def _json_schema(obj, output, path):
         add_type(None)
     else:
         add_type('unknown')
-    return output
+    return {k: list(v) for k, v in output.items()}
 
 
 def json_schema(obj):
