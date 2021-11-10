@@ -154,7 +154,9 @@ def test_filter_key():
     raw_graph_parser = ag.RawGraphParser.from_data(ag.MetaInfo.from_data(s2))
     assert (raw_graph_parser.parse(s1).key < 0).any()
     raw_graph_parser.set_filter_key(True)
+    assert raw_graph_parser.parse(s1).value_graph.num_edges() > 0
     assert (raw_graph_parser.parse(s1).key >= 0).all()
+    assert (raw_graph_parser.parse(s1).edge_key >= 0).all()
 
 
 if __name__ == '__main__':

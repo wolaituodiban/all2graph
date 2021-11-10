@@ -131,10 +131,10 @@ class RawGraphParser(MetaStruct):
         if self.filter_key:
             graph, dropped_keys = graph.filter_node(self.key_mapper)
             if len(dropped_keys) > 0:
-                print('drop unknown keys: {}'.format(dropped_keys), file=sys.stderr)
+                print('drop unknown node keys: {}'.format(dropped_keys), file=sys.stderr)
             graph, dropped_keys = graph.filter_edge(self.etype_mapper)
             if len(dropped_keys) > 0:
-                print('drop unknown keys: {}'.format(dropped_keys), file=sys.stderr)
+                print('drop unknown edge keys: {}'.format(dropped_keys), file=sys.stderr)
         meta_graph, meta_node_id, meta_edge_id = graph.meta_graph(self.tokenizer)
         return Graph(
             meta_graph=meta_graph, graph=graph, meta_key=self.encode_key(meta_graph.key),

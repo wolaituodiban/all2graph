@@ -75,6 +75,9 @@ class MyModule(Module):
                 print('loader.parser and module.parser are not the same, which may cause undefined behavior')
         return super().fit(loader=loader, epoch=epoch, callback=callback)
 
+    def set_filter_key(self, x):
+        self.raw_graph_parser.set_filter_key(x)
+
 
 class Predictor(torch.nn.Module):
     def __init__(self, data_parser: Union[DataParser, Dict[str, DataParser]], module: MyModule):
@@ -143,3 +146,6 @@ class Predictor(torch.nn.Module):
                     outputs.append(df)
         outputs = pd.concat(outputs)
         return outputs
+
+    def set_filter_key(self, x):
+        self.module.set_filter_key(x)

@@ -168,3 +168,6 @@ class Factory(MetaStruct):
 
     def to_json(self) -> dict:
         raise NotImplementedError
+
+    def set_filter_key(self, x):
+        self.raw_graph_parser.set_filter_key(x)

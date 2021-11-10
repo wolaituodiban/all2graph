@@ -24,3 +24,6 @@ class DataLoader(TorchDataLoader):
         if self.parser is not None:
             graph = self.parser.parse(graph)
         return graph, labels
+
+    def set_filter_key(self, x):
+        self.parser.set_filter_key(x)

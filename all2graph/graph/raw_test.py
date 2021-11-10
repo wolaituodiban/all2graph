@@ -77,7 +77,7 @@ def test_filter_edge():
     s2, _ = s1.filter_edge({('c', 'b')})
     assert s2 == ag.RawGraph(
         component_id=[0, 0, 0], key=['a', 'b', 'c'], value=['e', 'f', 'd'], symbol=['readout', 'value', 'value'],
-        src=[1, 1, 0], dst=[0, 1, 1],
+        src=[2], dst=[1],
     ), s2.to_json()
 
 

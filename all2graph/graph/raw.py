@@ -306,7 +306,7 @@ class RawGraph(MetaStruct):
         dst = []
         for s, d in zip(self.src, self.dst):
             k = (self.key[s], self.key[d])
-            if k not in keys:
+            if k in keys:
                 src.append(s)
                 dst.append(d)
             else:
