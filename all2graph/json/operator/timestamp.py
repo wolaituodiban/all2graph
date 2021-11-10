@@ -6,6 +6,7 @@ from .operator import Operator
 
 class Timestamp(Operator):
     def __init__(self, name, _format, units, second=False, error=True, warning=True):
+        print('Timestamp is depreciated', file=sys.stderr)
         super().__init__()
         self.name = name
         self.format = _format
@@ -116,6 +117,53 @@ class Timestamp3(Operator):
                 obj[unit] = time.weekday()
             elif hasattr(time, unit):
                 obj[unit] = getattr(time, unit)
+        return obj
+
+    def __repr__(self):
+        return '{}(name={}, units={}, diff_units={})'.format(
+            self.__class__.__name__, self.name, list(self.units), 'second' if self.second else 'day')
+
+
+class Timestamp4(Operator):
+    def __init__(self, name, _format, units, second=False, error=True, warning=True):
+        super().__init__()
+        self.name = name
+        self.format = _format
+        self.units = {
+            unit: '{}_{}'.format(self.name, unit) for unit in units
+        }
+        self.second = second
+        self.error = error
+        self.warning = warning
+
+    def __call__(self, obj, now: datetime = None, **kwargs):
+        try:
+            date_string = obj[self.name]
+        except (ValueError, IndexError, TypeError, KeyError) as e:
+            if self.error:
+                raise e
+            elif self.warning:
+                traceback.print_exc(file=sys.stderr)
+            return obj
+        try:
+            time = datetime.strptime(date_string, self.format)
+        except (ValueError, IndexError, TypeError, KeyError) as e:
+            if self.error:
+                raise e
+            elif self.warning:
+                traceback.print_exc(file=sys.stderr)
+            return obj
+        if now is not None:
+            diff = now - time
+            if self.second:
+                obj['{}_diff_second'.format(self.name)] = diff.total_seconds()
+            else:
+                obj['{}_diff_day'.format(self.name)] = diff.days + int(diff.seconds > 0)
+        for unit, feat_name in self.units.items():
+            if unit == 'weekday':
+                obj[feat_name] = time.weekday()
+            elif hasattr(time, unit):
+                obj[feat_name] = getattr(time, unit)
         return obj
 
     def __repr__(self):

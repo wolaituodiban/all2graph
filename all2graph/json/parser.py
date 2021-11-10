@@ -197,25 +197,13 @@ class JsonParser(DataParser):
 
     def parse_json(self, obj, now=None):
         # json load
-        try:
-            obj = json.loads(obj)
-        except (json.JSONDecodeError, TypeError, ValueError, IndexError) as e:
-            if self.error:
-                raise e
-            elif self.warning:
-                traceback.print_exc(file=sys.stderr)
+        obj = json.loads(obj)
 
         # json预处理
         if self.json_path_tree is not None:
             # todo 抛异常的机制需要重新设计
             if now is not None:
-                try:
-                    now = ddt.strptime(now, self.time_format)
-                except (TypeError, ValueError, IndexError) as e:
-                    if self.error:
-                        raise e
-                    elif self.warning:
-                        traceback.print_exc(file=sys.stderr)
+                now = ddt.strptime(now, self.time_format)
             obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)
         return obj
 

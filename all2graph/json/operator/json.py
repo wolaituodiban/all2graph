@@ -66,3 +66,7 @@ class ConcatList(Operator):
             else:
                 output[k] = v
         return output
+
+    def __repr__(self):
+        return '{}(inputs={}, output={})'.format(
+            self.__class__.__name__, self.inputs, self.output)
