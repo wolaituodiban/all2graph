@@ -2,6 +2,7 @@ import os
 import shutil
 import numpy as np
 import pandas as pd
+import all2graph as ag
 from all2graph import MetaInfo, JsonParser, Timer, JiebaTokenizer, progress_wrapper
 from all2graph.factory import Factory
 
@@ -58,10 +59,16 @@ def test_produce_dataloader():
     factory.analyse(
         csv_path, chunksize=int(nrows//cpu_count), progress_bar=True, processes=cpu_count, nrows=nrows
     )
-    dataloader = factory.produce_dataloader(
-        csv_path, dst=save_path, csv_configs={'nrows': nrows}, num_workers=cpu_count)
-    for _ in progress_wrapper(dataloader):
-        pass
+    with ag.Timer('v1'):
+        dataloader = factory.produce_dataloader(
+            csv_path, dst=save_path, csv_configs={'nrows': nrows}, num_workers=cpu_count)
+        for _ in progress_wrapper(dataloader):
+            pass
+    with ag.Timer('v2'):
+        dataloader = factory.produce_dataloader(
+            save_path, csv_configs={'nrows': nrows}, num_workers=cpu_count, version=2, temp_file=True)
+        for _ in progress_wrapper(dataloader):
+            pass
     shutil.rmtree(save_path)
 
 

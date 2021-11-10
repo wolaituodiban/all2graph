@@ -1,6 +1,5 @@
 import os
 from typing import Dict, Union
-from multiprocessing import Pool
 
 import numpy as np
 import pandas as pd
@@ -12,7 +11,7 @@ from ..data import DataLoader
 from ..graph import Graph, RawGraph
 from ..parsers import DataParser
 from ..version import __version__
-from ..utils import progress_wrapper, dataframe_chunk_iter
+from ..utils import progress_wrapper
 
 
 def num_parameters(module: torch.nn.Module):
@@ -71,7 +70,7 @@ class MyModule(Module):
         if not isinstance(loader, DataLoader):
             print('recieved a not all2graph.DataLoader, function check can not be done')
         else:
-            if loader.parser is not self.raw_graph_parser:
+            if loader.parser != self.raw_graph_parser:
                 print('loader.parser and module.parser are not the same, which may cause undefined behavior')
         return super().fit(loader=loader, epoch=epoch, callback=callback)
 
@@ -127,23 +126,15 @@ class Predictor(torch.nn.Module):
             self, src, chunksize=64, disable=False, processes=0, postfix='predicting', temp_file=False,
             data_parser: DataParser = None, **kwargs) -> pd.DataFrame:
         self.eval()
-        outputs = []
-        data = dataframe_chunk_iter(src, chunksize=chunksize, **kwargs)
         if processes == 0:
-            for df, graphs, *_ in progress_wrapper(
-                    map(self.parser_wrapper(temp_file=False, data_parser=data_parser).parse, data),
-                    disable=disable, postfix=postfix):
-                for k, v in self._predict(graphs).items():
-                    df[k] = v.cpu().numpy()
-                outputs.append(df)
-        else:
-            with Pool(processes) as pool:
-                for df, graphs, *_ in progress_wrapper(
-                        pool.imap(self.parser_wrapper(temp_file=temp_file, data_parser=data_parser).parse, data),
-                        disable=disable, postfix=postfix):
-                    for k, v in self._predict(graphs).items():
-                        df[k] = v.cpu().numpy()
-                    outputs.append(df)
+            temp_file = False
+        parser_wrapper = self.parser_wrapper(temp_file=temp_file, data_parser=data_parser)
+        outputs = []
+        for df, graphs, *_ in parser_wrapper.generate(
+                src, chunksize=chunksize, disable=disable, processes=processes, postfix=postfix, **kwargs):
+            for k, v in self._predict(graphs).items():
+                df[k] = v.cpu().numpy()
+            outputs.append(df)
         outputs = pd.concat(outputs)
         return outputs
 

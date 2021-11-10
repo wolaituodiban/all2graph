@@ -118,9 +118,37 @@ class Factory(MetaStruct):
         return x, labels
 
     def produce_dataloader(
-            self, src, dst=None, disable=False, zip=True, error=True, warning=True,
-            concat_chip=True, chunksize=64, shuffle=True, csv_configs=None, **kwargs):
-        from ..data import Dataset, DataLoader
+            self, src, dst=None, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
+            shuffle=True, csv_configs=None, version=1, temp_file=False, **kwargs):
+        """
+
+        Args:
+            src:
+            dst: 如果不是None，src中的数据，将被分片存储在dst中
+            disable:
+            zip:
+            error:
+            warning:
+            concat_chip:
+            chunksize:
+            shuffle:
+            csv_configs:
+            version: 如果是1，那么使用原生torch dataloader；
+                     如果是2，那么使用all2graph dataloader，以解决原生dataloder多进程卡死的问题
+            temp_file: 每个batch将会写一个临时文件，以解决多进程卡死或内存溢出的问题，当且仅当version=2时生效
+            **kwargs:
+
+        Returns:
+
+        """
+        from ..data import Dataset
+        if version == 1:
+            from ..data import DataLoader
+        elif version == 2:
+            from ..data import DataLoaderV2 as DataLoader
+        else:
+            raise ValueError('unknown version {}'.format(version))
+
         if dst is not None:
             split_csv(
                 src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
@@ -129,7 +157,7 @@ class Factory(MetaStruct):
         dataset = Dataset(
             src, parser=self.data_parser, target_cols=self.targets, chunksize=chunksize, shuffle=shuffle,
             disable=disable, error=error, warning=warning, **(csv_configs or {}))
-        return DataLoader(dataset, parser=self.raw_graph_parser, shuffle=shuffle, **kwargs)
+        return DataLoader(dataset, parser=self.raw_graph_parser, shuffle=shuffle, temp_file=temp_file, **kwargs)
 
     def produce_model(
             self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,

@@ -197,7 +197,10 @@ class JsonParser(DataParser):
 
     def parse_json(self, obj, now=None):
         # json load
-        obj = json.loads(obj)
+        try:
+            obj = json.loads(obj)
+        except (json.JSONDecodeError, TypeError, ValueError, KeyError, IndexError):
+            pass
 
         # json预处理
         if self.json_path_tree is not None:

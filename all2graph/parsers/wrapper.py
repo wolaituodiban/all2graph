@@ -1,16 +1,18 @@
 import time
+from multiprocessing import Pool
 from typing import Tuple, List, Dict, Union
 
 import pandas as pd
 
 from .data import DataParser
 from .graph import RawGraphParser
+from ..utils import dataframe_chunk_iter, progress_wrapper
 
 
 class ParserWrapper:
-    def __init__(self,
-                 data_parser: Union[DataParser, Dict[str, DataParser]], raw_graph_parser: RawGraphParser,
-                 temp_file=False):
+    def __init__(
+            self, data_parser: Union[DataParser, Dict[str, DataParser]], raw_graph_parser: RawGraphParser,
+            temp_file=False):
         if isinstance(data_parser, DataParser):
             self.data_parsers = {'output': data_parser}
         elif isinstance(data_parser, dict):
@@ -47,10 +49,26 @@ class ParserWrapper:
             graph = self.raw_graph_parser.parse(raw_graph)
             if self.temp_file:
                 filename = str(time.time())
-                filename = '+'.join([filename, str(id(filename))])
+                filename = '+'.join([filename, str(id(filename))])+'.all2graph.graph'
                 graph.save(filename)
                 graph = filename
             graphs[name] = graph
             global_index_mappers[name] = global_index_mapper
             local_index_mapperss[name] = local_index_mappers
         return df.drop(columns=self.json_cols), graphs, global_index_mappers, local_index_mapperss
+
+    def generate(self, src, disable=False, chunksize=64, processes=0, postfix='parsing', graph_only=False, **kwargs):
+        def foo():
+            if graph_only:
+                return item[1]
+            else:
+                return item
+
+        data = dataframe_chunk_iter(src, chunksize=chunksize, **kwargs)
+        if processes == 0:
+            for item in progress_wrapper(map(self.parse, data), disable=disable, postfix=postfix):
+                yield foo()
+        else:
+            with Pool(processes) as pool:
+                for item in progress_wrapper(pool.imap(self.parse, data), disable=disable, postfix=postfix):
+                    yield foo()
