@@ -1,3 +1,4 @@
+import sys
 from typing import Dict, Tuple, List, Set
 
 import numpy as np
@@ -12,8 +13,10 @@ from ..meta_struct import MetaStruct
 
 
 class RawGraphParser(MetaStruct):
-    def __init__(self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str],
-                 edge_type: Set[Tuple[str, str]], targets: List[str] = None, tokenizer: Tokenizer = default_tokenizer):
+    def __init__(
+            self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
+            targets: List[str] = None, tokenizer: Tokenizer = default_tokenizer, filter_key=False
+    ):
         """
         Graph与dgl.DiGraph的转换器
         :param meta_numbers: 数值分布
@@ -21,7 +24,7 @@ class RawGraphParser(MetaStruct):
         :param keys: 如果是dict，那么dict的元素必须是list，代表name的分词
         :param edge_type:
         :param targets:
-        :parma meta_mode: 如果是True，那么graph_to_dgl会生成一个元图和一个值图，否则只生成一个值图
+        :param filter_keys: 如果是True，那么parse函数会过滤掉不是别的key对应的node和edge
         """
         super().__init__(initialized=True)
         self.meta_numbers = {k: MetaNumber.from_json(v.to_json()) for k, v in meta_numbers.items()}
@@ -41,6 +44,8 @@ class RawGraphParser(MetaStruct):
         for word in (word.lower() for word in all_words):
             if word not in self.string_mapper:
                 self.string_mapper[word] = len(self.string_mapper)
+
+        self.filter_key = filter_key
 
         assert all(i == self.string_mapper[w] for i, w in enumerate(PRESERVED_WORDS))
         assert set(map(type, self.string_mapper)) == {str}
@@ -76,6 +81,9 @@ class RawGraphParser(MetaStruct):
     @property
     def target_symbol(self):
         return self.encode_string([TARGET])
+
+    def set_filter_key(self, x):
+        self.filter_key = x
 
     def get_quantiles(self, name, p, **kwargs):
         if name in self.meta_numbers:
@@ -120,6 +128,13 @@ class RawGraphParser(MetaStruct):
         from all2graph.graph.graph import Graph
 
         graph = graph.add_targets(self.targets)
+        if self.filter_key:
+            graph, dropped_keys = graph.filter_node(self.key_mapper)
+            if len(dropped_keys) > 0:
+                print('drop unknown keys: {}'.format(dropped_keys), file=sys.stderr)
+            graph, dropped_keys = graph.filter_edge(self.etype_mapper)
+            if len(dropped_keys) > 0:
+                print('drop unknown keys: {}'.format(dropped_keys), file=sys.stderr)
         meta_graph, meta_node_id, meta_edge_id = graph.meta_graph(self.tokenizer)
         return Graph(
             meta_graph=meta_graph, graph=graph, meta_key=self.encode_key(meta_graph.key),
@@ -209,13 +224,13 @@ class RawGraphParser(MetaStruct):
             tokenizer=tokenizer)
 
     def extra_repr(self) -> str:
-        return 'num_numbers={}, num_strings={}, num_keys={}, num_etype={}, targets={}'.format(
-            self.num_numbers, self.num_strings, self.num_keys, self.num_etypes, self.targets
+        return 'num_numbers={}, num_strings={}, num_keys={}, num_etype={}, targets={}, filter_key={}'.format(
+            self.num_numbers, self.num_strings, self.num_keys, self.num_etypes, self.targets, self.filter_key
         )
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  targets=None, tokenizer: Tokenizer = default_tokenizer):
+                  targets=None, tokenizer: Tokenizer = default_tokenizer, filter_key=False):
         """
 
         :param meta_info:
@@ -225,6 +240,7 @@ class RawGraphParser(MetaStruct):
         :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
         :param targets:
         :param tokenizer:
+        :param filter_key:
         """
         strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:
@@ -251,4 +267,4 @@ class RawGraphParser(MetaStruct):
 
         all_keys = list(meta_info.meta_name)
         return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer, targets=targets,
-                   edge_type=meta_info.edge_type)
+                   edge_type=meta_info.edge_type, filter_key=filter_key)

@@ -1,6 +1,7 @@
 import os
 import pandas as pd
 
+import all2graph as ag
 from all2graph import MetaInfo, MetaNumber
 from all2graph import JsonParser, Timer, JiebaTokenizer
 from all2graph.parsers.graph import RawGraphParser
@@ -142,8 +143,23 @@ def test_reduce():
     assert parser3.__eq__(parser4, True)
 
 
+def test_filter_key():
+    s1 = ag.RawGraph(
+        component_id=[0, 0, 0], key=['a', 'b', 'c'], value=['e', 'f', 'd'], src=[1, 1, 2, 0], dst=[0, 1, 1, 1],
+        symbol=['readout', 'value', 'value']
+    )
+    s2 = ag.RawGraph(
+        component_id=[0, 0], key=['b', 'c'], value=['f', 'd'], src=[0, 1], dst=[0, 0], symbol=['value', 'value']
+    )
+    raw_graph_parser = ag.RawGraphParser.from_data(ag.MetaInfo.from_data(s2))
+    assert (raw_graph_parser.parse(s1).key < 0).any()
+    raw_graph_parser.set_filter_key(True)
+    assert (raw_graph_parser.parse(s1).key >= 0).all()
+
+
 if __name__ == '__main__':
     test_init()
     test_parse()
     test_eq()
     test_reduce()
+    test_filter_key()

@@ -1,5 +1,5 @@
 from itertools import permutations
-from typing import Dict, List, Union, Tuple, Iterable
+from typing import Dict, List, Union, Tuple, Iterable, Set
 
 import numpy as np
 
@@ -253,3 +253,67 @@ class RawGraph(MetaStruct):
             component_id=self.component_id, key=self.key, value=new_value, src=self.src, dst=self.dst,
             symbol=new_symbol)
         return new_graph, mask_value
+
+    def filter_node(self, keys: Set[str]):
+        """
+        return sub graph with given node keys
+        Args:
+            keys: set of str
+
+        Returns:
+            raw_graph: new RawGraph
+            dropped_keys: set of dropped keys
+        """
+        dropped_keys = set()
+        selected_nodes = []
+        for i, k in enumerate(self.key):
+            if k in keys:
+                selected_nodes.append(i)
+            else:
+                dropped_keys.add(k)
+
+        if len(dropped_keys) == 0:
+            return self, dropped_keys
+
+        component_id = [self.component_id[i] for i in selected_nodes]
+        key = [self.key[i] for i in selected_nodes]
+        value = [self.value[i] for i in selected_nodes]
+        symbol = [self.symbol[i] for i in selected_nodes]
+
+        id_mapper = {old: new for new, old in enumerate(selected_nodes)}
+        src = []
+        dst = []
+        for s, d in zip(self.src, self.dst):
+            if s in id_mapper and d in id_mapper:
+                src.append(id_mapper[s])
+                dst.append(id_mapper[d])
+
+        new_graph = RawGraph(component_id=component_id, key=key, value=value, symbol=symbol, src=src, dst=dst)
+        return new_graph, dropped_keys
+
+    def filter_edge(self, keys: Set[Tuple[str, str]]):
+        """
+        return sub graph with given edge keys
+        Args:
+            keys:
+
+        Returns:
+            new_graph: sub graph
+            dropped_keys: set of dropped keys
+        """
+        dropped_keys: Set[Tuple[str, str]] = set()
+        src = []
+        dst = []
+        for s, d in zip(self.src, self.dst):
+            k = (self.key[s], self.key[d])
+            if k not in keys:
+                src.append(s)
+                dst.append(d)
+            else:
+                dropped_keys.add(k)
+        if len(dropped_keys) == 0:
+            return self, dropped_keys
+        else:
+            new_graph = RawGraph(
+                component_id=self.component_id, key=self.key, value=self.value, symbol=self.symbol, src=src, dst=dst)
+            return new_graph, dropped_keys

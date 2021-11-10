@@ -58,6 +58,31 @@ def test_json():
     assert s1 == s2
 
 
+def test_filter_node():
+    s1 = ag.RawGraph(
+        component_id=[0, 0, 0], key=['a', 'b', 'c'], value=['e', 'f', 'd'], src=[1, 1, 2, 0], dst=[0, 1, 1, 1],
+        symbol=['readout', 'value', 'value']
+    )
+    s2, _ = s1.filter_node({'b', 'c'})
+    assert s2 == ag.RawGraph(
+        component_id=[0, 0], key=['b', 'c'], value=['f', 'd'], src=[0, 1], dst=[0, 0], symbol=['value', 'value']
+    ), s2.to_json()
+
+
+def test_filter_edge():
+    s1 = ag.RawGraph(
+        component_id=[0, 0, 0], key=['a', 'b', 'c'], value=['e', 'f', 'd'], src=[1, 1, 2, 0], dst=[0, 1, 1, 1],
+        symbol=['readout', 'value', 'value']
+    )
+    s2, _ = s1.filter_edge({('c', 'b')})
+    assert s2 == ag.RawGraph(
+        component_id=[0, 0, 0], key=['a', 'b', 'c'], value=['e', 'f', 'd'], symbol=['readout', 'value', 'value'],
+        src=[1, 1, 0], dst=[0, 1, 1],
+    ), s2.to_json()
+
+
 if __name__ == '__main__':
     test_meta_graph()
     test_batch()
+    test_filter_node()
+    test_filter_edge()
