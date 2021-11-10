@@ -20,6 +20,16 @@ def test_dict_getter():
     assert b == {'b': 2}, b
 
 
+def test_concat_list():
+    a = {'a': [1, 2], 'b': [3]}
+    op = ag.ConcatList({'a', 'b', 'c'}, 'a')
+    b = op(a)
+    assert a == {'a': [1, 2], 'b': [3]}
+    assert b == {'a': [1, 2, 3]}
+
+
 if __name__ == '__main__':
     test_unstructurizor()
     test_dict_getter()
+    test_concat_list()
+

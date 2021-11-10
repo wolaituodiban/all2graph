@@ -45,3 +45,24 @@ class DictGetter(Operator):
 
     def __call__(self, obj, **kwargs):
         return {k: obj[k] for k in self.keys if k in obj}
+
+    def __repr__(self):
+        return '{}(keys={})'.format(
+            self.__class__.__name__, self.keys)
+
+
+class ConcatList(Operator):
+    def __init__(self, inputs: set, output: str):
+        super(ConcatList, self).__init__()
+        assert isinstance(inputs, (list, tuple, set))
+        self.inputs = set(inputs)
+        self.output = output
+
+    def __call__(self, obj, **kwargs):
+        output = {}
+        for k, v in obj.items():
+            if k in self.inputs:
+                output[self.output] = output.get(self.output, []) + v
+            else:
+                output[k] = v
+        return output
