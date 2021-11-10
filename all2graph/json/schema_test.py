@@ -1,3 +1,4 @@
+import json
 import all2graph as ag
 
 
@@ -18,5 +19,12 @@ def test_json_schema():
     assert not schema.validate(obj4, strict=True)
 
 
+def test_to_json():
+    obj1 = {'a': [1, None, {'b': 'c'}], 'b': 2}
+    schema = ag.JsonSchema(obj1)
+    json.dumps(schema.to_json())
+
+
 if __name__ == '__main__':
     test_json_schema()
+    test_to_json()

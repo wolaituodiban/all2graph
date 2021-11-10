@@ -78,9 +78,9 @@ def _json_schema(obj, output, path):
     """
     def add_type(_type):
         if path in output:
-            output[path].add(_type)
+            output[path].append(_type)
         else:
-            output[path] = {_type}
+            output[path] = [_type]
 
     if isinstance(obj, dict):
         add_type('dict')
@@ -158,7 +158,7 @@ class JsonSchema(MetaStruct):
             if strict:
                 if self_types != obj_types:
                     diff[common] = {'type': 'diff type', 'left': self_types, 'right': obj_types}
-            elif not self_types.issuperset(obj_types):
+            elif not set(self_types).issuperset(obj_types):
                 diff[common] = {'type': 'diff type', 'left': self_types, 'right': obj_types}
         return diff
 

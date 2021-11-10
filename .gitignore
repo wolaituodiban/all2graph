@@ -13,3 +13,4 @@ notebooks
 /build
 *.pkl
 *.torch
+*.log

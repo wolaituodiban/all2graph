@@ -1,6 +1,5 @@
 import os
 from setuptools import setup, find_packages
-# from Cython.Build import cythonize
 
 VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/version.py')
 
@@ -19,12 +18,9 @@ setup(
     author_email='wolaituodiban@gmail.com',
     packages=find_packages(include=('all2graph/',), exclude=('*test*',)),
     install_requires=[
-        'toad>=0.0.64',
-        # 'dgl',
-        # 'networkx',
+        # 'toad>=0.0.64',
+        # 'dgl>=0.6.0',
+        # 'torch>=1.5.0',
+        # 'jieba>=0.39'
     ],
-    # ext_modules=cythonize([
-    #     # 'all2graph/graph/graph.py'
-    #     # "all2graph/stats/ecdf.py",
-    # ])
 )

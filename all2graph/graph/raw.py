@@ -224,3 +224,32 @@ class RawGraph(MetaStruct):
     @classmethod
     def reduce(cls, structs, weights=None, **kwargs):
         raise NotImplementedError
+
+    def add_mask(self, p):
+        """
+        对value添加mask，用于预训练
+        返回的RawGraph是原来的浅拷贝
+        会修改mask对应位置的symbol为TARGET
+        Args:
+            p: mask的概率
+
+        Returns:
+            raw_graph: mask了一部分value的RawGraph
+            masked_value: 被mask掉的value
+        """
+        new_symbol = []
+        new_value = []
+        mask_value = []
+        for i in range(self.num_nodes):
+            if np.random.rand() < p:
+                new_symbol.append(TARGET)
+                new_value.append(None)
+                mask_value.append(self.value[i])
+            else:
+                assert self.symbol[i] != TARGET, 'mask的target与原来存在的target冲突'
+                new_symbol.append(self.symbol[i])
+                new_value.append(self.value[i])
+        new_graph = RawGraph(
+            component_id=self.component_id, key=self.key, value=new_value, src=self.src, dst=self.dst,
+            symbol=new_symbol)
+        return new_graph, mask_value
