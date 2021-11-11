@@ -49,6 +49,8 @@ class Dataset(TorchDataset):
                 else:
                     temp[path] = [row_num]
             self.paths.append(temp)
+        # 转化成pandas类型，似乎可以减小datalodaer多进程的开销
+        self.paths = pd.Series(self.paths)
 
     def read_csv(self, path):
         return pd.read_csv(path, **self.kwargs)
@@ -62,7 +64,7 @@ class Dataset(TorchDataset):
 
     def __getitem__(self, item) -> Tuple[RawGraph, Dict[str, torch.Tensor]]:
         dfs = []
-        for path, row_nums in self.paths[item].items():
+        for path, row_nums in self.paths.iloc[item].items():
             df = self.read_csv(path)
             df = df.iloc[row_nums]
             dfs.append(df)
