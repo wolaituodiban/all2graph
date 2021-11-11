@@ -6,7 +6,7 @@ import torch
 from .raw import RawGraph
 from ..globals import EPSILON
 from ..version import __version__
-from ..preserves import KEY, VALUE
+from ..preserves import KEY, VALUE, NUMBER
 
 
 class Graph:
@@ -14,6 +14,7 @@ class Graph:
                  meta_value, meta_symbol, meta_component_id, meta_edge_key, value, number, symbol, meta_node_id,
                  meta_edge_id):
         self.version = __version__
+        # 构建元图
         if isinstance(meta_graph, RawGraph):
             self.meta_graph: dgl.DGLGraph = dgl.graph(
                 data=(torch.tensor(meta_graph.src, dtype=torch.long), torch.tensor(meta_graph.dst, dtype=torch.long)),
@@ -23,6 +24,20 @@ class Graph:
             self.meta_graph = meta_graph
         else:
             raise TypeError('unknown type of meta_graph: {}'.format(type(meta_graph)))
+
+        self.meta_graph.ndata[KEY] = meta_key if isinstance(meta_key, torch.Tensor) \
+            else torch.tensor(meta_key, dtype=torch.long)
+        self.meta_graph.ndata[VALUE] = meta_value if isinstance(meta_value, torch.Tensor) \
+            else torch.tensor(meta_value, dtype=torch.long)
+        self.meta_graph.ndata['meta_symbol'] = meta_symbol if isinstance(meta_symbol, torch.Tensor) \
+            else torch.tensor(meta_symbol, dtype=torch.long)
+        self.meta_graph.ndata['meta_component_id'] = meta_component_id if isinstance(meta_component_id, torch.Tensor) \
+            else torch.tensor(meta_component_id, dtype=torch.long)
+
+        self.meta_graph.edata[KEY] = meta_edge_key if isinstance(meta_edge_key, torch.Tensor) \
+            else torch.tensor(meta_edge_key, dtype=torch.long)
+
+        # 构建值图
         if isinstance(graph, RawGraph):
             self.value_graph: dgl.DGLGraph = dgl.graph(
                 data=(torch.tensor(graph.src, dtype=torch.long), torch.tensor(graph.dst, dtype=torch.long)),
@@ -33,56 +48,17 @@ class Graph:
         else:
             raise TypeError('unknown type of value_graph: {}'.format(type(graph)))
 
-        assert len(meta_key) == len(meta_value) == len(meta_symbol) == len(meta_component_id) == \
-               self.meta_graph.num_nodes(), (
-            len(meta_key), len(meta_value), len(meta_symbol), len(meta_component_id), self.meta_graph.num_nodes()
-        )
-        if isinstance(meta_key, torch.Tensor):
-            self.meta_graph.ndata[KEY] = meta_key
-        else:
-            self.meta_graph.ndata[KEY] = torch.tensor(meta_key, dtype=torch.long)
-        if isinstance(meta_value, torch.Tensor):
-            self.meta_graph.ndata[VALUE] = meta_value
-        else:
-            self.meta_graph.ndata[VALUE] = torch.tensor(meta_value, dtype=torch.long)
-        if isinstance(meta_symbol, torch.Tensor):
-            self.meta_symbol = meta_symbol
-        else:
-            self.meta_symbol = torch.tensor(meta_symbol, dtype=torch.long)
-        if isinstance(meta_component_id, torch.Tensor):
-            self.meta_component_id = meta_component_id
-        else:
-            self.meta_component_id = torch.tensor(meta_component_id, dtype=torch.long)
+        self.value_graph.ndata[NUMBER] = number if isinstance(symbol, torch.Tensor) else \
+            torch.tensor(number, dtype=torch.float32)
+        self.value_graph.ndata[VALUE] = value if isinstance(symbol, torch.Tensor) else \
+            torch.tensor(value, dtype=torch.long)
+        self.value_graph.ndata['symbol'] = symbol if isinstance(symbol, torch.Tensor) else \
+            torch.tensor(symbol, dtype=torch.long)
+        self.value_graph.ndata['meta_node_id'] = meta_node_id if isinstance(meta_node_id, torch.Tensor) \
+            else torch.tensor(meta_node_id, dtype=torch.long)
 
-        assert len(meta_edge_key) == self.meta_graph.num_edges()
-        if isinstance(meta_edge_key, torch.Tensor):
-            self.meta_graph.edata[KEY] = meta_edge_key
-        else:
-            self.meta_graph.edata[KEY] = torch.tensor(meta_edge_key, dtype=torch.long)
-
-        assert len(value) == len(number) == len(meta_node_id) == len(symbol) == self.value_graph.num_nodes()
-        if isinstance(value, torch.Tensor):
-            self.value_graph.ndata[VALUE] = value
-        else:
-            self.value_graph.ndata[VALUE] = torch.tensor(value, dtype=torch.long)
-        if isinstance(number, torch.Tensor):
-            self.number = number
-        else:
-            self.number = torch.tensor(number, dtype=torch.float32)
-        if isinstance(symbol, torch.Tensor):
-            self.symbol = symbol
-        else:
-            self.symbol = torch.tensor(symbol, dtype=torch.long)
-        if isinstance(meta_node_id, torch.Tensor):
-            self.meta_node_id = meta_node_id
-        else:
-            self.meta_node_id = torch.tensor(meta_node_id, dtype=torch.long)
-
-        assert len(meta_edge_id) == self.value_graph.num_edges()
-        if isinstance(meta_edge_id, torch.Tensor):
-            self.meta_edge_id = meta_edge_id
-        else:
-            self.meta_edge_id = torch.tensor(meta_edge_id, dtype=torch.long)
+        self.value_graph.edata['meta_edge_id'] = meta_edge_id if isinstance(meta_edge_id, torch.Tensor) \
+            else torch.tensor(meta_edge_id, dtype=torch.long)
 
     def __eq__(self, other, debug=False):
         if (self.meta_graph.edges()[0] != other.meta_graph.edges()[0]).any():
@@ -143,12 +119,36 @@ class Graph:
         return 'Meta{}\n{}'.format(self.meta_graph, self.value_graph)
 
     @property
-    def meta_value(self):
-        return self.meta_graph.ndata[VALUE]
+    def number(self):
+        return self.value_graph.ndata[NUMBER]
 
     @property
     def value(self):
         return self.value_graph.ndata[VALUE]
+
+    @property
+    def symbol(self):
+        return self.value_graph.ndata['symbol']
+
+    @property
+    def meta_node_id(self):
+        return self.value_graph.ndata['meta_node_id']
+
+    @property
+    def meta_edge_id(self):
+        return self.value_graph.edata['meta_edge_id']
+
+    @property
+    def meta_symbol(self):
+        return self.meta_graph.ndata['meta_symbol']
+
+    @property
+    def meta_component_id(self):
+        return self.meta_graph.ndata['meta_component_id']
+
+    @property
+    def meta_value(self):
+        return self.meta_graph.ndata[VALUE]
 
     @property
     def meta_key(self):
@@ -203,3 +203,7 @@ class Graph:
             meta_node_id=labels['meta_node_id'],
             meta_edge_id=labels['meta_edge_id']
         )
+
+    def to(self, *args, **kwargs):
+        self.meta_graph.to(*args, **kwargs)
+        self.value_graph.to(*args, **kwargs)
