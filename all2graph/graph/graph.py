@@ -10,9 +10,9 @@ from ..preserves import KEY, VALUE, NUMBER
 
 
 class Graph:
-    def __init__(self, meta_graph: Union[RawGraph, dgl.DGLGraph], graph: Union[RawGraph, dgl.DGLGraph], meta_key,
-                 meta_value, meta_symbol, meta_component_id, meta_edge_key, value, number, symbol, meta_node_id,
-                 meta_edge_id):
+    def __init__(self, meta_graph: Union[RawGraph, dgl.DGLGraph], graph: Union[RawGraph, dgl.DGLGraph], meta_key=None,
+                 meta_value=None, meta_symbol=None, meta_component_id=None, meta_edge_key=None, value=None, number=None,
+                 symbol=None, meta_node_id=None, meta_edge_id=None):
         self.version = __version__
         # 构建元图
         if isinstance(meta_graph, RawGraph):
@@ -25,17 +25,22 @@ class Graph:
         else:
             raise TypeError('unknown type of meta_graph: {}'.format(type(meta_graph)))
 
-        self.meta_graph.ndata[KEY] = meta_key if isinstance(meta_key, torch.Tensor) \
-            else torch.tensor(meta_key, dtype=torch.long)
-        self.meta_graph.ndata[VALUE] = meta_value if isinstance(meta_value, torch.Tensor) \
-            else torch.tensor(meta_value, dtype=torch.long)
-        self.meta_graph.ndata['meta_symbol'] = meta_symbol if isinstance(meta_symbol, torch.Tensor) \
-            else torch.tensor(meta_symbol, dtype=torch.long)
-        self.meta_graph.ndata['meta_component_id'] = meta_component_id if isinstance(meta_component_id, torch.Tensor) \
-            else torch.tensor(meta_component_id, dtype=torch.long)
-
-        self.meta_graph.edata[KEY] = meta_edge_key if isinstance(meta_edge_key, torch.Tensor) \
-            else torch.tensor(meta_edge_key, dtype=torch.long)
+        if meta_key is not None:
+            self.meta_graph.ndata[KEY] = meta_key if isinstance(meta_key, torch.Tensor) \
+                else torch.tensor(meta_key, dtype=torch.long)
+        if meta_value is not None:
+            self.meta_graph.ndata[VALUE] = meta_value if isinstance(meta_value, torch.Tensor) \
+                else torch.tensor(meta_value, dtype=torch.long)
+        if meta_symbol is not None:
+            self.meta_graph.ndata['meta_symbol'] = meta_symbol if isinstance(meta_symbol, torch.Tensor) \
+                else torch.tensor(meta_symbol, dtype=torch.long)
+        if meta_component_id is not None:
+            self.meta_graph.ndata['meta_component_id'] = meta_component_id \
+                if isinstance(meta_component_id, torch.Tensor) \
+                else torch.tensor(meta_component_id, dtype=torch.long)
+        if meta_edge_key is not None:
+            self.meta_graph.edata[KEY] = meta_edge_key if isinstance(meta_edge_key, torch.Tensor) \
+                else torch.tensor(meta_edge_key, dtype=torch.long)
 
         # 构建值图
         if isinstance(graph, RawGraph):
@@ -48,17 +53,22 @@ class Graph:
         else:
             raise TypeError('unknown type of value_graph: {}'.format(type(graph)))
 
-        self.value_graph.ndata[NUMBER] = number if isinstance(symbol, torch.Tensor) else \
-            torch.tensor(number, dtype=torch.float32)
-        self.value_graph.ndata[VALUE] = value if isinstance(symbol, torch.Tensor) else \
-            torch.tensor(value, dtype=torch.long)
-        self.value_graph.ndata['symbol'] = symbol if isinstance(symbol, torch.Tensor) else \
-            torch.tensor(symbol, dtype=torch.long)
-        self.value_graph.ndata['meta_node_id'] = meta_node_id if isinstance(meta_node_id, torch.Tensor) \
-            else torch.tensor(meta_node_id, dtype=torch.long)
+        if number is not None:
+            self.value_graph.ndata[NUMBER] = number if isinstance(symbol, torch.Tensor) else \
+                torch.tensor(number, dtype=torch.float32)
+        if value is not None:
+            self.value_graph.ndata[VALUE] = value if isinstance(symbol, torch.Tensor) else \
+                torch.tensor(value, dtype=torch.long)
+        if symbol is not None:
+            self.value_graph.ndata['symbol'] = symbol if isinstance(symbol, torch.Tensor) else \
+                torch.tensor(symbol, dtype=torch.long)
+        if meta_node_id is not None:
+            self.value_graph.ndata['meta_node_id'] = meta_node_id if isinstance(meta_node_id, torch.Tensor) \
+                else torch.tensor(meta_node_id, dtype=torch.long)
 
-        self.value_graph.edata['meta_edge_id'] = meta_edge_id if isinstance(meta_edge_id, torch.Tensor) \
-            else torch.tensor(meta_edge_id, dtype=torch.long)
+        if meta_edge_id is not None:
+            self.value_graph.edata['meta_edge_id'] = meta_edge_id if isinstance(meta_edge_id, torch.Tensor) \
+                else torch.tensor(meta_edge_id, dtype=torch.long)
 
     def __eq__(self, other, debug=False):
         if (self.meta_graph.edges()[0] != other.meta_graph.edges()[0]).any():
@@ -173,36 +183,13 @@ class Graph:
     def target_mask(self, target_symbol: list):
         return (self.symbol.view(-1, 1) == torch.tensor(target_symbol, dtype=torch.long)).any(-1)
 
-    def save(self, filename):
-        dgl.save_graphs(
-            filename, [self.meta_graph, self.value_graph],
-            labels={
-                'meta_symbol': self.meta_symbol,
-                'meta_component_id': self.meta_component_id,
-                'number': self.number,
-                'symbol': self.symbol,
-                'meta_node_id': self.meta_node_id,
-                'meta_edge_id': self.meta_edge_id
-            }
-        )
+    def save(self, filename, labels=None):
+        dgl.save_graphs(filename, [self.meta_graph, self.value_graph], labels=labels)
 
     @classmethod
     def load(cls, filename):
         graphs, labels = dgl.load_graphs(filename)
-        return cls(
-            meta_graph=graphs[0],
-            graph=graphs[1],
-            meta_key=graphs[0].ndata[KEY],
-            meta_value=graphs[0].ndata[VALUE],
-            meta_symbol=labels['meta_symbol'],
-            meta_component_id=labels['meta_component_id'],
-            meta_edge_key=graphs[0].edata[KEY],
-            value=graphs[1].ndata[VALUE],
-            number=labels['number'],
-            symbol=labels['symbol'],
-            meta_node_id=labels['meta_node_id'],
-            meta_edge_id=labels['meta_edge_id']
-        )
+        return cls(meta_graph=graphs[0], graph=graphs[1]), labels
 
     def to(self, *args, **kwargs):
         self.meta_graph.to(*args, **kwargs)

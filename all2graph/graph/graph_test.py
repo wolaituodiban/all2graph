@@ -14,7 +14,7 @@ def test_save_and_load():
     path = 'temp.dgl.graphs'
     graph = raw_graph_parser.parse(raw_graph)
     graph.save(path)
-    graph2 = ag.Graph.load(path)
+    graph2, labels = ag.Graph.load(path)
     os.remove(path)
     assert graph.__eq__(graph2, debug=True)
 

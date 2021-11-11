@@ -1,5 +1,8 @@
 import time
-from multiprocessing import Pool
+try:
+    from dgl.multiprocessing import Pool
+except ImportError:
+    from multiprocessing import Pool
 from typing import Tuple, List, Dict, Union
 
 import pandas as pd

@@ -92,24 +92,32 @@ class Factory(MetaStruct):
         self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.graph_parser_config)
         return meta_info
 
-    def _save_inter_csv(self, x):
-        self.data_parser.save_inter_csv(x[0], x[1])
+    def _save(self, x: Tuple[pd.DataFrame, str, bool, bool]):
+        df, dst, zip, raw = x
+        if raw:
+            self.data_parser.save(df, '.'.join([dst, 'zip' if zip else 'csv']))
+        else:
+            raw_graph, *_ = self.data_parser.parse(df, progress_bar=False)
+            graph = self.raw_graph_parser.parse(raw_graph)
+            labels = self.data_parser.gen_targets(df, self.targets)
+            graph.save('.'.join([dst, 'all2graph.graph']), labels=labels)
 
-    def save_inter_csv(
+    def save(
             self, src, dst, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
-            postfix='saving intermedia csv', processes=None, **kwargs):
+            postfix=None, processes=None, raw=False, **kwargs):
         assert not os.path.exists(dst), '{} already exists'.format(dst)
+        if postfix is None:
+            postfix = 'saving{}graph'.format(' raw ' if raw else ' ')
         os.mkdir(dst)
         generator = dataframe_chunk_iter(
                 src, error=error, warning=warning, concat_chip=concat_chip, chunksize=chunksize, **kwargs)
-        extend_name = 'zip' if zip else 'csv'
-        generator = ((x, os.path.join(dst, '{}.{}'.format(i, extend_name))) for i, x in enumerate(generator))
+        generator = ((df, os.path.join(dst, str(i)), zip, raw) for i, df in enumerate(generator))
         generator = progress_wrapper(generator, disable=disable, postfix=postfix)
         if processes == 0:
-            list(map(self._save_inter_csv, generator))
+            list(map(self._save, generator))
         else:
             with Pool(processes) as pool:
-                list(pool.imap(self._save_inter_csv, generator))
+                list(pool.imap(self._save, generator))
 
     def produce_graph_and_label(self, chunk: pd.DataFrame):
         graph, *_ = self._produce_raw_graph(chunk)
@@ -119,7 +127,7 @@ class Factory(MetaStruct):
 
     def produce_dataloader(
             self, src, dst=None, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
-            shuffle=True, csv_configs=None, version=1, temp_file=False, **kwargs):
+            shuffle=True, csv_configs=None, raw_graph=False, graph=False, processes=None, **kwargs):
         """
 
         Args:
@@ -133,31 +141,51 @@ class Factory(MetaStruct):
             chunksize:
             shuffle:
             csv_configs:
-            version: 如果是1，那么使用原生torch dataloader；
-                     如果是2，那么使用all2graph dataloader，以解决原生dataloder多进程卡死的问题
-            temp_file: 每个batch将会写一个临时文件，以解决多进程卡死或内存溢出的问题，当且仅当version=2时生效
+            raw_graph: 如果True，那么数据源视为RawGraph
+            graph: 如果True，那么数据源视为Graph，并且覆盖raw_graph的效果
+            processes: 当dst不是None时，执行save方法时，多进程的个数
             **kwargs:
 
         Returns:
 
         """
-        from ..data import Dataset
-        if version == 1:
-            from ..data import DataLoader
-        elif version == 2:
-            from ..data import DataLoaderV2 as DataLoader
-        else:
-            raise ValueError('unknown version {}'.format(version))
+        from torch.utils.data import DataLoader
 
-        if dst is not None:
-            split_csv(
-                src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
-                concat_chip=concat_chip, **csv_configs)
-            src = dst
-        dataset = Dataset(
-            src, parser=self.data_parser, target_cols=self.targets, chunksize=chunksize, shuffle=shuffle,
-            disable=disable, error=error, warning=warning, **(csv_configs or {}))
-        return DataLoader(dataset, parser=self.raw_graph_parser, shuffle=shuffle, temp_file=temp_file, **kwargs)
+        if graph:
+            from ..data import GraphDataset
+
+            if dst is not None:
+                # 存储Graph文件
+                self.save(
+                    src, dst, disable=disable, zip=zip, error=error, warning=warning, concat_chip=concat_chip,
+                    chunksize=chunksize, raw=False, processes=processes, **(csv_configs or {}))
+                src = dst
+
+            dataset = GraphDataset(src)
+            return DataLoader(dataset, batch_size=None, sampler=None, **kwargs)
+        else:
+            from ..data import CSVDataset
+
+            if dst is not None:
+                if raw_graph:
+                    # 存储RawGraph csv文件
+                    self.save(
+                        src, dst, disable=disable, zip=zip, error=error, warning=warning, concat_chip=concat_chip,
+                        chunksize=chunksize, raw=True, processes=processes, **(csv_configs or {}))
+                    self.disable_preprocessing()  # 改变data_parser的模式
+                else:
+                    # 分割csv
+                    split_csv(
+                        src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
+                        concat_chip=concat_chip, **(csv_configs or {}))
+                    self.enable_preprocessing()
+                src = dst
+
+            dataset = CSVDataset(
+                src, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser, chunksize=chunksize,
+                shuffle=shuffle, disable=disable, error=error, warning=warning, **(csv_configs or {}))
+
+            return DataLoader(dataset, shuffle=shuffle, collate_fn=dataset.collate_fn, **kwargs)
 
     def produce_model(
             self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,

@@ -26,7 +26,7 @@ class DataParser(MetaStruct):
             for k in target_cols if k in df
         }
 
-    def save_inter_csv(self, df, dst, progress_bar=False):
+    def save(self, df, dst, progress_bar=False):
         raise NotImplementedError
 
     def parse(self, data, progress_bar: bool = False) -> Tuple[RawGraph, dict, List[dict]]:

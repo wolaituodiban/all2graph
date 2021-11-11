@@ -100,3 +100,7 @@ def split_csv(src, dst, chunksize, disable=True, zip=True, error=True, warning=T
         else:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'csv'))
         chunk.to_csv(to_file)
+
+
+def timestamp_convertor(x):
+    return x.replace('T', ' ')[:23]

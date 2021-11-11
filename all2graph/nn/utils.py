@@ -6,8 +6,9 @@ import pandas as pd
 import torch
 
 from toad.nn import Module
+from torch.utils.data import DataLoader
+from ..data import CSVDataset, GraphDataset
 from ..parsers import RawGraphParser, ParserWrapper
-from ..data import DataLoader
 from ..graph import Graph, RawGraph
 from ..parsers import DataParser
 from ..version import __version__
@@ -35,11 +36,15 @@ class MyModule(Module):
         return inputs
 
     @torch.no_grad()
-    def predict_dataloader(self, dataloader: DataLoader, postfix=''):
+    def predict_dataloader(self, loader: DataLoader, postfix=''):
+        if not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
+            print('recieved a not all2graph.Dataset, function check can not be done')
+        elif isinstance(loader.dataset, CSVDataset) and loader.dataset.raw_graph_parser != self.raw_graph_parser:
+            print('raw_graph_parser are not the same, which may cause undefined behavior')
         self.eval()
         labels = None
         outputs = None
-        for graph, label in progress_wrapper(dataloader, postfix=postfix):
+        for graph, label in progress_wrapper(loader, postfix=postfix):
             output = self(graph)
             if outputs is None:
                 outputs = {k: [v.detach().cpu()] for k, v in output.items()}
@@ -66,12 +71,11 @@ class MyModule(Module):
     def optimizer(self):
         return self._optimizer
 
-    def fit(self, loader, epoch=10, callback=None):
-        if not isinstance(loader, DataLoader):
-            print('recieved a not all2graph.DataLoader, function check can not be done')
-        else:
-            if loader.parser != self.raw_graph_parser:
-                print('loader.parser and module.parser are not the same, which may cause undefined behavior')
+    def fit(self, loader: DataLoader, epoch=10, callback=None):
+        if not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
+            print('recieved a not all2graph.Dataset, function check can not be done')
+        elif isinstance(loader.dataset, CSVDataset) and loader.dataset.raw_graph_parser != self.raw_graph_parser:
+            print('raw_graph_parser are not the same, which may cause undefined behavior')
         return super().fit(loader=loader, epoch=epoch, callback=callback)
 
     def set_filter_key(self, x):
@@ -114,7 +118,7 @@ class Predictor(torch.nn.Module):
         for name, graph in graphs.items():
             if isinstance(graph, str):
                 filename = graph
-                graph = Graph.load(graph)
+                graph, _ = Graph.load(graph)
                 os.remove(filename)
             pred = self.module(graph)
             for k, v in pred.items():

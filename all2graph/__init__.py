@@ -17,9 +17,14 @@ if 'linux' in platform.system().lower():
 
 try:
     from . import nn
+except ImportError:
+    print('failed to import module nn, perhaps no torch installed', file=sys.stderr)
+
+try:
     from .data import *
 except ImportError:
-    print('failed to import module nn and module data, no torch installed')
+    print('failed to import module data, perhaps no torch installed', file=sys.stderr)
+
 from .factory import *
 from .graph import *
 from .json import *

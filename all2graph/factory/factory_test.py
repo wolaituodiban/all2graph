@@ -55,21 +55,35 @@ def test_produce_dataloader():
     json_parser = JsonParser(
         'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
     )
-    factory = Factory(data_parser=json_parser)
+    factory = Factory(data_parser=json_parser, raw_graph_parser_config=dict(filter_key=True))
     factory.analyse(
         csv_path, chunksize=int(nrows//cpu_count), progress_bar=True, processes=cpu_count, nrows=nrows
     )
-    with ag.Timer('v1'):
+    configs = {'nrows': nrows}
+
+    with ag.Timer('raw_graph=True'):
         dataloader = factory.produce_dataloader(
-            csv_path, dst=save_path, csv_configs={'nrows': nrows}, num_workers=cpu_count)
-        for _ in progress_wrapper(dataloader):
+            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, raw_graph=True, processes=cpu_count)
+        assert isinstance(dataloader.dataset, ag.CSVDataset)
+        for g, l in progress_wrapper(dataloader):
             pass
-    with ag.Timer('v2'):
+        shutil.rmtree(save_path)
+
+    with ag.Timer('raw_graph=False'):
         dataloader = factory.produce_dataloader(
-            save_path, csv_configs={'nrows': nrows}, num_workers=cpu_count, version=2, temp_file=True)
-        for _ in progress_wrapper(dataloader):
+            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, raw_graph=False, processes=cpu_count)
+        assert isinstance(dataloader.dataset, ag.CSVDataset)
+        for g, l in progress_wrapper(dataloader):
             pass
-    shutil.rmtree(save_path)
+        shutil.rmtree(save_path)
+
+    with ag.Timer('graph=True'):
+        dataloader = factory.produce_dataloader(
+            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, graph=True, processes=cpu_count)
+        assert isinstance(dataloader.dataset, ag.GraphDataset)
+        for g, l in progress_wrapper(dataloader.dataset):
+            pass
+        shutil.rmtree(save_path)
 
 
 def test_produce_model():

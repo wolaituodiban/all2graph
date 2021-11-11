@@ -6,19 +6,19 @@ import numpy as np
 import pandas as pd
 import torch
 from pandas.errors import ParserError
-from torch.utils.data import Dataset as TorchDataset
+from torch.utils.data import Dataset
 
-from ..graph import RawGraph
-from ..parsers import DataParser
+from ..graph import RawGraph, Graph
+from ..parsers import DataParser, RawGraphParser
 from ..utils import progress_wrapper, iter_files
 
 
-class Dataset(TorchDataset):
+class CSVDataset(Dataset):
     def __init__(
-            self, src, parser: DataParser, target_cols, chunksize=64, shuffle=False, disable=True, error=True,
-            warning=True, **kwargs):
-        self.parser = parser
-        self.target_cols = target_cols or []
+            self, src, data_parser: DataParser, raw_graph_parser: RawGraphParser, chunksize=64,
+            shuffle=False, disable=True, error=True, warning=True, **kwargs):
+        self.data_parser = data_parser
+        self.raw_graph_parser = raw_graph_parser
         self.kwargs = kwargs
 
         paths: List[Tuple[str, int]] = []
@@ -60,7 +60,7 @@ class Dataset(TorchDataset):
         return sum(map(len, self.paths[0].values()))
 
     def __len__(self):
-        return len(self.paths)
+        return self.paths.shape[0]
 
     def __getitem__(self, item) -> Tuple[RawGraph, Dict[str, torch.Tensor]]:
         dfs = []
@@ -69,6 +69,42 @@ class Dataset(TorchDataset):
             df = df.iloc[row_nums]
             dfs.append(df)
         df = pd.concat(dfs)
-        graph = self.parser.parse(df, progress_bar=False)[0]
-        label = self.parser.gen_targets(df, self.target_cols)
+        graph = self.data_parser.parse(df, progress_bar=False)[0]
+        label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
         return graph, label
+
+    def collate_fn(self, batches) -> Tuple[Graph, Dict[str, torch.Tensor]]:
+        graphs = []
+        labels = {}
+        for graph, label in batches:
+            graphs.append(graph)
+            for k, v in label.items():
+                if k in labels:
+                    labels[k].append(v)
+                else:
+                    labels[k] = [v]
+        graph = RawGraph.batch(graphs)
+        labels = {k: torch.cat(v) for k, v in labels.items()}
+        if self.data_parser is not None:
+            graph = self.raw_graph_parser.parse(graph)
+        return graph, labels
+
+    def enable_preprocessing(self):
+        self.data_parser.enable_preprocessing()
+
+    def disable_preprocessing(self):
+        self.data_parser.disable_preprocessing()
+
+    def set_filter_key(self, x):
+        self.raw_graph_parser.set_filter_key(x)
+
+
+class GraphDataset(Dataset):
+    def __init__(self, src, error=True, warning=True):
+        self.path = pd.Series(iter_files(src, error=error, warning=warning))
+
+    def __len__(self):
+        return self.path.shape[0]
+
+    def __getitem__(self, item) -> Graph:
+        return Graph.load(self.path.iloc[item])

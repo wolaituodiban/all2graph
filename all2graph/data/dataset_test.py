@@ -4,7 +4,7 @@ import shutil
 import pandas as pd
 import all2graph as ag
 from all2graph import JsonParser, Timer
-from all2graph.data import Dataset
+from all2graph.data import CSVDataset
 
 import platform
 if 'darwin' in platform.system().lower():
@@ -21,7 +21,9 @@ def test_graph_file():
     json_parser = JsonParser(
         'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True
     )
-
+    raw_graph_parser = ag.RawGraphParser.from_data(
+        ag.MetaInfo.from_data(json_parser.parse(df, progress_bar=True)[0], progress_bar=True)
+    )
     # 测试保存文件
     save_path = os.path.join(path, 'test_data', 'temp')
     ag.split_csv(df, save_path, chunksize=5, disable=False, zip=True, concat_chip=True)
@@ -29,7 +31,9 @@ def test_graph_file():
 
     # 开始测试
     with Timer('dataset'):
-        dataset = Dataset(graph_paths, parser=json_parser, target_cols=[], chunksize=32, shuffle=True, disable=False)
+        dataset = CSVDataset(
+            graph_paths, data_parser=json_parser, raw_graph_parser=raw_graph_parser,
+            chunksize=32, shuffle=True, disable=False)
         num_rows2 = []
         for graph, labels in ag.progress_wrapper(dataset):
             num_rows2.append(graph.num_components)

@@ -10,6 +10,7 @@ class Timer:
         return time.time() - self.start_time
 
     def __enter__(self):
+        print('"{}" start'.format(self.name))
         self.start_time = time.time()
         return self
 

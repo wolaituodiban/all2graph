@@ -224,7 +224,7 @@ class JsonParser(DataParser):
                     disable=not progress_bar, postfix='parsing json'):
                 yield self.parse_json(obj, now)
 
-    def save_inter_csv(self, df, dst, progress_bar=False):
+    def save(self, df, dst, progress_bar=False):
         assert self.global_id_keys is None
         self.enable_preprocessing()
 
