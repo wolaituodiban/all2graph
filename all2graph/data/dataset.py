@@ -10,7 +10,7 @@ from torch.utils.data import Dataset
 
 from ..graph import RawGraph, Graph
 from ..parsers import DataParser, RawGraphParser
-from ..utils import progress_wrapper, iter_files
+from ..utils import tqdm, iter_files
 
 
 class CSVDataset(Dataset):
@@ -22,7 +22,7 @@ class CSVDataset(Dataset):
         self.kwargs = kwargs
 
         paths: List[Tuple[str, int]] = []
-        for path in progress_wrapper(
+        for path in tqdm(
                 iter_files(src, error=error, warning=warning), disable=disable, postfix='checking files'):
             try:
                 df = self.read_csv(path)
@@ -69,7 +69,7 @@ class CSVDataset(Dataset):
             df = df.iloc[row_nums]
             dfs.append(df)
         df = pd.concat(dfs)
-        graph = self.data_parser.parse(df, progress_bar=False)[0]
+        graph = self.data_parser.parse(df, disable=True)[0]
         label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
         return graph, label
 

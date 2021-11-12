@@ -6,7 +6,7 @@ from typing import Iterable
 import numpy as np
 import pandas as pd
 from pandas.errors import ParserError
-from .toad_utils import progress_wrapper
+from .tqdm_utils import tqdm
 
 
 def iter_files(inputs, error=True, warning=True):
@@ -94,7 +94,7 @@ def split_csv(src, dst, chunksize, disable=True, zip=True, error=True, warning=T
     os.mkdir(dst)
     chunk_iter = enumerate(
         dataframe_chunk_iter(src, chunksize=chunksize, error=error, warning=warning, concat_chip=concat_chip, **kwargs))
-    for i, chunk in progress_wrapper(chunk_iter, disable=disable, postfix='spliting csv'):
+    for i, chunk in tqdm(chunk_iter, disable=disable, postfix='spliting csv'):
         if zip:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'zip'))
         else:

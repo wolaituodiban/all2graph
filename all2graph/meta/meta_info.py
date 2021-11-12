@@ -10,7 +10,7 @@ from ..globals import EPSILON, COMPONENT_ID
 from ..preserves import NUMBER
 from ..preserves import NULL, TRUE, FALSE, KEY, VALUE
 from ..stats import ECDF
-from ..utils import progress_wrapper
+from ..utils import tqdm
 
 
 class MetaInfo(MetaStruct):
@@ -84,7 +84,7 @@ class MetaInfo(MetaStruct):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, graph: RawGraph, index_nodes=None, progress_bar=False, num_bins=None):
+    def from_data(cls, graph: RawGraph, index_nodes=None, disable=True, num_bins=None):
         node_df = pd.DataFrame(
             {
                 COMPONENT_ID: graph.component_id,
@@ -100,7 +100,7 @@ class MetaInfo(MetaStruct):
         # # # # # 生成meta_name # # # # #
         meta_name = MetaString.from_data(
             num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[KEY],
-            progress_bar=progress_bar, postfix='constructing meta name', num_bins=num_bins
+            disable=disable, postfix='constructing meta name', num_bins=num_bins
         )
 
         # # # # # 生成meta_numbers # # # # #
@@ -110,7 +110,7 @@ class MetaInfo(MetaStruct):
         number_df = node_df[np.isfinite(node_df[NUMBER])]
 
         number_groups = number_df.groupby(KEY, sort=False)
-        number_groups = progress_wrapper(number_groups, disable=not progress_bar, postfix='constructing meta numbers')
+        number_groups = tqdm(number_groups, disable=disable, postfix='constructing meta numbers')
         meta_numbers = {}
         for name, number_df in number_groups:
             meta_numbers[name] = MetaNumber.from_data(
@@ -131,14 +131,14 @@ class MetaInfo(MetaStruct):
 
         meta_string = MetaString.from_data(
             num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[VALUE],
-            progress_bar=progress_bar, num_bins=num_bins
+            disable=disable, num_bins=num_bins
         )
 
         return super().from_data(meta_string=meta_string, meta_numbers=meta_numbers, meta_name=meta_name,
                                  edge_type=edge_type)
 
     @classmethod
-    def reduce(cls, structs, weights=None, progress_bar=False, num_bins=None, processes=None):
+    def reduce(cls, structs, weights=None, disable=True, num_bins=None, processes=None):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -156,13 +156,13 @@ class MetaInfo(MetaStruct):
                     meta_numbers[k].append(v)
                     meta_num_w[k].append(w)
 
-        progress = progress_wrapper(meta_numbers.items(), disable=not progress_bar, postfix='reducing meta numbers')
+        progress = tqdm(meta_numbers.items(), disable=disable, postfix='reducing meta numbers')
         meta_numbers = {
             k: MetaNumber.reduce(v, weights=meta_num_w[k], num_bins=num_bins) for k, v in progress
         }
 
         # 分布补0
-        progress = progress_wrapper(meta_numbers, disable=not progress_bar, postfix='reducing meta numbers phase 2')
+        progress = tqdm(meta_numbers, disable=disable, postfix='reducing meta numbers phase 2')
         for k in progress:
             w_sum = sum(meta_num_w[k])
             if w_sum < 1 - EPSILON:
@@ -172,12 +172,12 @@ class MetaInfo(MetaStruct):
                 )
         # # # # # 合并meta_string # # # # #
         meta_string = MetaString.reduce(
-            [struct.meta_string for struct in structs], weights=weights, progress_bar=progress_bar, processes=processes,
+            [struct.meta_string for struct in structs], weights=weights, disable=disable, processes=processes,
             num_bins=num_bins
         )
         # # # # # 合并meta_name # # # # #
         meta_name = MetaString.reduce(
-            [struct.meta_name for struct in structs], weights=weights, progress_bar=progress_bar,
+            [struct.meta_name for struct in structs], weights=weights, disable=disable,
             postfix='reducing meta name', processes=processes, num_bins=num_bins
         )
         # # # # # 合并edge_type # # # # #

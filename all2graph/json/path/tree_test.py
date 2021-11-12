@@ -5,7 +5,7 @@ import pandas as pd
 import json_tools
 
 from all2graph.json import JsonPathTree, Split, Timestamp, Delete, Lower
-from all2graph.utils import progress_wrapper, Timer
+from all2graph.utils import tqdm, Timer
 
 
 data = {
@@ -130,13 +130,13 @@ def speed():
         ]
     )
     with Timer('json_path_tree'):
-        for row in progress_wrapper(df.itertuples(), total=df.shape[0]):
+        for row in tqdm(df.itertuples(), total=df.shape[0]):
             obj = json.loads(row[1])
             crt_dte = datetime.strptime(row[2], '%Y-%m-%d')
             answer = json_path_tree(obj, now=crt_dte)
 
     with Timer('user define function'):
-        for standard_answer in progress_wrapper(preprocessor(df), total=df.shape[0]):
+        for standard_answer in tqdm(preprocessor(df), total=df.shape[0]):
             pass
 
     assert answer == standard_answer

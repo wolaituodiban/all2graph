@@ -1,7 +1,7 @@
 # 解决在服务器上运行时，dgl写config文件时，没有权限的问题
 import platform
 system = platform.system()
-if 'linux' in platform.system().lower():
+if 'linux' in system.lower():
     import os
     import sys
     old_home = os.environ['HOME']
@@ -16,21 +16,23 @@ if 'linux' in platform.system().lower():
     os.environ['HOME'] = old_home
 
 try:
+    import torch
+except ImportError:
+    torch = None
+if torch is not None:
     from . import nn
-except ImportError:
-    print('failed to import module nn, perhaps no torch installed', file=sys.stderr)
+    from . import data
+else:
+    print('failed to import module nn and data, no torch installed', file=sys.stderr)
 
-try:
-    from .data import *
-except ImportError:
-    print('failed to import module data, perhaps no torch installed', file=sys.stderr)
 
-from .factory import *
-from .graph import *
-from .json import *
-from .meta import *
-from .parsers import *
-from .stats import *
+from . import graph
+from . import json
+from . import preserves
+from .parsers import DataParser, RawGraphParser, ParserWrapper
+from .factory import Factory
+from .meta import MetaInfo, MetaValue, MetaNumber, MetaString
+from .stats import ECDF, Discrete, Distribution
 from .utils import *
 from .globals import *
 from .meta_struct import MetaStruct

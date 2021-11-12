@@ -3,8 +3,6 @@ import shutil
 import numpy as np
 import pandas as pd
 import all2graph as ag
-from all2graph import MetaInfo, JsonParser, Timer, JiebaTokenizer, progress_wrapper
-from all2graph.factory import Factory
 
 
 def test_analyse():
@@ -14,29 +12,27 @@ def test_analyse():
     csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     nrows = 1000
 
-    json_parser = JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
+    json_parser = ag.json.JsonParser(
+        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=ag.JiebaTokenizer()
     )
 
-    with Timer('工厂封装模式') as timer:
-        factory = Factory(data_parser=json_parser)
+    with ag.Timer('工厂封装模式') as timer:
+        factory = ag.Factory(data_parser=json_parser)
         processes = os.cpu_count()
 
         meta_graph2 = factory.analyse(
-            csv_path, chunksize=int(np.ceil(nrows/processes)), progress_bar=True, processes=processes, nrows=1000
+            csv_path, chunksize=int(np.ceil(nrows/processes)), disable=True, processes=processes, nrows=1000
         )
         used_time1 = timer.diff()
     print(factory)
 
-    with Timer('原生模式') as timer:
+    with ag.Timer('原生模式') as timer:
         df = pd.read_csv(csv_path, nrows=1000)
-        graph, global_index_mapper, local_index_mappers = json_parser.parse(
-            df, progress_bar=True
-        )
+        graph, global_index_mapper, local_index_mappers = json_parser.parse(df, disable=False)
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
-        meta_graph1 = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=True)
+        meta_graph1 = ag.MetaInfo.from_data(graph, index_nodes=index_ids, disable=False)
         used_time2 = timer.diff()
 
     assert meta_graph1 == meta_graph2
@@ -52,36 +48,36 @@ def test_produce_dataloader():
     nrows = 1000
 
     cpu_count = os.cpu_count()
-    json_parser = JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
+    json_parser = ag.json.JsonParser(
+        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=ag.JiebaTokenizer()
     )
-    factory = Factory(data_parser=json_parser, raw_graph_parser_config=dict(filter_key=True))
+    factory = ag.Factory(data_parser=json_parser, raw_graph_parser_config=dict(filter_key=True))
     factory.analyse(
-        csv_path, chunksize=int(nrows//cpu_count), progress_bar=True, processes=cpu_count, nrows=nrows
+        csv_path, chunksize=int(nrows//cpu_count), disable=True, processes=cpu_count, nrows=nrows
     )
     configs = {'nrows': nrows}
 
     with ag.Timer('raw_graph=True'):
         dataloader = factory.produce_dataloader(
             csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, raw_graph=True, processes=cpu_count)
-        assert isinstance(dataloader.dataset, ag.CSVDataset)
-        for g, l in progress_wrapper(dataloader):
+        assert isinstance(dataloader.dataset, ag.data.CSVDataset)
+        for g, l in ag.tqdm(dataloader):
             pass
         shutil.rmtree(save_path)
 
     with ag.Timer('raw_graph=False'):
         dataloader = factory.produce_dataloader(
             csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, raw_graph=False, processes=cpu_count)
-        assert isinstance(dataloader.dataset, ag.CSVDataset)
-        for g, l in progress_wrapper(dataloader):
+        assert isinstance(dataloader.dataset, ag.data.CSVDataset)
+        for g, l in ag.tqdm(dataloader):
             pass
         shutil.rmtree(save_path)
 
     with ag.Timer('graph=True'):
         dataloader = factory.produce_dataloader(
             csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, graph=True, processes=cpu_count)
-        assert isinstance(dataloader.dataset, ag.GraphDataset)
-        for g, l in progress_wrapper(dataloader.dataset):
+        assert isinstance(dataloader.dataset, ag.data.GraphDataset)
+        for g, l in ag.tqdm(dataloader.dataset):
             pass
         shutil.rmtree(save_path)
 
@@ -94,12 +90,12 @@ def test_produce_model():
     nrows = 1000
 
     cpu_count = os.cpu_count()
-    json_parser = JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=JiebaTokenizer()
+    json_parser = ag.json.JsonParser(
+        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=ag.JiebaTokenizer()
     )
-    factory = Factory(data_parser=json_parser)
+    factory = ag.Factory(data_parser=json_parser)
     factory.analyse(
-        csv_path, chunksize=int(nrows//cpu_count), progress_bar=True, processes=cpu_count, nrows=nrows
+        csv_path, chunksize=int(nrows//cpu_count), disable=True, processes=cpu_count, nrows=nrows
     )
     model = factory.produce_model(d_model=8, nhead=2, num_layers=[2], mock=True)
     print(model)

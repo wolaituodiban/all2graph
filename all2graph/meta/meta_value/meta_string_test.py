@@ -8,7 +8,6 @@ import pandas as pd
 import all2graph as ag
 from all2graph import MetaString
 from all2graph.json import JsonParser
-from toad.utils.progress import Progress
 from all2graph import json_diff
 
 
@@ -125,12 +124,12 @@ def speed():
         MetaString.from_data(
             num_samples=num_samples, sample_ids=group.component_id, values=group.value, num_bins=20
         )
-        for group in Progress(groups)
+        for group in ag.tqdm(groups)
     ]
     merge_time = time.time() - merge_start_time
 
     reduce_start_time = time.time()
-    meta_string = MetaString.reduce(meta_strings, num_bins=20, progress_bar=True)
+    meta_string = MetaString.reduce(meta_strings, num_bins=20, disable=False)
     reduce_time = time.time() - reduce_start_time
 
     print(reduce_time, merge_time)

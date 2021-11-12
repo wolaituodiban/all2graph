@@ -77,9 +77,7 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph, *_ = JsonParser('json', flatten_dict=True).parse(
-        df, progress_bar=True
-    )
+    json_graph, *_ = JsonParser('json', flatten_dict=True).parse(df, disable=False)
     # assert json_graph.num_nodes - json_graph.num_edges == df.shape[0]
     assert np.unique(np.abs(json_graph.component_id)).shape[0] == df.shape[0]
     print(json_graph.num_nodes, json_graph.num_edges)
@@ -89,7 +87,7 @@ def speed():
     json_graph2, global_index_mapper, _ = JsonParser(
         'json', dict_dst_degree=0, list_dst_degree=0, list_inner_degree=0, r_list_inner_degree=0,
         global_id_keys={'name'}, segment_value=False, self_loop=True
-    ).parse(df, progress_bar=True)
+    ).parse(df, disable=False)
     assert len(global_index_mapper) > 0
     assert np.unique(np.abs(json_graph2.component_id)).shape[0] == df.shape[0]
     assert json_graph2.num_nodes < json_graph.num_nodes
@@ -99,7 +97,7 @@ def speed():
 
     json_graph3, global_index_mapper, _ = JsonParser(
         'json', flatten_dict=True, global_id_keys={'name'}, segment_value=True, self_loop=True,
-        tokenizer=JiebaTokenizer()).parse(df, progress_bar=True)
+        tokenizer=JiebaTokenizer()).parse(df, disable=False)
 
     assert len(global_index_mapper) > 0
     assert np.unique(np.abs(json_graph2.component_id)).shape[0] == df.shape[0]

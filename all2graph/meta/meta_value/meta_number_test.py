@@ -1,11 +1,10 @@
 import os
-import json
 import time
 import numpy as np
 import pandas as pd
+import all2graph as ag
 from all2graph import MetaNumber
 from all2graph.json import JsonParser
-from toad.utils.progress import Progress
 
 
 def speed():
@@ -37,7 +36,7 @@ def speed():
         MetaNumber.from_data(
             num_samples=num_samples, sample_ids=group.component_id, values=group.value, num_bins=20
         )
-        for group in Progress(groups)
+        for group in ag.tqdm(groups)
     ]
     merge_time = time.time() - merge_start_time
 

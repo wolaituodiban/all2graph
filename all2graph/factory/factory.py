@@ -8,7 +8,7 @@ import pandas as pd
 from ..graph import RawGraph
 from ..meta import MetaInfo
 from ..parsers import DataParser, RawGraphParser
-from ..utils import progress_wrapper
+from ..utils import tqdm
 from ..utils.file_utils import dataframe_chunk_iter, split_csv
 from ..meta_struct import MetaStruct
 
@@ -57,37 +57,37 @@ class Factory(MetaStruct):
         self.data_parser.disable_preprocessing()
 
     def _produce_raw_graph(self, chunk):
-        return self.data_parser.parse(chunk, progress_bar=False)
+        return self.data_parser.parse(chunk, disable=True)
 
     def _analyse(self, chunk: pd.DataFrame) -> Tuple[MetaInfo, int]:
         graph, global_index_mapper, local_index_mappers = self._produce_raw_graph(chunk)
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
-        meta_info = MetaInfo.from_data(graph, index_nodes=index_ids, progress_bar=False, **self.meta_info_config)
+        meta_info = MetaInfo.from_data(graph, index_nodes=index_ids, disable=True, **self.meta_info_config)
         return meta_info, chunk.shape[0]
 
-    def analyse(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], chunksize=64, progress_bar=True,
+    def analyse(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], chunksize=64, disable=False,
                 postfix='reading csv', processes=None, **kwargs) -> MetaInfo:
         data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
         meta_infos: List[MetaInfo] = []
         weights = []
         if processes == 0:
             results = map(self._analyse, data)
-            results = progress_wrapper(results, disable=not progress_bar, postfix=postfix)
+            results = tqdm(results, disable=disable, postfix=postfix)
             for meta_info, weight in results:
                 meta_infos.append(meta_info)
                 weights.append(weight)
         else:
             with Pool(processes) as pool:
                 results = pool.imap(self._analyse, data)
-                results = progress_wrapper(results, disable=not progress_bar, postfix=postfix)
+                results = tqdm(results, disable=disable, postfix=postfix)
                 for meta_info, weight in results:
                     meta_infos.append(meta_info)
                     weights.append(weight)
 
         meta_info = MetaInfo.reduce(
-            meta_infos, weights=weights, progress_bar=progress_bar, processes=processes, **self.meta_info_config
+            meta_infos, weights=weights, disable=disable, processes=processes, **self.meta_info_config
         )
         self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.graph_parser_config)
         return meta_info
@@ -97,7 +97,7 @@ class Factory(MetaStruct):
         if raw:
             self.data_parser.save(df, '.'.join([dst, 'zip' if zip else 'csv']))
         else:
-            raw_graph, *_ = self.data_parser.parse(df, progress_bar=False)
+            raw_graph, *_ = self.data_parser.parse(df, disable=True)
             graph = self.raw_graph_parser.parse(raw_graph)
             labels = self.data_parser.gen_targets(df, self.targets)
             graph.save('.'.join([dst, 'all2graph.graph']), labels=labels)
@@ -112,7 +112,7 @@ class Factory(MetaStruct):
         generator = dataframe_chunk_iter(
                 src, error=error, warning=warning, concat_chip=concat_chip, chunksize=chunksize, **kwargs)
         generator = ((df, os.path.join(dst, str(i)), zip, raw) for i, df in enumerate(generator))
-        generator = progress_wrapper(generator, disable=disable, postfix=postfix)
+        generator = tqdm(generator, disable=disable, postfix=postfix)
         if processes == 0:
             list(map(self._save, generator))
         else:

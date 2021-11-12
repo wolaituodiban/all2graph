@@ -22,7 +22,7 @@ def test_graph_file():
         'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True
     )
     raw_graph_parser = ag.RawGraphParser.from_data(
-        ag.MetaInfo.from_data(json_parser.parse(df, progress_bar=True)[0], progress_bar=True)
+        ag.MetaInfo.from_data(json_parser.parse(df, disable=False)[0], disable=False)
     )
     # 测试保存文件
     save_path = os.path.join(path, 'test_data', 'temp')
@@ -35,7 +35,7 @@ def test_graph_file():
             graph_paths, data_parser=json_parser, raw_graph_parser=raw_graph_parser,
             chunksize=32, shuffle=True, disable=False)
         num_rows2 = []
-        for graph, labels in ag.progress_wrapper(dataset):
+        for graph, labels in ag.tqdm(dataset):
             num_rows2.append(graph.num_components)
     shutil.rmtree(save_path)
     temp = []

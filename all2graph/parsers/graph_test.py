@@ -18,12 +18,12 @@ parser = JsonParser(
     'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, self_loop=True,
     list_inner_degree=1, tokenizer=JiebaTokenizer()
 )
-raw_graph, global_index_mapper, local_index_mappers = parser.parse(df, progress_bar=True)
+raw_graph, global_index_mapper, local_index_mappers = parser.parse(df, disable=False)
 
 index_ids = list(global_index_mapper.values())
 for mapper in local_index_mappers:
     index_ids += list(mapper.values())
-meta_info = MetaInfo.from_data(raw_graph, index_nodes=index_ids, progress_bar=True)
+meta_info = MetaInfo.from_data(raw_graph, index_nodes=index_ids, disable=False)
 
 
 def test_init():

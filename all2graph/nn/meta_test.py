@@ -3,13 +3,14 @@ import traceback
 import torch
 import pandas as pd
 import all2graph as ag
-from all2graph import RawGraph, Timer, MetaInfo, RawGraphParser
+from all2graph import Timer, MetaInfo, RawGraphParser
 from all2graph.nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
 
 
 def test_learner():
-    graph = RawGraph(component_id=[0, 0, 0, 0], key=['readout', 'meta haha', 'a', 'a'], value=['a', 'b', 1, 2],
-                     symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
+    graph = ag.graph.RawGraph(
+        component_id=[0, 0, 0, 0], key=['readout', 'meta haha', 'a', 'a'], value=['a', 'b', 1, 2],
+        symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
 
     meta_info = MetaInfo.from_data(graph)
     parser = RawGraphParser.from_data(meta_info, targets=['a', 'b'])
@@ -40,8 +41,9 @@ def test_learner():
 
 
 def test_mock():
-    graph = RawGraph(component_id=[0, 0, 0, 0], key=['readout', 'meta haha', 'a', 'a'], value=['a', 'b', 1, 2],
-                     symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
+    graph = ag.graph.RawGraph(
+        component_id=[0, 0, 0, 0], key=['readout', 'meta haha', 'a', 'a'], value=['a', 'b', 1, 2],
+        symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
 
     meta_info = MetaInfo.from_data(graph)
     parser = RawGraphParser.from_data(meta_info, targets=['a', 'b'])
@@ -74,13 +76,13 @@ def test_mock_load_pretrained():
     # 如果代码正确，那么使用m1和m2计算s1的输出结果应该相同
 
     # 1、构造两个测试样本s1和s2
-    s1 = ag.RawGraph(
+    s1 = ag.graph.RawGraph(
         component_id=[0, 0, 0, 0, 0], key=['readout', 'k2', 'k2', 'k4', 'k4'], value=['v1', 'v2', 'v5', 0.5, 0.4],
         src=[1], dst=[0], symbol=['readout', 'value', 'value', 'value', 'value'])
-    s2 = ag.RawGraph(
+    s2 = ag.graph.RawGraph(
         component_id=[0, 0, 0, 0, 0], key=['readout', 'k2', 'k3', 'k4', 'k4'], value=['v3', 'v4', 'v1', -0.5, 0.3],
         src=[1], dst=[0], symbol=['readout', 'value', 'value', 'value', 'value'])
-    s3 = ag.RawGraph.batch([s2, s1])
+    s3 = ag.graph.RawGraph.batch([s2, s1])
 
     # 2、根据s1构造解析器p1和模型m1
     i1 = ag.MetaInfo.from_data(s1)
@@ -112,7 +114,7 @@ def test_predict():
 
     sample = {'a': 'b'}
     df = pd.DataFrame({'id': [0], 'json': [sample]})
-    json_parser = ag.JsonParser('json', error=False, warning=False)
+    json_parser = ag.json.JsonParser('json', error=False, warning=False)
     raw_graph, *_ = json_parser.parse(df)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'])
@@ -126,7 +128,7 @@ def test_predict():
 def test_error_key():
     sample = {'a': 'b'}
     df = pd.DataFrame({'id': [0], 'json': [sample]})
-    json_parser = ag.JsonParser('json', error=False, warning=False)
+    json_parser = ag.json.JsonParser('json', error=False, warning=False)
     raw_graph, *_ = json_parser.parse(df)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'])

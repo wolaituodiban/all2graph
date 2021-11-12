@@ -26,10 +26,10 @@ class DataParser(MetaStruct):
             for k in target_cols if k in df
         }
 
-    def save(self, df, dst, progress_bar=False):
+    def save(self, df, dst, disable=True):
         raise NotImplementedError
 
-    def parse(self, data, progress_bar: bool = False) -> Tuple[RawGraph, dict, List[dict]]:
+    def parse(self, data, disable: bool = True) -> Tuple[RawGraph, dict, List[dict]]:
         raise NotImplementedError
 
     def __eq__(self, other):
@@ -60,9 +60,9 @@ class DataAugmenter(DataParser):
         else:
             self.weights = np.array(weights) / np.sum(weights)
 
-    def parse(self, data, progress_bar: bool = False, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
+    def parse(self, data, disable: bool = True, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
         parser = np.random.choice(self.parsers, p=self.weights)
-        return parser.parse(data, progress_bar=progress_bar, **kwargs)
+        return parser.parse(data, disable=disable, **kwargs)
 
     def disable_preprocessing(self):
         for parser in self.parsers:

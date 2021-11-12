@@ -5,14 +5,13 @@ import numpy as np
 import pandas as pd
 import torch
 
-from toad.nn import Module
 from torch.utils.data import DataLoader
 from ..data import CSVDataset, GraphDataset
 from ..parsers import RawGraphParser, ParserWrapper
 from ..graph import Graph, RawGraph
 from ..parsers import DataParser
 from ..version import __version__
-from ..utils import progress_wrapper
+from ..utils import tqdm
 
 
 def num_parameters(module: torch.nn.Module):
@@ -22,7 +21,7 @@ def num_parameters(module: torch.nn.Module):
     return sum(map(lambda x: np.prod(x.shape), parameters.values()))
 
 
-class MyModule(Module):
+class MyModule(torch.nn.Module):
     def __init__(self, raw_graph_parser: RawGraphParser):
         super().__init__()
         self.version = __version__
@@ -44,7 +43,7 @@ class MyModule(Module):
         self.eval()
         labels = None
         outputs = None
-        for graph, label in progress_wrapper(loader, postfix=postfix):
+        for graph, label in tqdm(loader, postfix=postfix):
             output = self(graph)
             if outputs is None:
                 outputs = {k: [v.detach().cpu()] for k, v in output.items()}
@@ -57,26 +56,14 @@ class MyModule(Module):
         outputs = {k: torch.cat(v, dim=0) for k, v in outputs.items()}
         return outputs, labels
 
-    def fit_step(self, batch, *args, **kwargs):
-        graph, labels = batch
-        pred = self(graph=graph)
-        return self._loss(pred, labels)
-
-    def set_loss(self, loss):
-        self._loss = loss
-
-    def set_optimizer(self, optimizer):
-        self._optimizer = optimizer
-
-    def optimizer(self):
-        return self._optimizer
-
-    def fit(self, loader: DataLoader, epoch=10, callback=None):
+    def fit(self, loader: DataLoader, **kwargs):
         if not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
             print('recieved a not all2graph.Dataset, function check can not be done')
-        elif isinstance(loader.dataset, CSVDataset) and loader.dataset.raw_graph_parser != self.raw_graph_parser:
+        elif hasattr(loader, 'dataset')\
+                and isinstance(loader.dataset, CSVDataset)\
+                and loader.dataset.raw_graph_parser != self.raw_graph_parser:
             print('raw_graph_parser are not the same, which may cause undefined behavior')
-        return super().fit(loader=loader, epoch=epoch, callback=callback)
+        raise NotImplementedError
 
     def set_filter_key(self, x):
         self.raw_graph_parser.set_filter_key(x)

@@ -124,7 +124,7 @@ class ECDF(Distribution):
         return super().from_data(quantiles=counts_cumsum.index, probs=counts_cumsum.values, num_bins=num_bins)
 
     @classmethod
-    def reduce(cls, structs, weights=None, num_bins=num_bins):
+    def reduce(cls, structs, weights=None, num_bins=None):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:

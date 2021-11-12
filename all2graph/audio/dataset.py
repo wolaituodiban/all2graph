@@ -6,7 +6,6 @@ import torchaudio
 from torchaudio.functional import resample
 from torchaudio.transforms import Resample
 from torch.utils.data import Dataset
-from toad.utils.progress import Progress
 
 
 def dir_traversal(path: str, outputs: List[str]):

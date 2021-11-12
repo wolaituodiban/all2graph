@@ -18,9 +18,11 @@ setup(
     author_email='wolaituodiban@gmail.com',
     packages=find_packages(include=('all2graph/',), exclude=('*test*',)),
     install_requires=[
-        # 'toad>=0.0.64',
-        # 'dgl>=0.6.0',
-        # 'torch>=1.5.0',
-        # 'jieba>=0.39'
+        'dgl>=0.6.0',
+        'torch>=1.5.0',
+        'jieba>=0.39',
+        'numpy',
+        'pandas',
+        'scipy',
     ],
 )

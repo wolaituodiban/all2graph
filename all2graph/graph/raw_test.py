@@ -15,9 +15,7 @@ def test_meta_graph():
         'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, self_loop=True,
         list_inner_degree=1
     )
-    graph, global_index_mapper, local_index_mappers = parser.parse(
-        node_df, progress_bar=True
-    )
+    graph, global_index_mapper, local_index_mappers = parser.parse(node_df, disable=False)
 
     meta_graph, meta_node_id, meta_edge_id = graph.meta_graph()
     assert graph.key == [meta_graph.value[i] for i in meta_node_id]

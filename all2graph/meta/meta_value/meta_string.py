@@ -8,7 +8,7 @@ import pandas as pd
 from .meta_value import MetaValue
 from ...globals import EPSILON
 from ...stats import Discrete, ECDF
-from ...utils import MpMapFuncWrapper, progress_wrapper
+from ...utils import MpMapFuncWrapper, tqdm
 
 
 def term_count_ecdf_to_doc_freq(term_count: ECDF, inverse=False) -> float:
@@ -113,7 +113,7 @@ class MetaString(MetaValue):
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, num_samples, sample_ids, values, progress_bar=False, postfix='constructing meta string',
+    def from_data(cls, num_samples, sample_ids, values, disable=True, postfix='constructing meta string',
                   num_bins=None):
         # # # # # 计算node count
         node_count_series = pd.value_counts(sample_ids)
@@ -127,7 +127,7 @@ class MetaString(MetaValue):
         term_count_ecdf = {}
         term_freq_ecdf = {}
         term_count_groupby = term_count_df.groupby('term', sort=False)
-        term_count_groupby = progress_wrapper(term_count_groupby, disable=not progress_bar, postfix=postfix)
+        term_count_groupby = tqdm(term_count_groupby, disable=disable, postfix=postfix)
         for value, count_df in term_count_groupby:
             term_count = count_df['term_count'].values
             term_freq = term_count / node_count_series[count_df.id].values
@@ -146,7 +146,7 @@ class MetaString(MetaValue):
         return super().from_data(term_count_ecdf=term_count_ecdf, term_freq_ecdf=term_freq_ecdf)
 
     @classmethod
-    def reduce(cls, structs, weights=None, progress_bar=False, postfix='reducing meta string',
+    def reduce(cls, structs, weights=None, disable=True, postfix='reducing meta string',
                processes=0, chunksize=None, num_bins=None):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
@@ -180,7 +180,7 @@ class MetaString(MetaValue):
         if processes == 0:
             term_count_ecdf = {}
             term_freq_ecdf = {}
-            for term in progress_wrapper(term_count_ecdfs.keys(), disable=not progress_bar, postfix=postfix):
+            for term in tqdm(term_count_ecdfs.keys(), disable=disable, postfix=postfix):
                 term_count_ecdf[term] = ECDF.reduce(
                     term_count_ecdfs[term], weights=term_weights[term], num_bins=num_bins)
                 term_freq_ecdf[term] = ECDF.reduce(term_freq_ecdfs[term], weights=term_weights[term], num_bins=num_bins)
@@ -195,15 +195,15 @@ class MetaString(MetaValue):
                 if chunksize is None:
                     chunksize = int(np.ceil(len(terms)/(processes or os.cpu_count())))
                 term_count_ecdf = {
-                    term: ecdf for term, ecdf in progress_wrapper(
+                    term: ecdf for term, ecdf in tqdm(
                         zip(terms, pool.imap(reduce_wrapper, term_count_ecdfs, chunksize=chunksize)),
-                        disable=not progress_bar, postfix=postfix, total=len(term_count_ecdfs)
+                        disable=disable, postfix=postfix, total=len(term_count_ecdfs)
                     )
                 }
                 term_freq_ecdf = {
-                    term: ecdf for term, ecdf in progress_wrapper(
+                    term: ecdf for term, ecdf in tqdm(
                         zip(terms, pool.imap(reduce_wrapper, term_freq_ecdfs, chunksize=chunksize)),
-                        disable=not progress_bar, postfix=postfix + ' phase 2', total=len(term_freq_ecdfs)
+                        disable=disable, postfix=postfix + ' phase 2', total=len(term_freq_ecdfs)
                     )
                 }
 

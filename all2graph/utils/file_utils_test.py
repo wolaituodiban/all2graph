@@ -53,13 +53,13 @@ def test_dataframe_chunk_iter():
         if not os.path.exists(directory):
             os.mkdir(directory)
         num_lines = 0
-        for i in ag.progress_wrapper(range(1, 20)):
+        for i in ag.tqdm(range(1, 20)):
             new_df = pd.concat([df] * i)
             new_df.to_csv(os.path.join(directory, str(i)+'.csv'))
             num_lines += new_df.shape[0]
         print(num_lines)
         num_lines2 = []
-        for chunk in ag.progress_wrapper(ag.dataframe_chunk_iter(directory, chunksize=64, concat_chip=True)):
+        for chunk in ag.tqdm(ag.dataframe_chunk_iter(directory, chunksize=64, concat_chip=True)):
             num_lines2.append(chunk.shape[0])
 
         assert sum(num_lines2) == num_lines

@@ -11,7 +11,7 @@ import pandas as pd
 from .path import JsonPathTree
 from ..parsers import DataParser
 from ..graph import RawGraph
-from ..utils import progress_wrapper, Tokenizer, default_tokenizer
+from ..utils import tqdm, Tokenizer, default_tokenizer
 
 
 class JsonParser(DataParser):
@@ -213,24 +213,22 @@ class JsonParser(DataParser):
     def parse_df(
             self,
             df: pd.DataFrame,
-            progress_bar: bool = False,
+            disable: bool = True,
     ):
         if self.time_col not in df:
-            for obj in progress_wrapper(df[self.json_col], disable=not progress_bar, postfix='parsing json'):
+            for obj in tqdm(df[self.json_col], disable=disable, postfix='parsing json'):
                 yield self.parse_json(obj)
         else:
-            for obj, now in progress_wrapper(
-                    zip(df[self.json_col], df[self.time_col]),
-                    disable=not progress_bar, postfix='parsing json'):
+            for obj, now in tqdm(zip(df[self.json_col], df[self.time_col]), disable=disable, postfix='parsing json'):
                 yield self.parse_json(obj, now)
 
-    def save(self, df, dst, progress_bar=False):
+    def save(self, df, dst, disable=True):
         assert self.global_id_keys is None
         self.enable_preprocessing()
 
         local_index_mappers = []
         graphs = []
-        for obj in self.parse_df(df=df, progress_bar=progress_bar):
+        for obj in self.parse_df(df=df, disable=disable):
             graph = RawGraph()
             local_index_mapper = {}
             self.insert_component(
@@ -247,13 +245,13 @@ class JsonParser(DataParser):
     def parse(
             self,
             df: pd.DataFrame,
-            progress_bar: bool = False,
+            disable: bool = True,
     ) -> (RawGraph, dict, List[dict]):
         global_index_mapper = {}
         if self._enable_preprocessing:
             graph = RawGraph()
             local_index_mappers = []
-            for component_id, obj in enumerate(self.parse_df(df=df, progress_bar=progress_bar)):
+            for component_id, obj in enumerate(self.parse_df(df=df, disable=disable)):
                 local_index_mapper = {}
                 self.insert_component(
                     graph=graph, component_id=component_id, value=obj, dsts=[],
