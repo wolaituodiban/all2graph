@@ -202,7 +202,6 @@ class JsonParser(DataParser):
 
         # json预处理
         if self.json_path_tree is not None:
-            # todo 抛异常的机制需要重新设计
             if now is not None:
                 now = ddt.strptime(now, self.time_format)
             obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)

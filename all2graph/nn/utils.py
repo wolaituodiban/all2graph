@@ -39,12 +39,13 @@ def default_collate(batches):
 
 
 @torch.no_grad()
-def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader):
+def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader, desc=None):
     """
     仅支持torch.Tensor, list和dict作为输入
     Args:
         module:
         data_loader:
+        desc: 
 
     Returns:
 
@@ -54,7 +55,7 @@ def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader):
     labels = []
     last_output_type = None
     last_label_type = None
-    for graph, label in tqdm(data_loader):
+    for graph, label in tqdm(data_loader, desc=desc):
         label_type = _get_type(label)
         if last_label_type and label_type != last_label_type:
             raise TypeError('got inconsistent label type: {} and {}'.format(last_label_type, label_type))
@@ -63,7 +64,7 @@ def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader):
         if last_output_type and ouptut_type != last_output_type:
             raise TypeError('got inconsistent output type: {} and {}'.format(last_output_type, ouptut_type))
         outputs.append(output)
-        labels.append(labels)
+        labels.append(label)
         last_output_type = ouptut_type
         last_label_type = label_type
     return default_collate(outputs), default_collate(labels)
@@ -79,7 +80,7 @@ def to_numpy(inputs):
     elif isinstance(inputs, np.ndarray):
         return inputs
     else:
-        raise TypeError('only accept "tensor", "list", "dict", "numpy"')
+        raise TypeError('only accept "tensor", "list", "dict", "numpy", but got {}'.format(type(inputs)))
 
 
 def detach(inputs):

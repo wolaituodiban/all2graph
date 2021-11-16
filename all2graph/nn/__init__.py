@@ -1,7 +1,4 @@
-try:
-    from .callback import CallBack
-except ImportError:
-    pass
+from .train import Trainer, EarlyStop
 from .conv import Conv, Block, Body
 from .embedding import NodeEmbedding
 from .encoder import Encoder
