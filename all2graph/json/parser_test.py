@@ -2,6 +2,7 @@ import os
 import json
 import numpy as np
 import pandas as pd
+import jsonpromax as jpm
 from all2graph.json import JsonParser
 from all2graph import JiebaTokenizer
 
@@ -112,14 +113,14 @@ def test_repr():
         'json', flatten_dict=True, global_id_keys={'name'}, segment_value=True, self_loop=True,
         tokenizer=JiebaTokenizer(), processors=[
             ('$.SMALL_LOAN',),
-            ('$.*', ag.Timestamp('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
-            ('$.*', ag.Timestamp('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
-            ('$.*', ag.Timestamp('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
-            ('$.*.bsy_typ', ag.Lower()),
-            ('$.*.ded_typ', ag.Lower()),
-            ('$.*.bsy_typ', ag.Split('_')),
-            ('$.*.ded_typ', ag.Split('_')),
-            ('$.*', ag.Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
+            ('$.*', ag.json.Timestamp('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', ag.json.Timestamp('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
+            ('$.*', ag.json.Timestamp('rep_dte', '%Y-%m-%d', ['day', 'weekday'])),
+            ('$.*.bsy_typ', ag.json.Lower()),
+            ('$.*.ded_typ', ag.json.Lower()),
+            ('$.*.bsy_typ', ag.json.Split('_')),
+            ('$.*.ded_typ', ag.json.Split('_')),
+            ('$.*', jpm.Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
         ]
     )
     print(parser)

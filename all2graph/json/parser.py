@@ -1,6 +1,4 @@
 import json
-import sys
-import traceback
 from inspect import ismethod
 from datetime import datetime as ddt
 from typing import Dict, List, Union, Set
@@ -8,7 +6,7 @@ from typing import Dict, List, Union, Set
 import pandas as pd
 
 
-from .path import JsonPathTree
+from jsonpromax import JsonPathTree
 from ..parsers import DataParser
 from ..graph import RawGraph
 from ..utils import tqdm, Tokenizer, default_tokenizer

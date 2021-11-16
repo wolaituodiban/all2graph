@@ -4,14 +4,93 @@ from typing import Dict, Union
 import numpy as np
 import pandas as pd
 import torch
-
 from torch.utils.data import DataLoader
+
 from ..data import CSVDataset, GraphDataset
 from ..parsers import RawGraphParser, ParserWrapper
 from ..graph import Graph, RawGraph
 from ..parsers import DataParser
-from ..version import __version__
 from ..utils import tqdm
+from ..version import __version__
+
+
+def _get_type(x):
+    if isinstance(x, torch.Tensor):
+        return 'tensor'
+    elif isinstance(x, list):
+        return 'list'
+    elif isinstance(x, dict):
+        return 'dict'
+    raise TypeError('only accept "tensor", "list", "dict"')
+
+
+def default_collate(batches):
+    fst_item = batches[0]
+    if isinstance(fst_item, torch.Tensor):
+        if len(fst_item.shape) == 0:
+            return torch.stack(batches)
+        else:
+            return torch.cat(batches, dim=0)
+    elif isinstance(fst_item, list):
+        return [default_collate(tensors) for tensors in zip(*batches)]
+    elif isinstance(fst_item, dict):
+        return {key: default_collate([batch[key] for batch in batches]) for key in batches[0]}
+    raise TypeError('only accept "tensor", "list", "dict"')
+
+
+@torch.no_grad()
+def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader):
+    """
+    仅支持torch.Tensor, list和dict作为输入
+    Args:
+        module:
+        data_loader:
+
+    Returns:
+
+    """
+    module.eval()
+    outputs = []
+    labels = []
+    last_output_type = None
+    last_label_type = None
+    for graph, label in tqdm(data_loader):
+        label_type = _get_type(label)
+        if last_label_type and label_type != last_label_type:
+            raise TypeError('got inconsistent label type: {} and {}'.format(last_label_type, label_type))
+        output = module(graph)
+        ouptut_type = _get_type(output)
+        if last_output_type and ouptut_type != last_output_type:
+            raise TypeError('got inconsistent output type: {} and {}'.format(last_output_type, ouptut_type))
+        outputs.append(output)
+        labels.append(labels)
+        last_output_type = ouptut_type
+        last_label_type = label_type
+    return default_collate(outputs), default_collate(labels)
+
+
+def to_numpy(inputs):
+    if isinstance(inputs, list):
+        return [to_numpy(x) for x in inputs]
+    elif isinstance(inputs, dict):
+        return {k: to_numpy(v) for k, v in inputs.items()}
+    elif isinstance(inputs, torch.Tensor):
+        return inputs.cpu().detach().numpy()
+    elif isinstance(inputs, np.ndarray):
+        return inputs
+    else:
+        raise TypeError('only accept "tensor", "list", "dict", "numpy"')
+
+
+def detach(inputs):
+    if isinstance(inputs, list):
+        return [detach(x) for x in inputs]
+    elif isinstance(inputs, dict):
+        return {k: detach(v) for k, v in inputs.items()}
+    elif isinstance(inputs, torch.Tensor):
+        return inputs.cpu().detach()
+    else:
+        raise TypeError('only accept "tensor", "list", "dict"')
 
 
 def num_parameters(module: torch.nn.Module):
@@ -34,27 +113,12 @@ class MyModule(torch.nn.Module):
             inputs = self.raw_graph_parser.parse(inputs)
         return inputs
 
-    @torch.no_grad()
-    def predict_dataloader(self, loader: DataLoader, postfix=''):
-        if not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
+    def predict_dataloader(self, loader: DataLoader, postfix=None):
+        if not hasattr(loader, 'dataset') or not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
             print('recieved a not all2graph.Dataset, function check can not be done')
         elif isinstance(loader.dataset, CSVDataset) and loader.dataset.raw_graph_parser != self.raw_graph_parser:
             print('raw_graph_parser are not the same, which may cause undefined behavior')
-        self.eval()
-        labels = None
-        outputs = None
-        for graph, label in tqdm(loader, postfix=postfix):
-            output = self(graph)
-            if outputs is None:
-                outputs = {k: [v.detach().cpu()] for k, v in output.items()}
-                labels = {k: [v.detach().cpu()] for k, v in label.items()}
-            else:
-                for k in output:
-                    outputs[k].append(output[k].detach().cpu())
-                    labels[k].append(label[k].detach().cpu())
-        labels = {k: torch.cat(v, dim=0) for k, v in labels.items()}
-        outputs = {k: torch.cat(v, dim=0) for k, v in outputs.items()}
-        return outputs, labels
+        return predict_dataloader(self, loader, postfix)
 
     def fit(self, loader: DataLoader, **kwargs):
         if not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
