@@ -1,9 +1,14 @@
+import sys
 import os
 
 import all2graph as ag
 import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import mean_squared_error
+
+
+if 'darwin' in sys.platform.lower():
+    os.environ['OMP_NUM_THREADS'] = '1'
 
 
 class TestDataset(Dataset):
@@ -40,7 +45,7 @@ def test_trainer():
     x = torch.randn(num_samples, in_feats, dtype=torch.float32)
     y = torch.randn(num_samples, out_feats, dtype=torch.float32)
     dataset = TestDataset(x, y, key)
-    dataloader = DataLoader(dataset, batch_size=64)
+    dataloader = DataLoader(dataset, batch_size=64, num_workers=1)
     module = TestModule(in_feats, out_feats, key)
 
     trainer = ag.nn.Trainer(
@@ -53,7 +58,9 @@ def test_trainer():
     epochs = 10
     trainer.train(epochs)
     assert trainer._current_epoch < trainer.train_history.num_epochs < epochs
-    print(torch.load(os.path.join(trainer.check_point, os.listdir(trainer.check_point)[0])))
+    trainer = torch.load(os.path.join(trainer.check_point, os.listdir(trainer.check_point)[0]))
+    trainer.train(epochs)
+    assert trainer._current_epoch < trainer.train_history.num_epochs < epochs
 
 
 if __name__ == '__main__':
