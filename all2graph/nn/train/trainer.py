@@ -87,8 +87,9 @@ class Trainer(torch.nn.Module):
                     self.scheduler.step()
                 self.train_history.log(pred=pred, loss=loss, label=label)
                 bar.update()
+                bar.set_postfix({'loss': json_round(self.train_history.current_mean_loss, 3)})
             self.train_history.collate(epoch=self._current_epoch)
-            bar.set_postfix({'loss': json_round(torch.mean(self.train_history.epochs[self._current_epoch].loss), 3)})
+            bar.set_postfix({'loss': json_round(self.train_history.mean_loss(self._current_epoch), 3)})
 
     def train(self, epochs=10):
         try:

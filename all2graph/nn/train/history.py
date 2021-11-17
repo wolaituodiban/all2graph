@@ -1,5 +1,6 @@
 from typing import Dict
 
+import torch
 from torch.utils.data import DataLoader
 from ..utils import detach, default_collate
 
@@ -19,15 +20,20 @@ class History:
         self._current_pred = []
         self._current_label = []
         self._current_loss = []
+        self._current_batches = 0
+        self._current_mean_loss = 0
 
     @property
     def num_epochs(self):
         return len(self.epochs)
 
+    @torch.no_grad()
     def log(self, pred, label, loss):
         self._current_pred.append(detach(pred))
         self._current_label.append(detach(label))
         self._current_loss.append(detach(loss))
+        self._current_batches += 1
+        self._current_mean_loss += (loss - self._current_mean_loss) / self._current_batches
 
     def collate(self, epoch):
         self.epochs[epoch] = Epoch(
@@ -70,3 +76,10 @@ class History:
         if loss is not None:
             loss = detach(loss)
         self.epochs[epoch] = Epoch(pred=detach(pred), label=detach(label), loss=loss)
+
+    def mean_loss(self, epoch):
+        return torch.mean(self.epochs[epoch].loss)
+
+    @property
+    def current_mean_loss(self):
+        return self._current_mean_loss
