@@ -103,7 +103,8 @@ class Trainer(torch.nn.Module):
         except KeyboardInterrupt as e:
             raise e
         finally:
-            self.save()
+            if self.check_point:
+                self.save()
 
     def pred_valid(self):
         for i, valid_data in enumerate(self.valid_history):
