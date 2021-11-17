@@ -76,6 +76,9 @@ class Encoder(torch.nn.Module):
             output[name] = (self.nhead, self.d_model // self.nhead, self.d_model)
         return output
 
+    def use_matmul(self, b: bool):
+        self.body.use_matmul(b)
+
     def reset_parameters(self):
         self.value_embedding.reset_parameters()
         self.node_embedding.reset_parameters()

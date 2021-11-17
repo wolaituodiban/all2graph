@@ -18,15 +18,15 @@ def edgewise_linear(
     u表示前置节点的特征向量，v表示后置节点的特征向量
     activation(dropout(u) * W_u + b_u + dropout(v) * W_v + b_v)
 
-    :param.py graph     : 图
-    :param.py feat      : num_nodes * in_dim
-    :param.py u_weight  : num_edges * nheads * out_dim * in_dim
-    :param.py v_weight  : num_edges * nheads * out_dim * in_dim
-    :param.py u_bias    : num_edges * nheads * out_dim
-    :param.py v_bias    : num_edges * nheads * out_dim
-    :param.py norm      : 激活层之前的归一化
-    :param.py activation:
-    :param.py dropout   :
+    :param graph     : 图
+    :param feat      : num_nodes * in_dim
+    :param u_weight  : num_edges * nheads * out_dim * in_dim
+    :param v_weight  : num_edges * nheads * out_dim * in_dim
+    :param u_bias    : num_edges * nheads * out_dim
+    :param v_bias    : num_edges * nheads * out_dim
+    :param norm      : 激活层之前的归一化
+    :param activation:
+    :param dropout   :
     :return          : num_edges * nheads * out_dim
     """
     with graph.local_scope():
@@ -56,21 +56,27 @@ def nodewise_linear(
         dropout: torch.nn.Module = None,
         norm: torch.nn.Module = None,
         activation: torch.nn.Module = None,
+        use_matmul=False
 ) -> torch.Tensor:
     """
 
-    :param.py feat      : (num_nodes, in_dim)
-    :param.py weight    : (num_nodes, *, in_dim)
-    :param.py bias      : (num_nodes, *)
-    :param.py norm      : 激活层之前的归一化
-    :param.py activation: 激活层
-    :param.py dropout   :
+    :param feat      : (num_nodes, in_dim)
+    :param weight    : (num_nodes, *, in_dim)
+    :param bias      : (num_nodes, *)
+    :param norm      : 激活层之前的归一化
+    :param activation: 激活层
+    :param dropout   :
+    :param use_matmul: 是否使用matmul，否则会使用 * 加sum的操作替代。matmul速度较快，但是占用显存更多
     :return          : (num_nodes, *)
     """
     if dropout is not None:
         feat = dropout(feat)
-    shape = feat.shape[0], *[1]*(len(weight.shape)-len(feat.shape)), feat.shape[-1]
-    output = (feat.view(shape) * weight).sum(-1)
+    if use_matmul:
+        shape = feat.shape[0], *[1]*(len(weight.shape)-len(feat.shape)-1), feat.shape[-1], 1
+        output = torch.matmul(weight, feat.view(shape)).view(weight.shape[:-1])
+    else:
+        shape = feat.shape[0], *[1]*(len(weight.shape)-len(feat.shape)), feat.shape[-1]
+        output = (feat.view(shape) * weight).sum(-1)
     if bias is not None:
         output += bias
     if norm is not None:

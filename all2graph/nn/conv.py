@@ -41,7 +41,7 @@ class Conv(torch.nn.Module):
 
     def __init__(self, normalized_shape, dropout=0.1, key_bias=True, key_norm=False, key_activation=None,
                  value_bias=True, value_norm=False, value_activation=None, node_bias=True, node_norm=False,
-                 node_activation='relu', residual=True, norm=True):
+                 node_activation='relu', residual=True, norm=True, use_matmul=False):
         super().__init__()
         self.key_dropout = torch.nn.Dropout(dropout)
         self.key_bias = key_bias
@@ -62,6 +62,7 @@ class Conv(torch.nn.Module):
 
         self.residual = residual
         self.norm = torch.nn.LayerNorm(normalized_shape) if norm else None
+        self.use_matmul = use_matmul
 
     @property
     def edge_dynamic_parameter_names_2d(self):
@@ -173,7 +174,7 @@ class Conv(torch.nn.Module):
             out_feat = nodewise_linear(
                 out_feat, weight=parameters[self.NODE_WEIGHT],
                 bias=parameters[self.NODE_BIAS] if self.node_bias else None,
-                norm=self.node_norm, activation=self.node_activation)
+                norm=self.node_norm, activation=self.node_activation, use_matmul=self.use_matmul)
             # out_feat = self.node_dropout(out_feat)
             out_feat = out_feat.view(graph.num_nodes(), -1)
 
@@ -222,6 +223,10 @@ class Block(torch.nn.ModuleList):
     def reset_parameters(self):
         for layer in self:
             layer.reset_parameters()
+
+    def use_matmul(self, b: bool):
+        for conv in self:
+            conv.use_matmul = b
 
     def forward(
             self, graph, in_feat, parameters: Dict[str, torch.Tensor]
@@ -275,6 +280,10 @@ class Body(torch.nn.ModuleList):
     @property
     def dynamic_parameter_names(self):
         return self.dynamic_parameter_names_1d + self.dynamic_parameter_names_2d
+
+    def use_matmul(self, b: bool):
+        for block in self:
+            block.use_matmul(b)
 
     def reset_parameters(self):
         for layer in self:

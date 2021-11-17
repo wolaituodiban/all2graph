@@ -1,6 +1,7 @@
 import random
 import dgl
 import torch
+import all2graph as ag
 from all2graph.nn import Conv, Block
 
 
@@ -89,40 +90,41 @@ def test_shape():
     out_dim = emb_dim
     dim_per_head = out_dim // nhead
 
-    num_nodes = random.randint(1, 30)
-    num_edges = random.randint(1, 100)
+    num_nodes = random.randint(1, 3000)
+    num_edges = random.randint(1, 10000)
     graph = dgl.graph(
         (torch.randint(num_nodes-1, (num_edges,)), torch.randint(num_nodes-1, (num_edges,))),
         num_nodes=num_nodes)
 
-    src_key_weight = torch.randn(nhead, dim_per_head, emb_dim)
-    src_key_bias = torch.randn(nhead, dim_per_head)
-    dst_key_weight = torch.randn(nhead, dim_per_head, emb_dim)
-    dst_key_bias = torch.randn(nhead, dim_per_head)
+    src_key_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_edges, -1, -1, -1)
+    src_key_bias = torch.randn(nhead, dim_per_head).expand(num_edges, -1, -1)
+    dst_key_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_edges, -1, -1, -1)
+    dst_key_bias = torch.randn(nhead, dim_per_head).expand(num_edges, -1, -1)
 
-    src_value_weight = torch.randn(nhead, dim_per_head, emb_dim)
-    src_value_bias = torch.randn(nhead, dim_per_head)
-    dst_value_weight = torch.randn(nhead, dim_per_head, emb_dim)
-    dst_value_bias = torch.randn(nhead, dim_per_head)
+    src_value_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_edges, -1, -1, -1)
+    src_value_bias = torch.randn(nhead, dim_per_head).expand(num_edges, -1, -1)
+    dst_value_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_edges, -1, -1, -1)
+    dst_value_bias = torch.randn(nhead, dim_per_head).expand(num_edges, -1, -1)
 
-    query = torch.randn(nhead, dim_per_head)
-    node_weight = torch.randn(nhead, dim_per_head, emb_dim)
-    node_bias = torch.randn(nhead, dim_per_head)
+    query = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+    node_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+    node_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
 
     feat = torch.randn(num_nodes, emb_dim)
     conv = Conv(out_dim)
     node_feat, key, edge_feat, attn_weight = conv(
         graph, feat, dict(
-            src_key_weight=src_key_weight.expand(num_edges, -1, -1, -1),
-            src_key_bias=src_key_bias.expand(num_edges, -1, -1),
-            dst_key_weight=dst_key_weight.expand(num_edges, -1, -1, -1),
-            dst_key_bias=dst_key_bias.expand(num_edges, -1, -1),
-            src_value_weight=src_value_weight.expand(num_edges, -1, -1, -1),
-            src_value_bias=src_value_bias.expand(num_edges, -1, -1),
-            dst_value_weight=dst_value_weight.expand(num_edges, -1, -1, -1),
-            dst_value_bias=dst_value_bias.expand(num_edges, -1, -1),
-            query=query.expand(num_edges, -1, -1), node_weight=node_weight.expand(num_edges, -1, -1, -1),
-            node_bias=node_bias.expand(num_edges, -1, -1))
+            src_key_weight=src_key_weight,
+            src_key_bias=src_key_bias,
+            dst_key_weight=dst_key_weight,
+            dst_key_bias=dst_key_bias,
+            src_value_weight=src_value_weight,
+            src_value_bias=src_value_bias,
+            dst_value_weight=dst_value_weight,
+            dst_value_bias=dst_value_bias,
+            query=query,
+            node_weight=node_weight,
+            node_bias=node_bias)
     )
     assert node_feat.shape == (num_nodes, out_dim)
     assert key.shape == (num_edges, out_dim)
@@ -145,6 +147,30 @@ def test_shape():
         assert edge_feat.shape == (num_edges, out_dim)
     for attn_weight in attn_weights:
         assert attn_weight.shape == (num_edges, nhead)
+
+    conv.use_matmul = False
+    with ag.Timer('*'):
+        for _ in range(1000):
+            conv(
+                graph, feat, dict(
+                    src_key_weight=src_key_weight, src_key_bias=src_key_bias, dst_key_weight=dst_key_weight,
+                    dst_key_bias=dst_key_bias, src_value_weight=src_value_weight, src_value_bias=src_value_bias,
+                    dst_value_weight=dst_value_weight, dst_value_bias=dst_value_bias, query=query,
+                    node_weight=node_weight,
+                    node_bias=node_bias)
+            )
+
+    conv.use_matmul = True
+    with ag.Timer('*'):
+        for _ in range(1000):
+            conv(
+                graph, feat, dict(
+                    src_key_weight=src_key_weight, src_key_bias=src_key_bias, dst_key_weight=dst_key_weight,
+                    dst_key_bias=dst_key_bias, src_value_weight=src_value_weight, src_value_bias=src_value_bias,
+                    dst_value_weight=dst_value_weight, dst_value_bias=dst_value_bias, query=query,
+                    node_weight=node_weight,
+                    node_bias=node_bias)
+            )
 
 
 if __name__ == '__main__':

@@ -44,6 +44,8 @@ class History:
         self._current_pred = []
         self._current_loss = []
         self._current_label = []
+        self._current_batches = 0
+        self._current_mean_loss = 0
 
     def pop(self):
         min_epoch = min(list(self.epochs))
