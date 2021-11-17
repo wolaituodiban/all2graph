@@ -101,8 +101,8 @@ class Trainer(torch.nn.Module):
                     self.save()
                 if self.early_stop(self, None, self._current_epoch):
                     break
-        except KeyboardInterrupt as e:
-            raise e
+        except KeyboardInterrupt:
+            print('KeyboardInterrupt')
         finally:
             if self.check_point:
                 self.save()
