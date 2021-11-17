@@ -1,4 +1,5 @@
 import os
+import json
 from datetime import datetime as ddt
 from typing import Dict, Callable, List
 
@@ -72,7 +73,7 @@ class Trainer(torch.nn.Module):
     def save(self):
         torch.save(self, os.path.join(self.check_point, '{}.all2graph.trainer'.format(self._current_epoch)))
 
-    def train_one_epoch(self):
+    def train_one_epoch(self, digits=3):
         self._current_epoch += 1
         with tqdm(list(range(len(self.train_history.loader))), desc='train epoch {}'.format(self._current_epoch)) as bar:
             self.module.train()
@@ -87,16 +88,16 @@ class Trainer(torch.nn.Module):
                     self.scheduler.step()
                 self.train_history.log(pred=pred, loss=loss, label=label)
                 bar.update()
-                bar.set_postfix({'loss': json_round(self.train_history.current_mean_loss, 3)})
+                bar.set_postfix({'loss': json_round(self.train_history.current_mean_loss, digits)})
             self.train_history.collate(epoch=self._current_epoch)
-            bar.set_postfix({'loss': json_round(self.train_history.mean_loss(self._current_epoch), 3)})
+            bar.set_postfix({'loss': json_round(self.train_history.mean_loss(self._current_epoch), digits)})
 
-    def train(self, epochs=10):
+    def train(self, epochs=10, digits=3, indent=None):
         try:
             for _ in range(epochs):
-                self.train_one_epoch()
+                self.train_one_epoch(digits=digits)
                 self.pred_valid()
-                self.evaluate()
+                self.evaluate(digits=digits, indent=indent)
                 if self.check_point:
                     self.save()
                 if self.early_stop(self, None, self._current_epoch):
@@ -112,11 +113,11 @@ class Trainer(torch.nn.Module):
             pred, label = predict_dataloader(self.module, valid_data.loader, desc='pred valid {}'.format(i))
             valid_data.add_epoch(self._current_epoch, pred=pred, label=label)
 
-    def evaluate(self, epoch=None):
+    def evaluate(self, epoch=None, digits=3, indent=None):
         epoch = epoch or self._current_epoch
         for metric in self.metrics:
             metric(trainer=self, history=self.train_history, epoch=epoch)
-            print('train metrics: ', json_round(self.train_history.get_metric(epoch), 3))
+            print('train metrics: ', json.dumps(json_round(self.train_history.get_metric(epoch), digits), indent=indent))
             for i, valid_data in enumerate(self.valid_history):
                 metric(trainer=self, history=valid_data, epoch=epoch)
-                print('valid {} metrics: {}'.format(i, json_round(valid_data.get_metric(epoch), 3)))
+                print('valid {} metrics: {}'.format(i, json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent)))
