@@ -117,7 +117,9 @@ class Trainer(torch.nn.Module):
         epoch = epoch or self._current_epoch
         for metric in self.metrics:
             metric(trainer=self, history=self.train_history, epoch=epoch)
-            print('train metrics: ', json.dumps(json_round(self.train_history.get_metric(epoch), digits), indent=indent))
             for i, valid_data in enumerate(self.valid_history):
                 metric(trainer=self, history=valid_data, epoch=epoch)
-                print('valid {} metrics: {}'.format(i, json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent)))
+        print('train metrics: ', json.dumps(json_round(self.train_history.get_metric(epoch), digits), indent=indent))
+        for i, valid_data in enumerate(self.valid_history):
+            msg = json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent)
+            print('valid {} metrics: {}'.format(i, msg))
