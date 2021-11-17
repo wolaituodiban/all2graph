@@ -1,3 +1,4 @@
+import distutils.dir_util
 import os
 import json
 from datetime import datetime as ddt
@@ -48,7 +49,11 @@ class Trainer(torch.nn.Module):
         self.metrics = [Metric(metric, name) for name, metric in (metrics or {}).items()]
         self.callbacks = callbacks or []
         self.valid_callbacks = valid_callbacks or []
+
         if check_point:
+            check_point += '.log'
+            if not os.path.exists(check_point) or not os.path.isdir(check_point):
+                os.mkdir(check_point)
             self.check_point = os.path.join(check_point, ddt.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
             os.mkdir(self.check_point)
         else:
