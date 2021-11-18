@@ -14,20 +14,19 @@ class EpochBuffer:
         self.mean_loss = 0
 
     @torch.no_grad()
-    def log(self, pred, label, loss=None):
+    def log(self, pred, label, loss):
         self.pred.append(detach(pred))
         self.label.append(detach(label))
         self.batches += 1
-        if loss is not None:
-            self.loss.append(detach(loss))
-            self.mean_loss += (loss - self.mean_loss) / self.batches
+        self.loss.append(detach(loss))
+        self.mean_loss += (loss - self.mean_loss) / self.batches
 
 
 class Epoch:
     def __init__(self, pred, label, loss=None):
         self.pred = pred
         self.label = label
-        self.loss = loss or []
+        self.loss = loss
         self.metric = {}
 
     @classmethod

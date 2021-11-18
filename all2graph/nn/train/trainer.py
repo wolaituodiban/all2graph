@@ -82,9 +82,10 @@ class Trainer(torch.nn.Module):
         torch.save(self, path)
 
     def train_one_epoch(self, digits=3):
-        self._current_epoch += 1
         with tqdm(list(range(len(self.train_history.loader))), desc='train epoch {}'.format(self._current_epoch)) as bar:
+            self._current_epoch += 1
             self.module.train()
+            buffer = EpochBuffer()
             for data, label in self.train_history.loader:
                 # step fit
                 self.optimizer.zero_grad()
@@ -94,7 +95,6 @@ class Trainer(torch.nn.Module):
                 self.optimizer.step()
                 if self.scheduler:
                     self.scheduler.step()
-                buffer = EpochBuffer()
                 buffer.log(pred=pred, loss=loss, label=label)
                 bar.update()
                 bar.set_postfix({'loss': json_round(buffer.mean_loss, digits)})
