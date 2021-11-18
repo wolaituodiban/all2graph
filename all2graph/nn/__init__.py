@@ -6,4 +6,4 @@ from .functional import edgewise_linear, nodewise_linear
 from .loss import DictLoss, ListLoss
 from .meta import BaseMetaLearner, EncoderMetaLearner, EncoderMetaLearnerMocker
 from .output import FC
-from .utils import num_parameters, Predictor
+from .utils import num_parameters, Predictor, to_numpy, detach, default_collate, predict_dataloader

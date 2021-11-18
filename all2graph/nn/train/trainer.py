@@ -8,7 +8,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from .early_stop import EarlyStop
-from .history import History
+from .history import History, EpochBuffer
 from .metric import Metric
 from ..utils import predict_dataloader
 from ...utils import tqdm, json_round
@@ -94,10 +94,11 @@ class Trainer(torch.nn.Module):
                 self.optimizer.step()
                 if self.scheduler:
                     self.scheduler.step()
-                self.train_history.log(pred=pred, loss=loss, label=label)
+                buffer = EpochBuffer()
+                buffer.log(pred=pred, loss=loss, label=label)
                 bar.update()
-                bar.set_postfix({'loss': json_round(self.train_history.current_mean_loss, digits)})
-            self.train_history.collate(epoch=self._current_epoch)
+                bar.set_postfix({'loss': json_round(buffer.mean_loss, digits)})
+            self.train_history.insert_buffer(epoch=self._current_epoch, buffer=buffer)
             bar.set_postfix({'loss': json_round(self.train_history.mean_loss(self._current_epoch), digits)})
 
     def train(self, epochs=10, digits=3, indent=None):

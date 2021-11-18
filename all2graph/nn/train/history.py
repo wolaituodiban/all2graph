@@ -5,47 +5,47 @@ from torch.utils.data import DataLoader
 from ..utils import detach, default_collate
 
 
+class EpochBuffer:
+    def __init__(self):
+        self.pred = []
+        self.label = []
+        self.loss = []
+        self.batches = 0
+        self.mean_loss = 0
+
+    @torch.no_grad()
+    def log(self, pred, label, loss=None):
+        self.pred.append(detach(pred))
+        self.label.append(detach(label))
+        self.batches += 1
+        if loss is not None:
+            self.loss.append(detach(loss))
+            self.mean_loss += (loss - self.mean_loss) / self.batches
+
+
 class Epoch:
     def __init__(self, pred, label, loss=None):
         self.pred = pred
         self.label = label
-        self.loss = loss
+        self.loss = loss or []
         self.metric = {}
+
+    @classmethod
+    def from_buffer(cls, buffer: EpochBuffer):
+        pred = default_collate(buffer.pred)
+        label = default_collate(buffer.label)
+        loss = default_collate(buffer.loss)
+        return cls(pred=pred, label=label, loss=loss)
 
 
 class History:
     def __init__(self, loader: DataLoader):
         self.loader = loader
         self.epochs: Dict[int, Epoch] = {}
-        self._current_pred = []
-        self._current_label = []
-        self._current_loss = []
-        self._current_batches = 0
-        self._current_mean_loss = 0
 
     @property
     def num_epochs(self):
         return len(self.epochs)
-
-    @torch.no_grad()
-    def log(self, pred, label, loss):
-        self._current_pred.append(detach(pred))
-        self._current_label.append(detach(label))
-        self._current_loss.append(detach(loss))
-        self._current_batches += 1
-        self._current_mean_loss += (loss - self._current_mean_loss) / self._current_batches
-
-    def collate(self, epoch):
-        self.epochs[epoch] = Epoch(
-            pred=default_collate(self._current_pred),
-            label=default_collate(self._current_label),
-            loss=default_collate(self._current_loss)
-        )
-        self._current_pred = []
-        self._current_loss = []
-        self._current_label = []
-        self._current_batches = 0
-        self._current_mean_loss = 0
 
     def pop(self):
         min_epoch = min(list(self.epochs))
@@ -79,9 +79,8 @@ class History:
             loss = detach(loss)
         self.epochs[epoch] = Epoch(pred=detach(pred), label=detach(label), loss=loss)
 
+    def insert_buffer(self, epoch, buffer: EpochBuffer):
+        self.epochs[epoch] = Epoch.from_buffer(buffer)
+
     def mean_loss(self, epoch):
         return torch.mean(self.epochs[epoch].loss)
-
-    @property
-    def current_mean_loss(self):
-        return self._current_mean_loss
