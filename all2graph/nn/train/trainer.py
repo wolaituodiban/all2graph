@@ -76,7 +76,10 @@ class Trainer(torch.nn.Module):
         return ',\n'.join(output)
 
     def save(self):
-        torch.save(self, os.path.join(self.check_point, '{}.all2graph.trainer'.format(self._current_epoch)))
+        self.module.eval()
+        path = os.path.join(self.check_point, '{}.all2graph.trainer'.format(self._current_epoch))
+        print('save at "{}"'.format(path))
+        torch.save(self, path)
 
     def train_one_epoch(self, digits=3):
         self._current_epoch += 1
