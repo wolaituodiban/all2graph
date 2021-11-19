@@ -3,6 +3,7 @@ import math
 from typing import Dict, List
 
 import dgl.function as fn
+import numpy as np
 import torch
 from torch.nn.functional import linear
 
@@ -247,6 +248,7 @@ class EncoderMetaLearnerMocker(MyModule):
             '{}: {}'.format(name, tuple(param.shape)) for name, param in self.named_parameters(recurse=False))
         return output
 
+    @torch.no_grad()
     def load_pretrained(self, other, load_meta_number=False):
         """
         如果预测样本中包含一些字符串，不存在于预训练模型，但是存在于当前模型中，那么预训练模型的结果将无法复现！
@@ -261,43 +263,53 @@ class EncoderMetaLearnerMocker(MyModule):
                 if name in self.raw_graph_parser.meta_numbers:
                     self.raw_graph_parser.meta_numbers[name] = MetaNumber.from_json(meta_number.to_json())
 
-        with torch.no_grad():
-            for name in other.encoder.output.dynamic_parameter_names:
-                for layer_i in range(other.encoder.num_blocks):
-                    name_i = '{}_{}'.format(name, layer_i)
-                    if not hasattr(other, name_i) or not hasattr(self, name_i):
-                        continue
-                    for key, key_i in other.raw_graph_parser.key_mapper.items():
-                        if key not in self.raw_graph_parser.key_mapper:
-                            continue
-                        key_j = self.raw_graph_parser.key_mapper[key]
-                        getattr(self, name_i)[:, key_j] = getattr(other, name_i)[:, key_i]
-
-            for name in other.encoder.node_embedding.node_dynamic_parameter_names:
-                if not hasattr(other, name) or not hasattr(self, name):
+        load_num = 0
+        self_num = num_parameters(self)
+        for name in other.encoder.output.dynamic_parameter_names:
+            for layer_i in range(other.encoder.num_blocks):
+                name_i = '{}_{}'.format(name, layer_i)
+                if not hasattr(other, name_i) or not hasattr(self, name_i):
                     continue
                 for key, key_i in other.raw_graph_parser.key_mapper.items():
                     if key not in self.raw_graph_parser.key_mapper:
                         continue
                     key_j = self.raw_graph_parser.key_mapper[key]
-                    getattr(self, name)[key_j] = getattr(other, name)[key_i]
+                    temp = getattr(other, name_i)[:, key_i]
+                    load_num += np.prod(temp.shape)
+                    getattr(self, name_i)[:, key_j] = temp
 
-            for name in other.encoder.body.node_dynamic_parameter_names:
-                if not hasattr(other, name) or not hasattr(self, name):
+        for name in other.encoder.node_embedding.node_dynamic_parameter_names:
+            if not hasattr(other, name) or not hasattr(self, name):
+                continue
+            for key, key_i in other.raw_graph_parser.key_mapper.items():
+                if key not in self.raw_graph_parser.key_mapper:
                     continue
-                for key, key_i in other.raw_graph_parser.key_mapper.items():
-                    if key not in self.raw_graph_parser.key_mapper:
-                        continue
-                    key_j = self.raw_graph_parser.key_mapper[key]
-                    getattr(self, name)[:, key_j] = getattr(other, name)[:, key_i]
+                key_j = self.raw_graph_parser.key_mapper[key]
+                temp = getattr(other, name)[key_i]
+                load_num += np.prod(temp.shape)
+                getattr(self, name)[key_j] = temp
 
-            for name in other.encoder.body.edge_dynamic_parameter_names:
-                if not hasattr(other, name) or not hasattr(self, name):
+        for name in other.encoder.body.node_dynamic_parameter_names:
+            if not hasattr(other, name) or not hasattr(self, name):
+                continue
+            for key, key_i in other.raw_graph_parser.key_mapper.items():
+                if key not in self.raw_graph_parser.key_mapper:
                     continue
-                for key, key_i in other.raw_graph_parser.etype_mapper.items():
-                    if key not in self.raw_graph_parser.etype_mapper:
-                        continue
-                    key_j = self.raw_graph_parser.etype_mapper[key]
-                    getattr(self, name)[:, key_j] = getattr(other, name)[:, key_i]
+                key_j = self.raw_graph_parser.key_mapper[key]
+                temp = getattr(other, name)[:, key_i]
+                load_num += np.prod(temp.shape)
+                getattr(self, name)[:, key_j] = temp
 
+        for name in other.encoder.body.edge_dynamic_parameter_names:
+            if not hasattr(other, name) or not hasattr(self, name):
+                continue
+            for key, key_i in other.raw_graph_parser.etype_mapper.items():
+                if key not in self.raw_graph_parser.etype_mapper:
+                    continue
+                key_j = self.raw_graph_parser.etype_mapper[key]
+                temp = getattr(other, name)[:, key_i]
+                load_num += np.prod(temp.shape)
+                getattr(self, name)[:, key_j] = temp
+        print('{}: {}/{} ({:.1f}%) loaded from pretrained'.format(
+            self.__class__.__name__, load_num, self_num, 100*load_num/self_num))
         self.encoder.load_pretrained(other.encoder, self.raw_graph_parser, other.raw_graph_parser)

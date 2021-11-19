@@ -41,7 +41,7 @@ class Conv(torch.nn.Module):
 
     def __init__(self, normalized_shape, dropout=0.1, key_bias=True, key_norm=False, key_activation=None,
                  value_bias=True, value_norm=False, value_activation=None, node_bias=True, node_norm=False,
-                 node_activation='relu', residual=True, norm=True, use_matmul=False):
+                 node_activation='relu', residual=True, norm=True, use_matmul=True):
         super().__init__()
         self.key_dropout = torch.nn.Dropout(dropout)
         self.key_bias = key_bias

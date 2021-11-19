@@ -1,6 +1,6 @@
 from typing import List
 
-
+import numpy as np
 import torch
 
 from .conv import Conv, Body
@@ -99,14 +99,20 @@ class Encoder(torch.nn.Module):
     def extra_repr(self) -> str:
         return 'num_parameters={}'.format(num_parameters(self))
 
+    @torch.no_grad()
     def load_pretrained(self, other, self_parser, other_parser):
-        with torch.no_grad():
-            state_dict = other.state_dict()
-            # 根据parser的string mapper重新映射embedding weight
-            emb_weight = self.value_embedding.weight.clone().detach()  # 复制原来的embedding
-            for word, i in other_parser.string_mapper.items():
-                if word in self_parser.string_mapper:
-                    j = self_parser.string_mapper[word]
-                    emb_weight[j] = other.value_embedding.weight[i]
-            state_dict['value_embedding.weight'] = emb_weight
-            return self.load_state_dict(state_dict, strict=False)
+        state_dict = other.state_dict()
+        # 根据parser的string mapper重新映射embedding weight
+        emb_weight = self.value_embedding.weight.clone().detach()  # 复制原来的embedding
+        load_num = 0  # 加载的参数量
+        for word, i in other_parser.string_mapper.items():
+            if word in self_parser.string_mapper:
+                j = self_parser.string_mapper[word]
+                temp = other.value_embedding.weight[i]
+                load_num += np.prod(temp.shape)
+                emb_weight[j] = temp
+        state_dict['value_embedding.weight'] = emb_weight
+        self_num = num_parameters(self)
+        print('{}: {}/{} ({:.1f}%) loaded from pretrained'.format(
+            self.__class__.__name__, load_num, self_num, 100*load_num/self_num))
+        self.load_state_dict(state_dict, strict=False)
