@@ -10,30 +10,30 @@ def ks_score(y_true, y_score):
 
 class Metric:
     """
-    a wrapper for func, which will make the func which is label last
+    a wrapper for func, which will make the func which is label first
     Examples:
         >>> from sklearn.metrics import roc_auc_score
         ... y_hat = ...
         ... y = ...
         ... auc = Metric(roc_auc_score, label_first=True)
-        ... auc(y, y_hat)
+        ... auc(y_hat, y)
         0.5
 
         >>> y_hat = {'a': ..., 'b': ...}
         ... y = {'a': ..., 'b': ...}
         ... auc = Metric(roc_auc_score, label_first=True)
-        ... auc(y, y_hat)
+        ... auc(y_hat, y)
         {'a': 0.5, 'b': 0.5}
 
         >>> y_hat = [..., ...]
         ... y = [..., ...]
         ... auc = Metric(roc_auc_score, label_first=True)
-        ... auc(y, y_hat)
+        ... auc(y_hat, y)
         [0.5, 0.5]
 
     Args:
         func: metric func, list of funcs or dict of funcs
-        label_first: whether the metric func receive label as the first argument
+        label_first: whether the input metric func receive label as the first argument
 
     Returns:
         new function
@@ -49,13 +49,13 @@ class Metric:
             func_repr = self.func
         return '{}(func={}, label_first={})'.format(self.__class__.__name__, func_repr, self.label_first)
 
-    def call(self, pred, label):
+    def call(self, label, pred):
         if self.label_first:
             return self.func(label, pred)
         else:
             return self.func(pred, label)
 
-    def __call__(self, pred, label):
+    def __call__(self, label, pred):
         if isinstance(pred, np.ndarray):
             mask = np.bitwise_not(np.isnan(label))
             return self.call(pred=pred[mask], label=label[mask])
