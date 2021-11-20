@@ -24,7 +24,7 @@ class RawGraphParser(MetaStruct):
         :param keys: 如果是dict，那么dict的元素必须是list，代表name的分词
         :param edge_type:
         :param targets:
-        :param filter_keys: 如果是True，那么parse函数会过滤掉不是别的key对应的node和edge
+        :param filter_key: 如果是True，那么parse函数会过滤掉不是别的key对应的node和edge
         """
         super().__init__(initialized=True)
         self.meta_numbers = {k: MetaNumber.from_json(v.to_json()) for k, v in meta_numbers.items()}

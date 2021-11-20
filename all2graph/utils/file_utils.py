@@ -75,7 +75,7 @@ def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chi
             yield buffer
 
 
-def split_csv(src, dst, chunksize, disable=True, zip=True, error=True, warning=True, concat_chip=False, **kwargs):
+def split_csv(src, dst, chunksize, disable=True, zip=True, error=True, warning=True, concat_chip=True, **kwargs):
     """
 
     :param src: panda DataFrame或者"文件路径、文件夹路径或者Iterable的任意嵌套"

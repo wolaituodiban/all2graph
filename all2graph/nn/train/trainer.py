@@ -22,7 +22,7 @@ class Trainer(torch.nn.Module):
             self, module: torch.nn.Module, loss: torch.nn.Module, data: DataLoader,
             optimizer: torch.optim.Optimizer = None, scheduler=None, valid_data: List[DataLoader] = None,
             early_stop: EarlyStop = None, metrics: Dict[str, Callable] = None, callbacks: List[Callable] = None,
-            valid_callbacks: List[Callable] = None, check_point=None):
+            valid_callbacks: List[Callable] = None, check_point=None, max_batch=None):
         """
 
         Args:
@@ -37,6 +37,7 @@ class Trainer(torch.nn.Module):
             callbacks:
             valid_callbacks:
             check_point: 保存路径
+            max_batch: 当每个epoch训练的batch数量达到这个值时就会停止，可以用于防止batch太大时dataloader报mmap错误
         """
         super().__init__()
         self.module = module
@@ -49,6 +50,7 @@ class Trainer(torch.nn.Module):
         self.metrics = [Metric(metric, name) for name, metric in (metrics or {}).items()]
         self.callbacks = callbacks or []
         self.valid_callbacks = valid_callbacks or []
+        self.max_batch = max_batch
 
         if check_point:
             check_point += '.log'
@@ -82,8 +84,8 @@ class Trainer(torch.nn.Module):
         torch.save(self, path)
 
     def train_one_epoch(self, digits=3):
+        self._current_epoch += 1
         with tqdm(list(range(len(self.train_history.loader))), desc='train epoch {}'.format(self._current_epoch)) as bar:
-            self._current_epoch += 1
             self.module.train()
             buffer = EpochBuffer()
             for data, label in self.train_history.loader:
@@ -98,6 +100,8 @@ class Trainer(torch.nn.Module):
                 buffer.log(pred=pred, loss=loss, label=label)
                 bar.update()
                 bar.set_postfix({'loss': json_round(buffer.mean_loss, digits)})
+                if self.max_batch and buffer.batches >= self.max_batch:
+                    break
             self.train_history.insert_buffer(epoch=self._current_epoch, buffer=buffer)
             bar.set_postfix({'loss': json_round(self.train_history.mean_loss(self._current_epoch), digits)})
 

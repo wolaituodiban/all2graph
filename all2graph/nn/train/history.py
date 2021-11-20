@@ -19,7 +19,7 @@ class EpochBuffer:
         self.label.append(detach(label))
         self.batches += 1
         self.loss.append(detach(loss))
-        self.mean_loss += (loss - self.mean_loss) / self.batches
+        self.mean_loss += (detach(loss) - self.mean_loss) / self.batches
 
 
 class Epoch:
@@ -30,6 +30,7 @@ class Epoch:
         self.metric = {}
 
     @classmethod
+    @torch.no_grad()
     def from_buffer(cls, buffer: EpochBuffer):
         pred = default_collate(buffer.pred)
         label = default_collate(buffer.label)
@@ -81,5 +82,6 @@ class History:
     def insert_buffer(self, epoch, buffer: EpochBuffer):
         self.epochs[epoch] = Epoch.from_buffer(buffer)
 
+    @torch.no_grad()
     def mean_loss(self, epoch):
         return torch.mean(self.epochs[epoch].loss)
