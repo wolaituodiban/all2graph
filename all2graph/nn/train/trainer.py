@@ -84,7 +84,7 @@ class Trainer(torch.nn.Module):
         print('save at "{}"'.format(path))
         torch.save(self, path)
 
-    def train_one_epoch(self, digits=3):
+    def fit_one_epoch(self, digits=3):
         self._current_epoch += 1
         with tqdm(
                 list(range(len(self.train_history.loader))),
@@ -109,15 +109,15 @@ class Trainer(torch.nn.Module):
             self.train_history.insert_buffer(epoch=self._current_epoch, buffer=buffer)
             bar.set_postfix({'loss': json_round(self.train_history.mean_loss(self._current_epoch), digits)})
 
-    def train(self, epochs=10, digits=3, indent=None):
+    def fit(self, epochs=10, digits=3, indent=None):
         try:
             for _ in range(epochs):
-                self.train_one_epoch(digits=digits)
+                self.fit_one_epoch(digits=digits)
                 self.pred_valid()
                 self.evaluate(digits=digits, indent=indent)
                 if self.check_point:
                     self.save()
-                if self.early_stop(self, None, self._current_epoch):
+                if self.early_stop is not None and self.early_stop(self, None, self._current_epoch):
                     break
         except KeyboardInterrupt:
             print('KeyboardInterrupt')
