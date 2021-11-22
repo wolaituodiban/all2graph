@@ -55,6 +55,7 @@ def test_trainer():
         early_stop=ag.nn.EarlyStop(1, False, tol=0.01, json_path=ag.json.JsonPathTree([('$.mse', ), ('$.haha', )])),
         check_point=os.path.join(os.path.dirname(__file__), __file__),
     )
+    print(trainer)
     trainer.evaluate()
     epochs = 20
     trainer.train(epochs)

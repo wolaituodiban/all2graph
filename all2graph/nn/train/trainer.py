@@ -12,6 +12,7 @@ from .history import History, EpochBuffer
 from .metric import Metric
 from ..utils import predict_dataloader
 from ...utils import tqdm, json_round
+from ...version import __version__
 
 
 class Trainer(torch.nn.Module):
@@ -53,7 +54,7 @@ class Trainer(torch.nn.Module):
         self.max_batch = max_batch
 
         if check_point:
-            check_point += '.log'
+            check_point = '.'.join([check_point, __version__])
             if not os.path.exists(check_point) or not os.path.isdir(check_point):
                 os.mkdir(check_point)
             self.check_point = os.path.join(check_point, ddt.now().strftime('%Y-%m-%d %H:%M:%S.%f'))

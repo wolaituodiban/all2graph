@@ -36,9 +36,12 @@ class EarlyStop(CallBack):
             json_path_tree_repr = '\n'.join('    '+x for x in str(self.json_path_tree).split('\n'))
         else:
             json_path_tree_repr = None
-        return '{}(\n  rounds={},\n  higher={},\n  tol={},\n  loader_id={},\n  json_path_tree=(\n{}\n  )\n),\n  best_epoch={}'.format(
-            self.__class__.__name__, self.rounds, self.higher, self.tol, self.loader_id, json_path_tree_repr, self._best_epoch
+
+        output = '{}(\n  rounds={},\n  higher={},\n  tol={},\n  loader_id={},\n  best_epoch={},\n'.format(
+            self.__class__.__name__, self.rounds, self.higher, self.tol, self.loader_id, self._best_epoch
         )
+        output += '  json_path_tree=(\n{}\n  )\n)'.format(json_path_tree_repr)
+        return output
 
     def __call__(self, trainer, _, epoch: int) -> bool:
         """
