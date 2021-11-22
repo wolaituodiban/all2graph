@@ -24,5 +24,8 @@ class Metric(CallBack):
         return '{}(func={}, name="{}")'.format(self.__class__.__name__, func_repr, self.name)
 
     def __call__(self, trainer, history: History, epoch: int):
-        metric = self.func(to_numpy(history.get_label(epoch)), to_numpy(history.get_pred(epoch)))
-        history.add_metric(epoch, key=self.name, value=metric)
+        label = history.get_label(epoch)
+        pred = history.get_pred(epoch)
+        if label is not None and pred is not None:
+            metric = self.func(to_numpy(label), to_numpy(pred))
+            history.add_metric(epoch, key=self.name, value=metric)

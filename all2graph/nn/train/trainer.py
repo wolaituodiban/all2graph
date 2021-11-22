@@ -85,7 +85,10 @@ class Trainer(torch.nn.Module):
 
     def train_one_epoch(self, digits=3):
         self._current_epoch += 1
-        with tqdm(list(range(len(self.train_history.loader))), desc='train epoch {}'.format(self._current_epoch)) as bar:
+        with tqdm(
+                list(range(len(self.train_history.loader))),
+                desc='epoch {} train'.format(self._current_epoch)
+        ) as bar:
             self.module.train()
             buffer = EpochBuffer()
             for data, label in self.train_history.loader:
@@ -123,7 +126,9 @@ class Trainer(torch.nn.Module):
 
     def pred_valid(self):
         for i, valid_data in enumerate(self.valid_history):
-            pred, label = predict_dataloader(self.module, valid_data.loader, desc='pred valid {}'.format(i))
+            pred, label = predict_dataloader(
+                self.module, valid_data.loader, desc='epoch {} val {}'.format(self._current_epoch, i)
+            )
             valid_data.add_epoch(self._current_epoch, pred=pred, label=label)
 
     def evaluate(self, epoch=None, digits=3, indent=None):
@@ -132,7 +137,10 @@ class Trainer(torch.nn.Module):
             metric(trainer=self, history=self.train_history, epoch=epoch)
             for i, valid_data in enumerate(self.valid_history):
                 metric(trainer=self, history=valid_data, epoch=epoch)
-        print('train metrics: ', json.dumps(json_round(self.train_history.get_metric(epoch), digits), indent=indent))
+        print(
+            'epoch {} train metrics:'.format(epoch),
+            json.dumps(json_round(self.train_history.get_metric(epoch), digits), indent=indent)
+        )
         for i, valid_data in enumerate(self.valid_history):
             msg = json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent)
-            print('valid {} metrics: {}'.format(i, msg))
+            print('epoch {} val {} metrics: {}'.format(epoch, i, msg))

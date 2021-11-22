@@ -59,17 +59,20 @@ class History:
         return self.epochs[max_epoch]
 
     def get_label(self, epoch):
-        return self.epochs[epoch].label
+        if epoch in self.epochs:
+            return self.epochs[epoch].label
 
     def get_pred(self, epoch):
-        return self.epochs[epoch].pred
+        if epoch in self.epochs:
+            return self.epochs[epoch].pred
 
     def get_metric(self, epoch, key=None):
-        metric = self.epochs[epoch].metric
-        if key:
-            return metric[key]
-        else:
-            return metric
+        if epoch in self.epochs:
+            metric = self.epochs[epoch].metric
+            if key:
+                return metric[key]
+            else:
+                return metric
 
     def add_metric(self, epoch, key, value):
         self.epochs[epoch].metric[key] = value
