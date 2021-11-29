@@ -66,6 +66,10 @@ def test_trainer():
     assert trainer._current_epoch < trainer.train_history.num_epochs < epochs
     trainer.early_stop = None
     trainer.fit(epochs)
+    trainer.train_history = None
+    trainer.fit(1)
+    assert trainer.error_msg is not None
+    print(trainer.error_msg)
 
 
 if __name__ == '__main__':

@@ -1,6 +1,6 @@
-import distutils.dir_util
 import os
 import json
+import traceback
 from datetime import datetime as ddt
 from typing import Dict, Callable, List
 
@@ -64,6 +64,8 @@ class Trainer(torch.nn.Module):
 
         self._current_epoch = 0
 
+        self.error_msg = None
+
     def extra_repr(self) -> str:
         output = ['optimizer={}'.format(self.optimizer)]
         if self.scheduler:
@@ -121,6 +123,8 @@ class Trainer(torch.nn.Module):
                     break
         except KeyboardInterrupt:
             print('KeyboardInterrupt')
+        except:
+            self.error_msg = traceback.format_exc()
         finally:
             if self.check_point:
                 self.save()
