@@ -233,14 +233,18 @@ class RawGraphParser(MetaStruct):
                   targets=None, tokenizer: Tokenizer = default_tokenizer, filter_key=False):
         """
 
-        :param meta_info:
-        :param min_df: 字符串最小文档平吕
-        :param max_df: 字符串最大文档频率
-        :param top_k: 选择前k个字符串
-        :param top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
-        :param targets:
-        :param tokenizer:
-        :param filter_key:
+        Args:
+            meta_info:
+            min_df: 字符串最小文档平吕
+            max_df: 字符串最大文档频率
+            top_k: 选择前k个字符串
+            top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
+            targets:
+            tokenizer:
+            filter_key:
+
+        Returns:
+
         """
         strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:

@@ -85,6 +85,17 @@ class MetaInfo(MetaStruct):
 
     @classmethod
     def from_data(cls, graph: RawGraph, index_nodes=None, disable=True, num_bins=None):
+        """
+
+        Args:
+            graph: 输入，需要是RawGraph
+            index_nodes: index node的坐标，用于排除index
+            disable: 禁用进度条
+            num_bins: 统计各种分布时的分箱数量
+
+        Returns:
+
+        """
         node_df = pd.DataFrame(
             {
                 COMPONENT_ID: graph.component_id,

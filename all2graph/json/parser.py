@@ -38,19 +38,24 @@ class JsonParser(DataParser):
     ):
         """
 
-        :param flatten_dict:
-        :param dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
-        :param list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
-        :param list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
-        :param r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
-        :param local_id_keys:
-        :param global_id_keys:
-        :param segment_value:
-        :param self_loop:
-        :param processors: JsonPathTree的参数,
-        :param error: 如果遇到错误，会报错
-        :param warning: 如果遇到错误，会报警
-        :param
+        Args:
+            json_col:
+            time_col:
+            time_format:
+            flatten_dict:
+            dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
+            list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
+            list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
+            r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
+            local_id_keys:
+            global_id_keys:
+            segment_value:
+            self_loop:
+            processors: JsonPathTree的参数,
+            tokenizer: 默认使用None
+            error: 如果遇到错误，会报错
+            warning: 如果遇到错误，会报警
+            **kwargs:
         """
         super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, **kwargs)
         self.flatten_dict = flatten_dict

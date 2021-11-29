@@ -9,6 +9,36 @@ from pandas.errors import ParserError
 from .tqdm_utils import tqdm
 
 
+# def iter_files(inputs, error=True, warning=True):
+#     """
+#
+#     :param inputs: 文件路径、文件夹路径或者Iterable的任意嵌套
+#     :param error: 如果inputs包含的内容不是文件路径、文件夹路径或者Iterable，那么会报错
+#     :param warning: 如果inputs包含的内容不是文件路径、文件夹路径或者Iterable，那么会报warning
+#     :return: 遍历所有文件路径的生成器
+#     """
+#     if isinstance(inputs, str):
+#         if os.path.exists(inputs):
+#             if os.path.isdir(inputs):
+#                 for dirpath, dirnames, filenames in os.walk(inputs):
+#                     for filename in filenames:
+#                         yield os.path.join(dirpath, filename)
+#             else:
+#                 yield inputs
+#         elif error:
+#             raise ValueError('path {} dose not exists'.format(inputs))
+#         elif warning:
+#             print('path {} dose not exists'.format(inputs), file=sys.stderr)
+#     elif isinstance(inputs, Iterable):
+#         for item in inputs:
+#             for path in iter_files(item, error=error, warning=warning):
+#                 yield path
+#     elif error:
+#         raise ValueError('path {} dose not exists'.format(inputs))
+#     elif warning:
+#         print('path {} dose not exists'.format(inputs), file=sys.stderr)
+
+
 def iter_files(inputs, error=True, warning=True):
     """
 
@@ -20,9 +50,10 @@ def iter_files(inputs, error=True, warning=True):
     if isinstance(inputs, str):
         if os.path.exists(inputs):
             if os.path.isdir(inputs):
-                for dirpath, dirnames, filenames in os.walk(inputs):
-                    for filename in filenames:
-                        yield os.path.join(dirpath, filename)
+                for path in iter_files(
+                        [os.path.join(inputs, path) for path in os.listdir(inputs)], error=error, warning=warning
+                ):
+                    yield path
             else:
                 yield inputs
         elif error:
@@ -75,7 +106,7 @@ def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chi
             yield buffer
 
 
-def split_csv(src, dst, chunksize, disable=True, zip=True, error=True, warning=True, concat_chip=True, **kwargs):
+def split_csv(src, dst, chunksize, disable=False, zip=True, error=True, warning=True, concat_chip=True, **kwargs):
     """
 
     :param src: panda DataFrame或者"文件路径、文件夹路径或者Iterable的任意嵌套"

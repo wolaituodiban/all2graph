@@ -27,10 +27,11 @@ def test_iter_files():
         for path in ag.iter_files(['./haha', './'], error=False):
             print(path)
 
-    test_dir()
-    test_list()
-    test_error()
-    test_warning()
+    with ag.Timer('test_iter_files'):
+        test_dir()
+        test_list()
+        test_error()
+        test_warning()
 
 
 def test_dataframe_chunk_iter():

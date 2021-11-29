@@ -26,10 +26,31 @@ def _verify_kwargs(func, *args, kwargs):
 
 
 class Factory(MetaStruct):
+    """Factory"""
     def __init__(
-            self, data_parser: DataParser, meta_info_config: dict = None, raw_graph_parser_config: dict = None,
-            **kwargs):
-        super().__init__(initialized=True, **kwargs)
+            self, data_parser: DataParser, meta_info_config: dict = None, raw_graph_parser_config: dict = None):
+        """
+
+        Args:
+            data_parser:
+            meta_info_config:
+                graph: 输入，需要是RawGraph
+                index_nodes: index node的坐标，用于排除index
+                disable: 禁用进度条
+                num_bins: 统计各种分布时的分箱数量
+            raw_graph_parser_config:
+                meta_info:
+                min_df: 字符串最小文档平吕
+                max_df: 字符串最大文档频率
+                top_k: 选择前k个字符串
+                top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
+                targets:
+                tokenizer:
+                filter_key:
+
+        """
+
+        super().__init__(initialized=True)
         if meta_info_config is not None:
             unexp_args = _verify_kwargs(MetaInfo.from_data, RawGraph(), kwargs=meta_info_config)
             assert len(unexp_args) == 0, 'meta_info_config got unexpected keyword argument {}'.format(unexp_args)

@@ -102,6 +102,7 @@ def test_produce_model():
 
 
 if __name__ == '__main__':
+    print(help(ag.Factory))
     test_analyse()
     test_produce_dataloader()
     test_produce_model()
