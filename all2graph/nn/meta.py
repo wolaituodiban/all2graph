@@ -258,6 +258,8 @@ class EncoderMetaLearnerMocker(MyModule):
             那么会加载预训练模型储存的分布数据，并且复现预训练模型的结果；否则，预测结果会存在一些偏差
         :return:
         """
+        # todo 加载size不同的模型
+        # todo 进度条显示已经加载的参数量
         if load_meta_number:
             for name, meta_number in other.raw_graph_parser.meta_numbers.items():
                 if name in self.raw_graph_parser.meta_numbers:

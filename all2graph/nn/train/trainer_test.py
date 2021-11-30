@@ -61,6 +61,7 @@ def test_trainer():
     trainer.fit(epochs)
     assert trainer._current_epoch < trainer.train_history.num_epochs < epochs
     trainer = torch.load(os.path.join(trainer.check_point, os.listdir(trainer.check_point)[0]))
+    assert isinstance(trainer, ag.nn.Trainer)
     trainer.max_batch = 1000
     trainer.fit(epochs)
     assert trainer._current_epoch < trainer.train_history.num_epochs < epochs
@@ -70,6 +71,11 @@ def test_trainer():
     trainer.fit(1)
     assert trainer.error_msg is not None
     print(trainer.error_msg)
+
+    trainer.reset_dataloader(batch_size=32, num_workers=2, valid_id=0)
+    assert trainer.valid_history[0].loader.batch_size == 32
+
+    trainer.build_predictor(0)
 
 
 if __name__ == '__main__':

@@ -1,8 +1,9 @@
 import os
 import json
+import sys
 import traceback
 from datetime import datetime as ddt
-from typing import Dict, Callable, List
+from typing import Dict, Callable, List, Union
 
 import torch
 from torch.utils.data import DataLoader
@@ -10,7 +11,7 @@ from torch.utils.data import DataLoader
 from .early_stop import EarlyStop
 from .history import History, EpochBuffer
 from .metric import Metric
-from ..utils import predict_dataloader
+from ..utils import predict_dataloader, Predictor, MyModule
 from ...utils import tqdm, json_round
 from ...version import __version__
 
@@ -149,3 +150,42 @@ class Trainer(torch.nn.Module):
         for i, valid_data in enumerate(self.valid_history):
             msg = json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent)
             print('epoch {} val {} metrics: {}'.format(epoch, i, msg))
+
+    def reset_dataloader(self, *args, valid_id=None, **kwargs):
+        """
+        重新设置dataloader的参数
+        Args:
+            *args: DataLoader的参数
+            valid_id: 如果None，那么重置train dataloder，否则重置对应的valid dataloader
+            **kwargs: DataLoader的参数
+
+        Returns:
+
+        """
+        if valid_id is None:
+            self.train_history.reset_dataloader(*args, **kwargs)
+        else:
+            self.valid_history[valid_id].reset_dataloader(*args, **kwargs)
+
+    def build_predictor(self, valid_id=None) -> Union[Predictor, None]:
+        """
+        生成一个predictor
+        Args:
+            valid_id: 如果None，那么使用train dataloader的data parser，否则使用对应valid dataloader的data parser
+
+        Returns:
+
+        """
+        if valid_id is None:
+            data_parser = self.train_history.get_data_parser()
+        else:
+            data_parser = self.valid_history[0].get_data_parser()
+
+        if data_parser is None:
+            print('failed to build predictor', file=sys.stderr)
+            return
+        if not isinstance(self.module, MyModule):
+            print('module is not a all2graph module, can build predictor', file=sys.stderr)
+            return
+
+        return Predictor(data_parser=data_parser, module=self.module)

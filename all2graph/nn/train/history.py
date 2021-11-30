@@ -1,8 +1,11 @@
-from typing import Dict
+import sys
+from typing import Dict, Union
 
 import torch
 from torch.utils.data import DataLoader
 from ..utils import detach, default_collate
+from ...data import CSVDataset
+from ...parsers import DataParser
 
 
 class EpochBuffer:
@@ -88,3 +91,32 @@ class History:
     @torch.no_grad()
     def mean_loss(self, epoch):
         return torch.mean(self.epochs[epoch].loss)
+
+    def reset_dataloader(self, *args, **kwargs):
+        """
+        重新设置dataloader的参数
+        Args:
+            *args: DataLoader的参数
+            **kwargs: DataLoader的参数
+
+        Returns:
+
+        """
+        if not hasattr(self.loader, 'dataset'):
+            print('data loader do not have dataset, can not be reset', file=sys.stderr)
+
+        self.loader = DataLoader(self.loader.dataset, *args, **kwargs)
+
+    def get_data_parser(self) -> Union[DataParser, None]:
+        """
+        获得dataloader的data parser
+        Returns:
+
+        """
+        if not hasattr(self.loader, 'dataset'):
+            print('data loader do not have dataset, can not get data parser', file=sys.stderr)
+            return
+        if not isinstance(self.loader.dataset, CSVDataset):
+            print('dataset is not a CSVDataset, can not get data parser', file=sys.stderr)
+            return
+        return self.loader.dataset.data_parser
