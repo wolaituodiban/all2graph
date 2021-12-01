@@ -2,7 +2,7 @@ import json
 import pandas as pd
 
 # https://www.kaggle.com/sureshmecad/mens-shoe-prices
-df = pd.read_csv('MensShoePrices/archive/train.csv')
+df = pd.read_csv('MensShoePrices/archive/train.csv', nrows=100)
 
 new_df = []
 for i, row in df.iterrows():

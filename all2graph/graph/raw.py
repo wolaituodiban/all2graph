@@ -2,16 +2,18 @@ from itertools import permutations
 from typing import Dict, List, Union, Tuple, Iterable, Set
 
 import numpy as np
+import pandas as pd
 
 from ..preserves import KEY, VALUE, TARGET, READOUT, META
 from ..meta_struct import MetaStruct
-from ..utils import Tokenizer
+from ..utils import Tokenizer, tqdm
 
 # todo 支持点分类和点回归，支持mask自监督
 # 考虑在此模式下，将symbol作为他用，比如用于存储点的label
 # 或者增加设计labels，并设计symbol和labels启用的开关
 # 考虑dataset的兼容性和factory的兼容性
 # 考虑encoder的兼容性
+
 
 class RawGraph(MetaStruct):
     def __init__(self, component_id=None, key=None, value=None, src=None, dst=None, symbol=None, initialized=True,
@@ -97,13 +99,14 @@ class RawGraph(MetaStruct):
             value: Union[dict, list, str, int, float, bool, None],
             self_loop: bool
     ) -> int:
-        return self.insert_node(component_id=component_id, key=READOUT, value=value, self_loop=self_loop, symbol=READOUT)
+        return self.insert_node(
+            component_id=component_id, key=READOUT, value=value, self_loop=self_loop, symbol=READOUT)
 
     def add_targets(self, targets):
         new_graph = RawGraph(component_id=list(self.component_id), key=list(self.key), value=list(self.value),
                              src=list(self.src), dst=list(self.dst), symbol=list(self.symbol))
-        for i, type in enumerate(new_graph.symbol):
-            if type == READOUT:
+        for i, _type in enumerate(new_graph.symbol):
+            if _type == READOUT:
                 for target in targets:
                     target_id = new_graph.insert_node(
                         new_graph.component_id[i], target, value=TARGET, self_loop=False, symbol=TARGET)
@@ -317,3 +320,81 @@ class RawGraph(MetaStruct):
             new_graph = RawGraph(
                 component_id=self.component_id, key=self.key, value=self.value, symbol=self.symbol, src=src, dst=dst)
             return new_graph, dropped_keys
+
+    def to_networkx(self, disable=True, exclude_keys=None, include_keys=None):
+        import networkx as nx
+
+        nx_graph = nx.MultiDiGraph()
+        for i, (cid, key, value, symbol) in tqdm(
+                enumerate(zip(self.component_id, self.key, self.value, self.symbol)), disable=disable, desc='add nodes'
+        ):
+            if exclude_keys is not None and key in exclude_keys:
+                continue
+            if include_keys is None or key in include_keys:
+                nx_graph.add_node(i, component_id=cid, key=key, value=value, symbol=symbol)
+        for src, dst in tqdm(zip(self.src, self.dst), disable=disable, desc='add edges'):
+            src_key = self.key[src]
+            dst_key = self.key[dst]
+            if exclude_keys is not None and (src_key in exclude_keys or dst_key in exclude_keys):
+                continue
+            if include_keys is None or (src_key in include_keys and dst_key in include_keys):
+                nx_graph.add_edge(src, dst, key=(src_key, dst_key))
+
+        return nx_graph
+
+    def draw(
+            self, include_keys=None, exclude_keys=None, disable=True, pos=None, scale=1, center=None, dim=2,
+            node_size=32, arrowsize=8, norm=None, cmap='nipy_spectral', with_labels=False, **kwargs
+    ):
+        """
+
+        Args:
+            include_keys: 仅包含key对应的点
+            exclude_keys: 去掉key对应的点
+            disable: 禁用进度条
+            pos: 图中每个点的坐标，默认会使用network.planar_layout计算最优坐标
+            scale: 详情间network.planar_layout
+            center: 详情间network.planar_layout
+            dim: 详情间network.planar_layout
+            node_size: 点的大小
+            arrowsize: 箭头大小
+            norm: 详情间network.draw
+            cmap: 详情间network.draw
+            with_labels: 详情间network.draw
+            **kwargs: 详情间network.draw
+
+        Returns:
+
+        """
+        import matplotlib.pyplot as plt
+        from networkx.drawing import draw
+        from networkx.drawing.layout import planar_layout
+        import matplotlib.patches as mpatches
+        from matplotlib.cm import ScalarMappable
+
+        fig, ax = plt.subplots()
+
+        # 转成networkx
+        nx_graph = self.to_networkx(include_keys=include_keys, exclude_keys=exclude_keys, disable=disable)
+        labels = {node: attr['key'] for node, attr in nx_graph.nodes.items()}
+        pos = pos or planar_layout(nx_graph, scale=scale, center=center, dim=dim)
+
+        # 设置颜色
+        node_color = pd.factorize(list(labels.values()))[0]
+        node_color = ScalarMappable(norm=norm, cmap=cmap).to_rgba(node_color)
+
+        # 画
+        draw(
+            nx_graph, pos=pos, ax=ax, node_size=node_size, arrowsize=arrowsize, node_color=np.array(node_color),
+            labels=labels, with_labels=with_labels, **kwargs
+        )
+
+        # 加标注
+        patches = {}
+        for i, key in tqdm(enumerate(labels.values()), disable=disable, desc='add legends'):
+            if key in patches:
+                continue
+            patches[key] = mpatches.Patch(color=node_color[i], label=key)
+        ax.legend(handles=patches.values())
+
+        return fig, ax
