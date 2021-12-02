@@ -124,9 +124,9 @@ class Trainer(torch.nn.Module):
                     break
         except KeyboardInterrupt:
             print('KeyboardInterrupt')
-        except Exception as e:
+        except:
             self.error_msg = traceback.format_exc()
-            raise e
+            print(self.error_msg)
         finally:
             if self.check_point:
                 self.save()

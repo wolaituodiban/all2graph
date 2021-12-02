@@ -3,22 +3,21 @@ import shutil
 
 import pandas as pd
 import all2graph as ag
-from all2graph import JsonParser, Timer
-from all2graph.data import CSVDataset
+
 
 import platform
 if 'darwin' in platform.system().lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-def test_graph_file():
+def test_dataset():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
     path = os.path.dirname(path)
     csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
-    df = pd.read_csv(csv_path, nrows=1000)
+    df = pd.read_csv(csv_path)
 
-    json_parser = JsonParser(
+    json_parser = ag.json.JsonParser(
         'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True
     )
     raw_graph_parser = ag.RawGraphParser.from_data(
@@ -30,8 +29,8 @@ def test_graph_file():
     graph_paths = [os.path.join(save_path, file) for file in os.listdir(save_path)]
 
     # 开始测试
-    with Timer('dataset'):
-        dataset = CSVDataset(
+    with ag.Timer('dataset'):
+        dataset = ag.data.CSVDataset(
             graph_paths, data_parser=json_parser, raw_graph_parser=raw_graph_parser,
             chunksize=32, shuffle=True, disable=False)
         num_rows2 = []
@@ -51,4 +50,4 @@ def test_graph_file():
 
 
 if __name__ == '__main__':
-    test_graph_file()
+    test_dataset()

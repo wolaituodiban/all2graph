@@ -104,8 +104,11 @@ class History:
         """
         if not hasattr(self.loader, 'dataset'):
             print('data loader do not have dataset, can not be reset', file=sys.stderr)
-
-        self.loader = DataLoader(self.loader.dataset, *args, **kwargs)
+        dataset = self.loader.dataset
+        if hasattr(dataset, 'collate_fn'):
+            self.loader = DataLoader(dataset, *args, **kwargs, collate_fn=dataset.collate_fn)
+        else:
+            self.loader = DataLoader(dataset, *args, **kwargs)
 
     def get_data_parser(self) -> Union[DataParser, None]:
         """

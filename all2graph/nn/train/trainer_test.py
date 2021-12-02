@@ -70,10 +70,10 @@ def test_trainer():
     trainer.train_history = None
     trainer.fit(1)
     assert trainer.error_msg is not None
-    print(trainer.error_msg)
 
     trainer.reset_dataloader(batch_size=32, num_workers=2, valid_id=0)
     assert trainer.valid_history[0].loader.batch_size == 32
+    assert trainer.valid_history[0].loader.num_workers == 2
 
     trainer.build_predictor(0)
 
