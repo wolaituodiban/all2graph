@@ -194,3 +194,29 @@ class Graph:
     def to(self, *args, **kwargs):
         self.meta_graph.to(*args, **kwargs)
         self.value_graph.to(*args, **kwargs)
+
+    def to_df(self, *attrs):
+        """
+        转换成一个可读性强的dataframe
+        Args:
+            *attrs: 属性，如果key，value，number等
+
+        Returns:
+
+        """
+        import pandas as pd
+
+        src, dst = self.value_graph.edges()
+        src = src.detach().cpu().numpy()
+        dst = dst.detach().cpu().numpy()
+
+        output = {
+            'src': src,
+            'dst': dst,
+        }
+        for attr in attrs:
+            output['src_{}'.format(attr)] = getattr(self, attr)[src].detach().cpu().numpy()
+
+        for attr in attrs:
+            output['dst_{}'.format(attr)] = getattr(self, attr)[dst].detach().cpu().numpy()
+        return pd.DataFrame(output)

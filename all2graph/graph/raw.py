@@ -361,6 +361,7 @@ class RawGraph(MetaStruct):
             norm: 详情间network.draw
             cmap: 详情间network.draw
             with_labels: 详情间network.draw
+            ax: matplotlib Axes object
             **kwargs: 详情间network.draw
 
         Returns:
