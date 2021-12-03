@@ -344,7 +344,7 @@ class RawGraph(MetaStruct):
 
     def draw(
             self, include_keys=None, exclude_keys=None, disable=True, pos=None, scale=1, center=None, dim=2,
-            node_size=32, arrowsize=8, norm=None, cmap='nipy_spectral', with_labels=False, **kwargs
+            node_size=32, arrowsize=8, norm=None, cmap='nipy_spectral', with_labels=False, ax=None, **kwargs
     ):
         """
 
@@ -372,7 +372,10 @@ class RawGraph(MetaStruct):
         import matplotlib.patches as mpatches
         from matplotlib.cm import ScalarMappable
 
-        fig, ax = plt.subplots()
+        if ax is None:
+            fig, ax = plt.subplots()
+        else:
+            fig = None
 
         # 转成networkx
         nx_graph = self.to_networkx(include_keys=include_keys, exclude_keys=exclude_keys, disable=disable)
