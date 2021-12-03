@@ -93,7 +93,11 @@ class Encoder(torch.nn.Module):
         )
         outputs = self.output(feats=value_feats, parameters=output_params, mask=target_mask, targets=targets)
         return outputs, {
-            'feats': value_feats, 'keys': value_keys, 'values': value_values, 'attn_weights': value_attn_weights
+            'emb': value_emb,
+            'feats': value_feats,
+            'keys': value_keys,
+            'values': value_values,
+            'attn_weights': value_attn_weights
         }
 
     def extra_repr(self) -> str:
