@@ -238,7 +238,8 @@ class EncoderMetaLearnerMocker(MyModule):
             graph, emb_param=emb_param, conv_param=conv_param, output_params=output_params,
             target_mask=target_mask, targets=self.raw_graph_parser.targets)
         if details:
-            return outputs, value_infos
+            params = {'emb': emb_param, 'conv': conv_param, 'output': output_params}
+            return outputs, value_infos, params
         else:
             return outputs
 
