@@ -367,6 +367,7 @@ class RawGraph(MetaStruct):
         Returns:
 
         """
+        # todo planar list子节点位置修正  list和dict边颜色区分
         import matplotlib.pyplot as plt
         from networkx.drawing import draw
         from networkx.drawing.layout import planar_layout
