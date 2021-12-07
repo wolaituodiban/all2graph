@@ -206,7 +206,7 @@ class Trainer(torch.nn.Module):
 
         """
         if isinstance(src, list):
-            return pd.concat(map(self.predict, src))
+            return pd.concat(self.predict(path, valid_id=valid_id, data_parser=data_parser, **kwargs) for path in src)
 
         dst = os.path.join(self.check_point, str(self._current_epoch))
         if not os.path.exists(dst):
