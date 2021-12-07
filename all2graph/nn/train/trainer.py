@@ -169,19 +169,20 @@ class Trainer(torch.nn.Module):
         else:
             self.valid_history[valid_id].reset_dataloader(*args, **kwargs)
 
-    def build_predictor(self, valid_id=None) -> Union[Predictor, None]:
+    def build_predictor(self, valid_id=None, data_parser=None) -> Union[Predictor, None]:
         """
         生成一个predictor
         Args:
             valid_id: 如果None，那么使用train dataloader的data parser，否则使用对应valid dataloader的data parser
-
+            data_parser: 如果提供了自定义的data parser，那么valid_id将不生效
         Returns:
 
         """
-        if valid_id is None:
-            data_parser = self.train_history.get_data_parser()
-        else:
-            data_parser = self.valid_history[0].get_data_parser()
+        if data_parser is None:
+            if valid_id is None:
+                data_parser = self.train_history.get_data_parser()
+            else:
+                data_parser = self.valid_history[0].get_data_parser()
 
         if data_parser is None:
             print('failed to build predictor', file=sys.stderr)
@@ -192,12 +193,13 @@ class Trainer(torch.nn.Module):
 
         return Predictor(data_parser=data_parser, module=self.module)
 
-    def predict(self, src: Union[str, List[str]], valid_id=None, **kwargs) -> pd.DataFrame:
+    def predict(self, src: Union[str, List[str]], valid_id=None, data_parser=None, **kwargs) -> pd.DataFrame:
         """
         自动将预测结果保存在check point目录下
         Args:
             src: file path or list of file path
-            valid_id: 默认选择train dataset的data parser
+            valid_id: 如果None，那么使用train dataloader的data parser，否则使用对应valid dataloader的data parser
+            data_parser: 如果提供了自定义的data parser，那么valid_id将不生效
             kwargs: 传递给Predictor.predict的参数
 
         Returns:
@@ -212,7 +214,7 @@ class Trainer(torch.nn.Module):
         dst = os.path.join(dst, 'pred_{}'.format(os.path.split(src)[-1]))
         print("save prediction at '{}'".format(dst))
 
-        predictor = self.build_predictor(valid_id=valid_id)
+        predictor = self.build_predictor(valid_id=valid_id, data_parser=data_parser)
         if predictor is None:
             return pd.DataFrame()
         output = predictor.predict(src, **kwargs)
