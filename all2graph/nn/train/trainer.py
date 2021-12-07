@@ -5,6 +5,7 @@ import traceback
 from datetime import datetime as ddt
 from typing import Dict, Callable, List, Union
 
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
@@ -190,3 +191,30 @@ class Trainer(torch.nn.Module):
             return
 
         return Predictor(data_parser=data_parser, module=self.module)
+
+    def predict(self, src: Union[str, List[str]], valid_id=None, **kwargs) -> pd.DataFrame:
+        """
+        自动将预测结果保存在check point目录下
+        Args:
+            src: file path or list of file path
+            valid_id: 默认选择train dataset的data parser
+            kwargs: 传递给Predictor.predict的参数
+
+        Returns:
+
+        """
+        if isinstance(src, list):
+            return pd.concat(map(self.predict, src))
+
+        dst = os.path.join(self.check_point, str(self._current_epoch))
+        if not os.path.exists(dst):
+            os.mkdir(dst)
+        dst = os.path.join(dst, 'pred_{}'.format(os.path.split(src)[-1]))
+        print("save prediction at '{}'".format(dst))
+
+        predictor = self.build_predictor(valid_id=valid_id)
+        if predictor is None:
+            return pd.DataFrame()
+        output = predictor.predict(src, **kwargs)
+        output.to_csv(dst)
+        return output

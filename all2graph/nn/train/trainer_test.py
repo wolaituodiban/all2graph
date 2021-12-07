@@ -76,6 +76,7 @@ def test_trainer():
     assert trainer.valid_history[0].loader.num_workers == 2
 
     trainer.build_predictor(0)
+    trainer.predict('aa')
 
 
 if __name__ == '__main__':
