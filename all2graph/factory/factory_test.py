@@ -23,7 +23,7 @@ def test_analyse():
         meta_graph2 = factory.analyse(
             csv_path, chunksize=int(np.ceil(nrows/processes)), disable=True, processes=processes, nrows=1000
         )
-        used_time1 = timer.diff()
+        # used_time1 = timer.diff()
     print(factory)
 
     with ag.Timer('原生模式') as timer:
@@ -33,10 +33,10 @@ def test_analyse():
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())
         meta_graph1 = ag.MetaInfo.from_data(graph, index_nodes=index_ids, disable=False)
-        used_time2 = timer.diff()
+        # used_time2 = timer.diff()
 
     assert meta_graph1 == meta_graph2
-    assert used_time1 < used_time2
+    # assert used_time1 < used_time2
 
 
 def test_produce_dataloader():
@@ -61,7 +61,7 @@ def test_produce_dataloader():
         dataloader = factory.produce_dataloader(
             csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, raw_graph=True, processes=cpu_count)
         assert isinstance(dataloader.dataset, ag.data.CSVDataset)
-        for g, l in ag.tqdm(dataloader):
+        for _ in ag.tqdm(dataloader):
             pass
         shutil.rmtree(save_path)
 
@@ -69,7 +69,7 @@ def test_produce_dataloader():
         dataloader = factory.produce_dataloader(
             csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, raw_graph=False, processes=cpu_count)
         assert isinstance(dataloader.dataset, ag.data.CSVDataset)
-        for g, l in ag.tqdm(dataloader):
+        for _ in ag.tqdm(dataloader):
             pass
         shutil.rmtree(save_path)
 
@@ -77,7 +77,15 @@ def test_produce_dataloader():
         dataloader = factory.produce_dataloader(
             csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, graph=True, processes=cpu_count)
         assert isinstance(dataloader.dataset, ag.data.GraphDataset)
-        for g, l in ag.tqdm(dataloader.dataset):
+        for _ in ag.tqdm(dataloader.dataset):
+            pass
+        shutil.rmtree(save_path)
+
+    with ag.Timer('v2=True'):
+        dataloader = factory.produce_dataloader(
+            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, processes=cpu_count, v2=True)
+        assert isinstance(dataloader.dataset, ag.data.CSVDatasetV2)
+        for _ in ag.tqdm(dataloader.dataset):
             pass
         shutil.rmtree(save_path)
 
@@ -102,7 +110,6 @@ def test_produce_model():
 
 
 if __name__ == '__main__':
-    print(help(ag.Factory))
     test_analyse()
     test_produce_dataloader()
     test_produce_model()

@@ -113,32 +113,74 @@ class Factory(MetaStruct):
         self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.graph_parser_config)
         return meta_info
 
-    def _save(self, x: Tuple[pd.DataFrame, str, bool, bool]):
-        df, dst, zip, raw = x
+    def _save(self, x: Tuple[pd.DataFrame, str, bool, bool, Union[None, list]]) -> pd.DataFrame:
+        """
+        将原始数据加工后保存成一个文件
+        Args:
+            x: 包含五个变量
+                df: DataFrame，原始数据
+                dst: 文件夹路径
+                zip: 是否压缩，仅在raw=True是生效
+                raw: 是否保存成RawGraph
+                meta_col: 需要返回的元数据列
+
+        Returns:
+            返回一个包含路径和元数据的DataFrame
+        """
+        df, dst, zip, raw, meta_col = x
         if raw:
-            self.data_parser.save(df, '.'.join([dst, 'zip' if zip else 'csv']))
+            path = '.'.join([dst, 'zip' if zip else 'csv'])
+            self.data_parser.save(df, path)
         else:
+            path = '.'.join([dst, 'all2graph.graph'])
             raw_graph, *_ = self.data_parser.parse(df, disable=True)
             graph = self.raw_graph_parser.parse(raw_graph)
             labels = self.data_parser.gen_targets(df, self.targets)
-            graph.save('.'.join([dst, 'all2graph.graph']), labels=labels)
+            graph.save(path, labels=labels)
+
+        meta_df = pd.DataFrame({'path': [path] * df.shape[0]})
+        if meta_col is not None:
+            meta_df[meta_col] = df[meta_col].values
+        return meta_df
 
     def save(
             self, src, dst, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
-            postfix=None, processes=None, raw=False, **kwargs):
+            postfix=None, processes=None, raw=False, meta_col=None, **kwargs):
+        """
+        将原始数据加工后，存储成分片的文件
+        Args:
+            src: 原始数据
+            dst: 存储文件夹路径
+            disable: 是否禁用进度条
+            zip: 是否压缩，仅在raw=True是生效
+            error: 读取数据遇到错误时报错
+            warning: 读取数据遇到错误是报警
+            concat_chip: 合并样本，强制保证每个分片的大小都是chunksize
+            chunksize: 分片数据的大小
+            postfix: 进度条后缀
+            processes: 多进程数量
+            raw: 是否保存成RawGraph
+            meta_col: 需要返回的元数据列
+            **kwargs: 传递给dataframe_chunk_iter的额外参数
+
+        Returns:
+            返回一个包含路径和元数据的DataFrame
+        """
+        # assert meta_col is None or isinstance(meta_col, list)
         assert not os.path.exists(dst), '{} already exists'.format(dst)
         if postfix is None:
             postfix = 'saving{}graph'.format(' raw ' if raw else ' ')
         os.mkdir(dst)
         generator = dataframe_chunk_iter(
                 src, error=error, warning=warning, concat_chip=concat_chip, chunksize=chunksize, **kwargs)
-        generator = ((df, os.path.join(dst, str(i)), zip, raw) for i, df in enumerate(generator))
+        generator = ((df, os.path.join(dst, str(i)), zip, raw, meta_col) for i, df in enumerate(generator))
         generator = tqdm(generator, disable=disable, postfix=postfix)
         if processes == 0:
-            list(map(self._save, generator))
+            meta_df = pd.concat(map(self._save, generator))
         else:
             with Pool(processes) as pool:
-                list(pool.imap(self._save, generator))
+                meta_df = pd.concat(pool.imap(self._save, generator))
+        return meta_df
 
     def produce_graph_and_label(self, chunk: pd.DataFrame):
         graph, *_ = self._produce_raw_graph(chunk)
@@ -148,7 +190,8 @@ class Factory(MetaStruct):
 
     def produce_dataloader(
             self, src, dst=None, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
-            shuffle=True, csv_configs=None, raw_graph=False, graph=False, processes=None, **kwargs):
+            shuffle=True, csv_configs=None, raw_graph=False, graph=False, processes=None, v2=False, meta_df=None,
+            num_workers=0, **kwargs):
         """
 
         Args:
@@ -165,7 +208,10 @@ class Factory(MetaStruct):
             raw_graph: 如果True，那么数据源视为RawGraph
             graph: 如果True，那么数据源视为Graph，并且覆盖raw_graph的效果
             processes: 当dst不是None时，执行save方法时，多进程的个数
-            **kwargs:
+            v2: 使用dataset v2版本
+            meta_df: 返回一个包含路径和元数据的DataFrame，需要有一列path，如果提供了dst，按么会使用分片存储后的meta_df
+            num_workers: DataLoader多进程数量
+            **kwargs: DataLoader的额外参数
 
         Returns:
 
@@ -185,28 +231,37 @@ class Factory(MetaStruct):
             dataset = GraphDataset(src)
             return DataLoader(dataset, batch_size=None, sampler=None, **kwargs)
         else:
-            from ..data import CSVDataset
-
             if dst is not None:
                 if raw_graph:
                     # 存储RawGraph csv文件
-                    self.save(
+                    meta_df = self.save(
                         src, dst, disable=disable, zip=zip, error=error, warning=warning, concat_chip=concat_chip,
                         chunksize=chunksize, raw=True, processes=processes, **(csv_configs or {}))
                     self.disable_preprocessing()  # 改变data_parser的模式
                 else:
                     # 分割csv
-                    split_csv(
+                    meta_df = split_csv(
                         src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
                         concat_chip=concat_chip, **(csv_configs or {}))
                     self.enable_preprocessing()
                 src = dst
 
-            dataset = CSVDataset(
-                src, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser, chunksize=chunksize,
-                shuffle=shuffle, disable=disable, error=error, warning=warning, **(csv_configs or {}))
-
-            return DataLoader(dataset, shuffle=shuffle, collate_fn=dataset.collate_fn, **kwargs)
+            if v2:
+                # 使用v2版本的dataset
+                from ..data import CSVDatasetV2
+                dataset = CSVDatasetV2(
+                    src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
+                    **(csv_configs or {}))
+                sampler = dataset.build_sampler(shuffle=shuffle, num_workers=num_workers)
+                return DataLoader(dataset, collate_fn=dataset.collate_fn, sampler=sampler, **kwargs)
+            else:
+                # 使用老版本的dataset
+                from ..data import CSVDataset
+                dataset = CSVDataset(
+                    src, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser, chunksize=chunksize,
+                    shuffle=shuffle, disable=disable, error=error, warning=warning, **(csv_configs or {}))
+                return DataLoader(
+                    dataset, shuffle=shuffle, collate_fn=dataset.collate_fn, num_workers=num_workers, **kwargs)
 
     def produce_model(
             self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,

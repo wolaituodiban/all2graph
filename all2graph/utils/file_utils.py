@@ -70,23 +70,29 @@ def iter_files(inputs, error=True, warning=True):
         print('path {} dose not exists'.format(inputs), file=sys.stderr)
 
 
-def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chip=True, **kwargs):
+def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chip=True, recurse=True, **kwargs):
     """
 
-    :param inputs: panda DataFrame或者"文件路径、文件夹路径或者Iterable的任意嵌套"
-    :param chunksize:
-    :param error: 发生错误时会raise ValueError
-    :param warning: 发生错误时会打印错误信息
-    :param concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
-    :param kwargs:
-    :return: dataframe分片生成器
+    Args:
+        inputs: panda DataFrame或者"文件路径、文件夹路径或者Iterable的任意嵌套"
+        chunksize:
+        error: 发生错误时会raise ValueError
+        warning: 发生错误时会打印错误信息
+        concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
+        recurse: 是否递归inputs，寻找包含的所有路径；如果False，那么默认inputs是一个list of path
+        **kwargs:
+
+    Returns:
+        dataframe分片生成器
     """
     if isinstance(inputs, pd.DataFrame):
         for i in range(int(np.ceil(inputs.shape[0] / chunksize))):
             yield inputs.iloc[chunksize * i:chunksize * (i + 1)]
     else:
         buffer = pd.DataFrame()
-        for path in iter_files(inputs, error=error, warning=warning):
+        if recurse:
+            inputs = iter_files(inputs, error=error, warning=warning)
+        for path in inputs:
             try:
                 for chunk in pd.read_csv(path, chunksize=chunksize, **kwargs):
                     if concat_chip:
@@ -106,20 +112,28 @@ def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chi
             yield buffer
 
 
-def split_csv(src, dst, chunksize, disable=False, zip=True, error=True, warning=True, concat_chip=True, **kwargs):
+def split_csv(
+        src, dst, chunksize, disable=False, zip=True, error=True, warning=True, concat_chip=True, meta_cols=None,
+        **kwargs):
     """
 
-    :param src: panda DataFrame或者"文件路径、文件夹路径或者Iterable的任意嵌套"
-    :param dst: 保存分片csv文件的目录
-    :param chunksize:
-    :param disable:
-    :param zip: 除否压缩
-    :param error: 发生错误时会raise ValueError
-    :param warning: 发生错误时会打印错误信息
-    :param concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
-    :param kwargs:
-    :return:
+    Args:
+        src: panda DataFrame或者"文件路径、文件夹路径或者Iterable的任意嵌套"
+        dst: 保存分片csv文件的目录
+        chunksize:
+        disable:
+        zip: 是否压缩
+        error: 发生错误时会raise ValueError
+        warning: 发生错误时会打印错误信息
+        concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
+        meta_cols: 需要保存到元信息dataframe的列名
+        **kwargs:
+
+    Returns:
+        包含文件路径等元信息的dataframe
     """
+    assert meta_cols is None or isinstance(meta_cols, list)
+    meta_dfs = []
     if os.path.exists(dst):
         raise ValueError('{} already exists'.format(dst))
     os.mkdir(dst)
@@ -131,6 +145,13 @@ def split_csv(src, dst, chunksize, disable=False, zip=True, error=True, warning=
         else:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'csv'))
         chunk.to_csv(to_file)
+        if meta_cols is not None:
+            meta_df = chunk[meta_cols]
+            meta_df['path'] = to_file
+        else:
+            meta_df = pd.DataFrame({'path': [to_file] * chunk.shape[0]})
+        meta_dfs.append(meta_df)
+    return pd.concat(meta_dfs)
 
 
 def timestamp_convertor(x):

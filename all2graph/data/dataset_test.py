@@ -1,8 +1,11 @@
 import os
 import shutil
 
-import pandas as pd
 import all2graph as ag
+import numpy as np
+import pandas as pd
+import torch
+from torch.utils.data import DataLoader
 
 
 import platform
@@ -49,5 +52,39 @@ def test_dataset():
     assert set(num_rows2[:-1]) == {dataset.chunksize}, (num_rows2, dataset.chunksize)
 
 
+def test_dataset_v2():
+    class ParserMocker1:
+        def parse(self, df, **kwargs):
+            return df.values,
+
+        def gen_targets(self, df, targets):
+            return df[targets].values
+
+    class ParserMocker2:
+        def __init__(self, targets):
+            self.targets = targets
+
+    if os.path.exists('temp'):
+        shutil.rmtree('temp')
+    data = np.arange(9999)
+    df = pd.DataFrame({'uid': data, 'data': data})
+
+    meta_df = ag.split_csv(df, 'temp', chunksize=1000, meta_cols=['uid'], concat_chip=False)
+    dataset = ag.data.CSVDatasetV2(
+        meta_df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']), index_col=0)
+    data_loader = DataLoader(
+        dataset, num_workers=3, batch_size=32, sampler=dataset.build_sampler(num_workers=3, shuffle=True))
+
+    x, y = [], []
+    for batch in ag.tqdm(data_loader):
+        x.append(batch[0])
+        y.append(batch[1])
+    x = torch.cat(x)
+    y = torch.cat(y)
+
+    shutil.rmtree('temp')
+
+
 if __name__ == '__main__':
     test_dataset()
+    test_dataset_v2()

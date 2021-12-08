@@ -220,3 +220,16 @@ class Graph:
         for attr in attrs:
             output['dst_{}'.format(attr)] = getattr(self, attr)[dst].detach().cpu().numpy()
         return pd.DataFrame(output)
+
+    # def pin_memory(self):
+    #     for k in self.value_graph.ndata:
+    #         self.value_graph.ndata[k] = self.value_graph.ndata[k].pin_memory()
+    #
+    #     for k in self.value_graph.edata:
+    #         self.value_graph.edata[k] = self.value_graph.edata[k].pin_memory()
+    #
+    #     for k in self.meta_graph.ndata:
+    #         self.meta_graph.ndata[k] = self.meta_graph.ndata[k].pin_memory()
+    #
+    #     for k in self.meta_graph.edata:
+    #         self.meta_graph.edata[k] = self.meta_graph.edata[k].pin_memory()

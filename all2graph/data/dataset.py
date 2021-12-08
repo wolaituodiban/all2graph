@@ -6,20 +6,60 @@ import numpy as np
 import pandas as pd
 import torch
 from pandas.errors import ParserError
-from torch.utils.data import Dataset
+from torch.utils.data import Dataset as _Dataset
 
+from .sampler import PartitionSampler
 from ..graph import RawGraph, Graph
 from ..parsers import DataParser, RawGraphParser
 from ..utils import tqdm, iter_files
+
+
+class Dataset(_Dataset):
+    def __init__(self, data_parser, raw_graph_parser, **kwargs):
+        self.data_parser = data_parser
+        self.raw_graph_parser = raw_graph_parser
+        self.kwargs = kwargs
+
+    def __len__(self):
+        raise NotImplementedError
+
+    def __getitem__(self, item):
+        raise NotImplementedError
+
+    def read_csv(self, path):
+        return pd.read_csv(path, **self.kwargs)
+
+    def collate_fn(self, batches) -> Tuple[Graph, Dict[str, torch.Tensor]]:
+        graphs = []
+        labels = {}
+        for graph, label in batches:
+            graphs.append(graph)
+            for k, v in label.items():
+                if k in labels:
+                    labels[k].append(v)
+                else:
+                    labels[k] = [v]
+        graph = RawGraph.batch(graphs)
+        labels = {k: torch.cat(v) for k, v in labels.items()}
+        if self.data_parser is not None:
+            graph = self.raw_graph_parser.parse(graph)
+        return graph, labels
+
+    def enable_preprocessing(self):
+        self.data_parser.enable_preprocessing()
+
+    def disable_preprocessing(self):
+        self.data_parser.disable_preprocessing()
+
+    def set_filter_key(self, x):
+        self.raw_graph_parser.set_filter_key(x)
 
 
 class CSVDataset(Dataset):
     def __init__(
             self, src, data_parser: DataParser, raw_graph_parser: RawGraphParser, chunksize=64,
             shuffle=False, disable=True, error=True, warning=True, **kwargs):
-        self.data_parser = data_parser
-        self.raw_graph_parser = raw_graph_parser
-        self.kwargs = kwargs
+        super().__init__(data_parser=data_parser, raw_graph_parser=raw_graph_parser, **kwargs)
 
         paths: List[Tuple[str, int]] = []
         for path in tqdm(
@@ -52,9 +92,6 @@ class CSVDataset(Dataset):
         # 转化成pandas类型，似乎可以减小datalodaer多进程的开销
         self.paths = pd.Series(self.paths)
 
-    def read_csv(self, path):
-        return pd.read_csv(path, **self.kwargs)
-
     @property
     def chunksize(self):
         return sum(map(len, self.paths[0].values()))
@@ -73,33 +110,8 @@ class CSVDataset(Dataset):
         label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
         return graph, label
 
-    def collate_fn(self, batches) -> Tuple[Graph, Dict[str, torch.Tensor]]:
-        graphs = []
-        labels = {}
-        for graph, label in batches:
-            graphs.append(graph)
-            for k, v in label.items():
-                if k in labels:
-                    labels[k].append(v)
-                else:
-                    labels[k] = [v]
-        graph = RawGraph.batch(graphs)
-        labels = {k: torch.cat(v) for k, v in labels.items()}
-        if self.data_parser is not None:
-            graph = self.raw_graph_parser.parse(graph)
-        return graph, labels
 
-    def enable_preprocessing(self):
-        self.data_parser.enable_preprocessing()
-
-    def disable_preprocessing(self):
-        self.data_parser.disable_preprocessing()
-
-    def set_filter_key(self, x):
-        self.raw_graph_parser.set_filter_key(x)
-
-
-class GraphDataset(Dataset):
+class GraphDataset(_Dataset):
     def __init__(self, src, error=True, warning=True):
         self.path = pd.Series(iter_files(src, error=error, warning=warning))
 
@@ -108,3 +120,49 @@ class GraphDataset(Dataset):
 
     def __getitem__(self, item) -> Graph:
         return Graph.load(self.path.iloc[item])
+
+
+class CSVDatasetV2(Dataset):
+    def __init__(
+            self, src: pd.DataFrame, data_parser: DataParser, raw_graph_parser: RawGraphParser, **kwargs):
+        """
+
+        Args:
+            src: 长度为样本数量，需要有一列path
+            data_parser:
+            raw_graph_parser:
+            **kwargs:
+        """
+        super().__init__(data_parser=data_parser, raw_graph_parser=raw_graph_parser, **kwargs)
+        path = src.groupby('path').agg({'path': 'count'})
+        path.columns = ['lines']
+        path['ub'] = path['lines'].cumsum()
+        path['lb'] = path['ub'].shift(fill_value=0)
+        self._path = path
+        self.__partition = None
+        self.__partition_num = None
+
+    def __len__(self):
+        return self._path['ub'].iloc[-1]
+
+    def _get_partition_num(self, item):
+        for i, ub in enumerate(self._path['ub']):
+            if item < ub:
+                return i
+        raise IndexError('out of bound')
+
+    def __getitem__(self, item):
+        partition_num = self._get_partition_num(item)
+        if partition_num != self.__partition_num:
+            self.__partition_num = partition_num
+            self.__partition = pd.read_csv(self._path.index[partition_num], **self.kwargs)
+        df = self.__partition.iloc[[item - self._path['lb'].iloc[partition_num]]]
+        graph = self.data_parser.parse(df, disable=True)[0]
+        label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
+        return graph, label
+
+    def build_sampler(self, num_workers: int, shuffle=False):
+        indices = []
+        for i, row in self._path.iterrows():
+            indices.append(list(range(row['lb'], row['ub'])))
+        return PartitionSampler(indices=indices, num_workers=num_workers, shuffle=shuffle)
