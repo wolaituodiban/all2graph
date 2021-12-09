@@ -151,7 +151,9 @@ def split_csv(
         else:
             meta_df = pd.DataFrame({'path': [to_file] * chunk.shape[0]})
         meta_dfs.append(meta_df)
-    return pd.concat(meta_dfs)
+    meta_df = pd.concat(meta_dfs)
+    meta_df.to_csv(dst+'_meta.csv', index=False)
+    return meta_df
 
 
 def timestamp_convertor(x):
