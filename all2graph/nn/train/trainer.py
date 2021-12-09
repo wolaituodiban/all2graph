@@ -15,6 +15,7 @@ from .metric import Metric
 from ..utils import predict_dataloader, Predictor, MyModule
 from ...utils import tqdm, json_round
 from ...version import __version__
+from ...factory import Factory
 
 
 class Trainer(torch.nn.Module):
@@ -169,6 +170,20 @@ class Trainer(torch.nn.Module):
         else:
             self.valid_history[valid_id].reset_dataloader(*args, **kwargs)
 
+    def get_data_parser(self, valid_id=None):
+        if valid_id is None:
+            data_parser = self.train_history.data_parser
+        else:
+            data_parser = self.valid_history[0].data_parser
+        return data_parser
+
+    def get_raw_graph_parser(self, valid_id=None):
+        if valid_id is None:
+            raw_graph_parser = self.train_history.raw_graph_parser
+        else:
+            raw_graph_parser = self.valid_history[0].raw_graph_parser
+        return raw_graph_parser
+
     def build_predictor(self, valid_id=None, data_parser=None) -> Union[Predictor, None]:
         """
         生成一个predictor
@@ -178,17 +193,14 @@ class Trainer(torch.nn.Module):
         Returns:
 
         """
-        if data_parser is None:
-            if valid_id is None:
-                data_parser = self.train_history.get_data_parser()
-            else:
-                data_parser = self.valid_history[0].get_data_parser()
+        data_parser = data_parser or self.get_data_parser(valid_id=valid_id)
 
         if data_parser is None:
-            print('failed to build predictor', file=sys.stderr)
+            print('can not get DataParser, failed to build Predictor', file=sys.stderr)
             return
+
         if not isinstance(self.module, MyModule):
-            print('module is not a all2graph module, can build predictor', file=sys.stderr)
+            print('module is not a all2graph Module, can build predictor', file=sys.stderr)
             return
 
         return Predictor(data_parser=data_parser, module=self.module)
@@ -220,3 +232,21 @@ class Trainer(torch.nn.Module):
         output = predictor.predict(src, **kwargs)
         output.to_csv(dst)
         return output
+
+    def build_factory(
+            self, valid_id=None, data_parser=None, raw_graph_parser=None, meta_info_config: dict = None,
+            raw_graph_parser_config: dict = None) -> Union[Factory, None]:
+        data_parser = data_parser or self.get_data_parser(valid_id=valid_id)
+        if data_parser is None:
+            print('can not get DataParser, failed to build Factory', file=sys.stderr)
+            return
+
+        raw_graph_parser = raw_graph_parser or self.get_raw_graph_parser(valid_id=valid_id)
+        if raw_graph_parser is None:
+            print('can not get RawGraphParser, failed to build Factory', file=sys.stderr)
+            return
+
+        factory = Factory(
+            data_parser=data_parser, raw_graph_parser_config=raw_graph_parser_config, meta_info_config=meta_info_config)
+        factory.raw_graph_parser = raw_graph_parser
+        return factory

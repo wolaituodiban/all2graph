@@ -15,7 +15,7 @@ from ..utils import tqdm, iter_files
 
 
 class Dataset(_Dataset):
-    def __init__(self, data_parser, raw_graph_parser, **kwargs):
+    def __init__(self, data_parser: DataParser, raw_graph_parser: RawGraphParser, **kwargs):
         self.data_parser = data_parser
         self.raw_graph_parser = raw_graph_parser
         self.kwargs = kwargs

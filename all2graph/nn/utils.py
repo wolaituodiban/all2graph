@@ -191,6 +191,8 @@ class Predictor(torch.nn.Module):
             for k, v in self._predict(graphs).items():
                 df[k] = v.cpu().numpy()
             outputs.append(df)
+        if len(outputs) == 0:
+            return pd.DataFrame()
         outputs = pd.concat(outputs)
         return outputs
 

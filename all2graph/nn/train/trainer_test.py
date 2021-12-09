@@ -3,7 +3,7 @@ import os
 
 import all2graph as ag
 import torch
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 from sklearn.metrics import mean_squared_error
 
 
@@ -11,8 +11,10 @@ if 'darwin' in sys.platform.lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-class TestDataset(Dataset):
+class TestDataset(ag.data.Dataset):
     def __init__(self, x, y, key):
+        super().__init__(
+            data_parser=ag.DataParser(None, None, None), raw_graph_parser=ag.RawGraphParser({}, [], [], set()))
         self.x = x
         self.y = y
         self.key = key
@@ -24,9 +26,9 @@ class TestDataset(Dataset):
         return {self.key: self.x[item]}, {self.key: self.y[item]}
 
 
-class TestModule(torch.nn.Module):
+class TestModule(ag.nn.MyModule):
     def __init__(self, in_feats, out_feats, key):
-        super().__init__()
+        super().__init__(raw_graph_parser=ag.RawGraphParser({}, [], [], set()))
         self.linear1 = torch.nn.Linear(in_features=in_feats, out_features=in_feats)
         self.relu = torch.nn.ReLU()
         self.linear2 = torch.nn.Linear(in_features=in_feats, out_features=out_feats)
@@ -66,17 +68,23 @@ def test_trainer():
     trainer.fit(epochs)
     assert trainer._current_epoch < trainer.train_history.num_epochs < epochs
     trainer.early_stop = None
-    trainer.fit(epochs)
+    trainer.fit(5)
+
+    # 测试error_msg
     trainer.train_history = None
     trainer.fit(1)
     assert trainer.error_msg is not None
 
+    # 测试reset DataLoader
     trainer.reset_dataloader(batch_size=32, num_workers=2, valid_id=0)
     assert trainer.valid_history[0].loader.batch_size == 32
     assert trainer.valid_history[0].loader.num_workers == 2
 
-    trainer.build_predictor(0)
-    trainer.predict('aa', data_parser=ag.json.JsonParser('a', 'b'))
+    # 测试build Predictor
+    trainer.predict('aa', error=False, data_parser=ag.json.JsonParser('a', 'b'))
+
+    # 测试build factory
+    print(trainer.build_factory(valid_id=0))
 
 
 if __name__ == '__main__':

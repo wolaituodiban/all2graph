@@ -1,11 +1,11 @@
 import sys
-from typing import Dict, Union
+from typing import Dict
 
 import torch
-from torch.utils.data import DataLoader
+from torch.utils.data import Dataset as _Dataset, DataLoader
 from ..utils import detach, default_collate
-from ...data import CSVDataset
-from ...parsers import DataParser
+from ...data import Dataset
+from ...parsers import DataParser, RawGraphParser
 
 
 class EpochBuffer:
@@ -45,6 +45,23 @@ class History:
     def __init__(self, loader: DataLoader):
         self.loader = loader
         self.epochs: Dict[int, Epoch] = {}
+
+    @property
+    def dataset(self) -> _Dataset:
+        if hasattr(self.loader, 'dataset'):
+            return self.loader.dataset
+
+    @property
+    def data_parser(self) -> DataParser:
+        dataset = self.dataset
+        if isinstance(dataset, Dataset):
+            return dataset.data_parser
+
+    @property
+    def raw_graph_parser(self) -> RawGraphParser:
+        dataset = self.dataset
+        if isinstance(dataset, Dataset):
+            return dataset.raw_graph_parser
 
     @property
     def num_epochs(self):
@@ -109,17 +126,3 @@ class History:
             self.loader = DataLoader(dataset, *args, **kwargs, collate_fn=dataset.collate_fn)
         else:
             self.loader = DataLoader(dataset, *args, **kwargs)
-
-    def get_data_parser(self) -> Union[DataParser, None]:
-        """
-        获得dataloader的data parser
-        Returns:
-
-        """
-        if not hasattr(self.loader, 'dataset'):
-            print('data loader do not have dataset, can not get data parser', file=sys.stderr)
-            return
-        if not isinstance(self.loader.dataset, CSVDataset):
-            print('dataset is not a CSVDataset, can not get data parser', file=sys.stderr)
-            return
-        return self.loader.dataset.data_parser
