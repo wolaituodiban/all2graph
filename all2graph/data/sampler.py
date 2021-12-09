@@ -5,7 +5,7 @@ from torch.utils.data import Sampler
 
 
 class PartitionSampler(Sampler):
-    def __init__(self, indices: List[List[int]], num_workers: int, shuffle=False):
+    def __init__(self, indices: List[List[int]], num_workers: int, shuffle=False, batch_size=1):
         """
 
         Args:
@@ -17,9 +17,10 @@ class PartitionSampler(Sampler):
         self.indices = indices
         self.num_workers = num_workers
         self.shuffle = shuffle
+        self.batch_size = batch_size
 
     def __len__(self):
-        return max(max(ind) for ind in self.indices)
+        return int(np.ceil(max(max(ind) for ind in self.indices) / self.batch_size))
 
     def __iter__(self):
         if self.shuffle:
@@ -38,7 +39,7 @@ class PartitionSampler(Sampler):
 
         # 根据最短的worker_indices的长度进行剪裁
         # 将worker_indices间隔穿插成最终的indices
-        min_len = min(map(len, worker_indices))
-        for j in range(min_len):
-            for i in range(self.num_workers):
-                yield worker_indices[i][j]
+        batch_per_worker = int(np.ceil(min(map(len, worker_indices)) / self.batch_size))
+        for i_batch in range(batch_per_worker):
+            for i_worker in range(self.num_workers):
+                yield worker_indices[i_worker][(i_batch * self.batch_size):((i_batch + 1) * self.batch_size)]

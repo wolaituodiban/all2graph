@@ -153,7 +153,9 @@ class CSVDatasetV2(Dataset):
 
     def __getitem__(self, item):
         partition_num = self._get_partition_num(item)
+        # print(torch.utils.data.get_worker_info().id, partition_num)
         if partition_num != self.__partition_num:
+            # print('load file', partition_num, self.__partition_num, torch.utils.data.get_worker_info().id)
             self.__partition_num = partition_num
             self.__partition = pd.read_csv(self._path.index[partition_num], **self.kwargs)
         df = self.__partition.iloc[[item - self._path['lb'].iloc[partition_num]]]
@@ -161,8 +163,8 @@ class CSVDatasetV2(Dataset):
         label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
         return graph, label
 
-    def build_sampler(self, num_workers: int, shuffle=False):
+    def build_sampler(self, **kwargs):
         indices = []
         for i, row in self._path.iterrows():
             indices.append(list(range(row['lb'], row['ub'])))
-        return PartitionSampler(indices=indices, num_workers=num_workers, shuffle=shuffle)
+        return PartitionSampler(indices=indices, **kwargs)

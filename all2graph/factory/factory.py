@@ -191,7 +191,7 @@ class Factory(MetaStruct):
     def produce_dataloader(
             self, src=None, dst=None, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
             shuffle=True, csv_configs=None, raw_graph=False, graph=False, processes=None, v2=False, meta_df=None,
-            num_workers=0, **kwargs):
+            num_workers=0, batch_size=1, **kwargs):
         """
 
         Args:
@@ -211,6 +211,7 @@ class Factory(MetaStruct):
             v2: 使用dataset v2版本
             meta_df: 返回一个包含路径和元数据的DataFrame，需要有一列path，如果提供了dst，按么会使用分片存储后的meta_df
             num_workers: DataLoader多进程数量
+            batch_size: batch大小
             **kwargs: DataLoader的额外参数
 
         Returns:
@@ -252,8 +253,8 @@ class Factory(MetaStruct):
                 dataset = CSVDatasetV2(
                     src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
                     **(csv_configs or {}))
-                sampler = dataset.build_sampler(shuffle=shuffle, num_workers=num_workers)
-                return DataLoader(dataset, collate_fn=dataset.collate_fn, sampler=sampler, **kwargs)
+                sampler = dataset.build_sampler(shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
+                return DataLoader(dataset, collate_fn=dataset.collate_fn, batch_sampler=sampler, **kwargs)
             else:
                 # 使用老版本的dataset
                 from ..data import CSVDataset
@@ -261,7 +262,8 @@ class Factory(MetaStruct):
                     src, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser, chunksize=chunksize,
                     shuffle=shuffle, disable=disable, error=error, warning=warning, **(csv_configs or {}))
                 return DataLoader(
-                    dataset, shuffle=shuffle, collate_fn=dataset.collate_fn, num_workers=num_workers, **kwargs)
+                    dataset, shuffle=shuffle, collate_fn=dataset.collate_fn, num_workers=num_workers,
+                    batch_size=batch_size, **kwargs)
 
     def produce_model(
             self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,

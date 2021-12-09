@@ -31,12 +31,12 @@ def test_partition_sampler():
         lines += x
     num_workers = 2
 
-    sampler = ag.data.PartitionSampler(indices=indices, num_workers=num_workers, shuffle=True)
+    sampler = ag.data.PartitionSampler(indices=indices, num_workers=num_workers, shuffle=True, batch_size=2)
     dataset = TestDataset(lines)
-    data_loader = DataLoader(dataset, num_workers=num_workers, sampler=sampler)
+    data_loader = DataLoader(dataset, num_workers=num_workers, batch_sampler=sampler)
 
     for worker_id, ind in data_loader:
-        print(worker_id, ind, get_partition(ind))
+        print(worker_id, ind, list(map(get_partition, ind)))
 
 
 if __name__ == '__main__':

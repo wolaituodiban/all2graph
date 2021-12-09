@@ -83,7 +83,9 @@ def test_produce_dataloader():
 
     with ag.Timer('v2=True'):
         dataloader = factory.produce_dataloader(
-            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, processes=cpu_count, v2=True)
+            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, processes=cpu_count, v2=True,
+            batch_size=16
+        )
         assert isinstance(dataloader.dataset, ag.data.CSVDatasetV2)
         for _ in ag.tqdm(dataloader.dataset):
             pass

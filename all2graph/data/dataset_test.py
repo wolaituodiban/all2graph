@@ -73,7 +73,10 @@ def test_dataset_v2():
     dataset = ag.data.CSVDatasetV2(
         meta_df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']), index_col=0)
     data_loader = DataLoader(
-        dataset, num_workers=3, batch_size=32, sampler=dataset.build_sampler(num_workers=3, shuffle=True))
+        dataset, num_workers=3, batch_sampler=dataset.build_sampler(num_workers=3, shuffle=True, batch_size=16))
+    #
+    # for i in data_loader.sampler:
+    #     print(i, dataset._get_partition_num(i))
 
     x, y = [], []
     for batch in ag.tqdm(data_loader):
