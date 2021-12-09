@@ -189,13 +189,13 @@ class Factory(MetaStruct):
         return x, labels
 
     def produce_dataloader(
-            self, src, dst=None, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
+            self, src=None, dst=None, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
             shuffle=True, csv_configs=None, raw_graph=False, graph=False, processes=None, v2=False, meta_df=None,
             num_workers=0, **kwargs):
         """
 
         Args:
-            src:
+            src: path or list of path
             dst: 如果不是None，src中的数据，将被分片存储在dst中
             disable:
             zip:
