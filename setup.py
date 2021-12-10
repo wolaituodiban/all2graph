@@ -16,7 +16,7 @@ setup(
     version=get_version(),
     author='xiaotian chen',
     author_email='wolaituodiban@gmail.com',
-    packages=find_packages(include=('all2graph/',), exclude=('*test*',)),
+    packages=find_packages(),
     install_requires=[
         'dgl>=0.6.0',
         'torch>=1.5.0',
