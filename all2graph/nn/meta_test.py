@@ -100,8 +100,8 @@ def test_mock_load_pretrained():
     m2.load_pretrained(m1, load_meta_number=True)
 
     # 如果代码正确，那么使用m1和m2计算s1的输出结果应该相同
-    output1, value_info1 = m1(s1, details=True)
-    output2, value_info2 = m2(s1, details=True)
+    output1, value_info1, _ = m1(s1, details=True)
+    output2, value_info2, _ = m2(s1, details=True)
 
     for k in value_info1:
         for i in range(len(value_info1[k])):

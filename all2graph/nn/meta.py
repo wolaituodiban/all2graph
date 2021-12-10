@@ -207,6 +207,10 @@ class EncoderMetaLearnerMocker(MyModule):
         self.reset_parameters(reset_encoder=False)
         self.encoder = encoder
 
+    @property
+    def device(self):
+        return self.encoder.device
+
     def reset_parameters(self, reset_encoder=True):
         for param in self.parameters(recurse=False):
             fan = param.shape[-1]
@@ -219,16 +223,18 @@ class EncoderMetaLearnerMocker(MyModule):
 
     def forward(self, graph: Graph, details=False):
         graph = super().forward(graph)
+        graph = graph.to(self.device, non_blocking=True)
+        key = graph.key
         emb_param = {
-            name: getattr(self, name)[graph.key] for name in self.encoder.node_embedding.dynamic_parameter_names}
+            name: getattr(self, name)[key] for name in self.encoder.node_embedding.dynamic_parameter_names}
         conv_param = {
-            name: getattr(self, name)[:, graph.key] for name in self.encoder.body.node_dynamic_parameter_names}
+            name: getattr(self, name)[:, key] for name in self.encoder.body.node_dynamic_parameter_names}
         conv_param.update({
             name: getattr(self, name)[:, graph.edge_key]
             for name in self.encoder.body.edge_dynamic_parameter_names})
         output_params = [
             {
-                name: getattr(self, '{}_{}'.format(name, i))[:, graph.key]
+                name: getattr(self, '{}_{}'.format(name, i))[:, key]
                 for name in self.encoder.output.dynamic_parameter_names
             }
             for i in range(self.encoder.num_blocks)

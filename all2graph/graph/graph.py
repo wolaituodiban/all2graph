@@ -181,7 +181,8 @@ class Graph:
         return self.meta_edge_key[self.meta_edge_id]
 
     def target_mask(self, target_symbol: list):
-        return (self.symbol.view(-1, 1) == torch.tensor(target_symbol, dtype=torch.long)).any(-1)
+        target_symbol = torch.tensor(target_symbol, dtype=torch.long, device=self.symbol.device)
+        return (self.symbol.view(-1, 1) == target_symbol).any(-1)
 
     def save(self, filename, labels=None):
         dgl.save_graphs(filename, [self.meta_graph, self.value_graph], labels=labels)
@@ -194,6 +195,7 @@ class Graph:
     def to(self, *args, **kwargs):
         self.meta_graph.to(*args, **kwargs)
         self.value_graph.to(*args, **kwargs)
+        return self
 
     def to_df(self, *attrs):
         """
@@ -221,15 +223,17 @@ class Graph:
             output['dst_{}'.format(attr)] = getattr(self, attr)[dst].detach().cpu().numpy()
         return pd.DataFrame(output)
 
-    # def pin_memory(self):
-    #     for k in self.value_graph.ndata:
-    #         self.value_graph.ndata[k] = self.value_graph.ndata[k].pin_memory()
-    #
-    #     for k in self.value_graph.edata:
-    #         self.value_graph.edata[k] = self.value_graph.edata[k].pin_memory()
-    #
-    #     for k in self.meta_graph.ndata:
-    #         self.meta_graph.ndata[k] = self.meta_graph.ndata[k].pin_memory()
-    #
-    #     for k in self.meta_graph.edata:
-    #         self.meta_graph.edata[k] = self.meta_graph.edata[k].pin_memory()
+    def pin_memory(self):
+        for k in self.value_graph.ndata:
+            self.value_graph.ndata[k] = self.value_graph.ndata[k].pin_memory()
+
+        for k in self.value_graph.edata:
+            self.value_graph.edata[k] = self.value_graph.edata[k].pin_memory()
+
+        for k in self.meta_graph.ndata:
+            self.meta_graph.ndata[k] = self.meta_graph.ndata[k].pin_memory()
+
+        for k in self.meta_graph.edata:
+            self.meta_graph.edata[k] = self.meta_graph.edata[k].pin_memory()
+
+        return self

@@ -9,7 +9,7 @@ from pandas.errors import ParserError
 from torch.utils.data import Dataset as _Dataset
 
 from .sampler import PartitionSampler
-from ..graph import RawGraph, Graph
+from ..graph import Graph
 from ..parsers import DataParser, RawGraphParser
 from ..utils import tqdm, iter_files
 
@@ -50,6 +50,7 @@ class CSVDataset(Dataset):
     def __init__(
             self, src, data_parser: DataParser, raw_graph_parser: RawGraphParser, chunksize=64,
             shuffle=False, disable=True, error=True, warning=True, **kwargs):
+        print('CSVDataset is depreciated, please use CSVDatasetV2')
         super().__init__(data_parser=data_parser, raw_graph_parser=raw_graph_parser, **kwargs)
 
         paths: List[Tuple[str, int]] = []
@@ -118,6 +119,12 @@ class CSVDatasetV2(Dataset):
 
         Args:
             src: 长度为样本数量，需要有一列path
+                例如  path
+                    1.csv
+                    1.csv
+                    2.csv
+                    2.csv
+                    2.csv
             data_parser:
             raw_graph_parser:
             **kwargs:

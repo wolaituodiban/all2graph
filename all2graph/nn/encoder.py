@@ -85,11 +85,10 @@ class Encoder(torch.nn.Module):
         self.body.reset_parameters()
 
     def forward(self, graph: Graph, emb_param, conv_param, output_params, target_mask, targets):
-        value_graph = graph.value_graph.to(self.device)
-        value_emb = self.value_embedding(graph.value.to(self.device))
-        value_emb = self.node_embedding(value_emb, number=graph.number.to(self.device), parameters=emb_param)
+        value_emb = self.value_embedding(graph.value)
+        value_emb = self.node_embedding(value_emb, number=graph.number, parameters=emb_param)
         value_feats, value_keys, value_values, value_attn_weights = self.body(
-            graph=value_graph, in_feat=value_emb, parameters=conv_param
+            graph=graph.value_graph, in_feat=value_emb, parameters=conv_param
         )
         outputs = self.output(feats=value_feats, parameters=output_params, mask=target_mask, targets=targets)
         return outputs, {
