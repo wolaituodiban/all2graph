@@ -37,8 +37,8 @@ def test_dataset():
             graph_paths, data_parser=json_parser, raw_graph_parser=raw_graph_parser,
             chunksize=32, shuffle=True, disable=False)
         num_rows2 = []
-        for graph, labels in ag.tqdm(dataset):
-            num_rows2.append(graph.num_components)
+        for _ in ag.tqdm(dataset):
+            num_rows2.append(_.shape[0])
     shutil.rmtree(save_path)
     temp = []
     for a in dataset.paths:
@@ -58,11 +58,14 @@ def test_dataset_v2():
             return df.values,
 
         def gen_targets(self, df, targets):
-            return df[targets].values
+            return torch.tensor(df[targets].values)
 
     class ParserMocker2:
         def __init__(self, targets):
             self.targets = targets
+
+        def parse(self, x):
+            return torch.tensor(x)
 
     if os.path.exists('temp'):
         shutil.rmtree('temp')
@@ -73,7 +76,8 @@ def test_dataset_v2():
     dataset = ag.data.CSVDatasetV2(
         meta_df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']), index_col=0)
     data_loader = DataLoader(
-        dataset, num_workers=3, batch_sampler=dataset.build_sampler(num_workers=3, shuffle=True, batch_size=16))
+        dataset, num_workers=3, collate_fn=dataset.collate_fn,
+        batch_sampler=dataset.build_sampler(num_workers=3, shuffle=True, batch_size=16))
     #
     # for i in data_loader.sampler:
     #     print(i, dataset._get_partition_num(i))

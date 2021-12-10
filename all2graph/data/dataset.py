@@ -23,27 +23,18 @@ class Dataset(_Dataset):
     def __len__(self):
         raise NotImplementedError
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> pd.DataFrame:
         raise NotImplementedError
 
     def read_csv(self, path):
         return pd.read_csv(path, **self.kwargs)
 
-    def collate_fn(self, batches) -> Tuple[Graph, Dict[str, torch.Tensor]]:
-        graphs = []
-        labels = {}
-        for graph, label in batches:
-            graphs.append(graph)
-            for k, v in label.items():
-                if k in labels:
-                    labels[k].append(v)
-                else:
-                    labels[k] = [v]
-        graph = RawGraph.batch(graphs)
-        labels = {k: torch.cat(v) for k, v in labels.items()}
-        if self.data_parser is not None:
-            graph = self.raw_graph_parser.parse(graph)
-        return graph, labels
+    def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
+        df = pd.concat(batches)
+        graph = self.data_parser.parse(df, disable=True)[0]
+        graph = self.raw_graph_parser.parse(graph)
+        label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
+        return graph, label
 
     def enable_preprocessing(self):
         self.data_parser.enable_preprocessing()
@@ -99,16 +90,14 @@ class CSVDataset(Dataset):
     def __len__(self):
         return self.paths.shape[0]
 
-    def __getitem__(self, item) -> Tuple[RawGraph, Dict[str, torch.Tensor]]:
+    def __getitem__(self, item) -> pd.DataFrame:
         dfs = []
         for path, row_nums in self.paths.iloc[item].items():
             df = self.read_csv(path)
             df = df.iloc[row_nums]
             dfs.append(df)
         df = pd.concat(dfs)
-        graph = self.data_parser.parse(df, disable=True)[0]
-        label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
-        return graph, label
+        return df
 
 
 class GraphDataset(_Dataset):
@@ -170,14 +159,12 @@ class CSVDatasetV2(Dataset):
             }
         return self.__partitions[partition_num]
 
-    def __getitem__(self, item):
+    def __getitem__(self, item) -> pd.DataFrame:
         partition_num = self._get_partition_num(item)
         # print(torch.utils.data.get_worker_info().id, partition_num)
         partition = self._get_partition(partition_num)
         df = partition.iloc[[item - self._path['lb'].iloc[partition_num]]]
-        graph = self.data_parser.parse(df, disable=True)[0]
-        label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
-        return graph, label
+        return df
 
     def build_sampler(self, **kwargs):
         indices = []
