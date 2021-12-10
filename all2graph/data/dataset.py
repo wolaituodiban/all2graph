@@ -139,26 +139,42 @@ class CSVDatasetV2(Dataset):
         path['ub'] = path['lines'].cumsum()
         path['lb'] = path['ub'].shift(fill_value=0)
         self._path = path
-        self.__partition = None
-        self.__partition_num = None
+        self.__partitions = {}
 
     def __len__(self):
         return self._path['ub'].iloc[-1]
 
-    def _get_partition_num(self, item):
-        for i, ub in enumerate(self._path['ub']):
-            if item < ub:
-                return i
-        raise IndexError('out of bound')
+    # def _get_partition_num(self, item):
+    #     for i, ub in enumerate(self._path['ub']):
+    #         if item < ub:
+    #             return i
+    #     raise IndexError('out of bound')
+
+    def _get_partition_num(self, item, left=0, right=None):
+        assert 0 <= item < len(self), 'out of bound'
+        right = right or self._path.shape[0]
+        mid = (left + right) // 2
+        if self._path.iloc[mid]['lb'] <= item:
+            if item < self._path.iloc[mid]['ub']:
+                return mid
+            else:
+                return self._get_partition_num(item, left=mid, right=right)
+        else:
+            return self._get_partition_num(item, left=left, right=mid)
+
+    def _get_partition(self, partition_num):
+        if partition_num not in self.__partitions:
+            # print(torch.utils.data.get_worker_info().id, partition_num)
+            self.__partitions = {
+                partition_num: pd.read_csv(self._path.index[partition_num], **self.kwargs)
+            }
+        return self.__partitions[partition_num]
 
     def __getitem__(self, item):
         partition_num = self._get_partition_num(item)
         # print(torch.utils.data.get_worker_info().id, partition_num)
-        if partition_num != self.__partition_num:
-            # print('load file', partition_num, self.__partition_num, torch.utils.data.get_worker_info().id)
-            self.__partition_num = partition_num
-            self.__partition = pd.read_csv(self._path.index[partition_num], **self.kwargs)
-        df = self.__partition.iloc[[item - self._path['lb'].iloc[partition_num]]]
+        partition = self._get_partition(partition_num)
+        df = partition.iloc[[item - self._path['lb'].iloc[partition_num]]]
         graph = self.data_parser.parse(df, disable=True)[0]
         label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
         return graph, label

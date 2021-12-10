@@ -254,7 +254,8 @@ class Factory(MetaStruct):
                     src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
                     **(csv_configs or {}))
                 sampler = dataset.build_sampler(shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
-                return DataLoader(dataset, collate_fn=dataset.collate_fn, batch_sampler=sampler, **kwargs)
+                return DataLoader(
+                    dataset, collate_fn=dataset.collate_fn, batch_sampler=sampler, num_workers=num_workers, **kwargs)
             else:
                 # 使用老版本的dataset
                 from ..data import CSVDataset
