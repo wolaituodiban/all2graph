@@ -193,8 +193,8 @@ class Graph:
         return cls(meta_graph=graphs[0], graph=graphs[1]), labels
 
     def to(self, *args, **kwargs):
-        self.meta_graph.to(*args, **kwargs)
-        self.value_graph.to(*args, **kwargs)
+        self.meta_graph = self.meta_graph.to(*args, **kwargs)
+        self.value_graph = self.value_graph.to(*args, **kwargs)
         return self
 
     def to_df(self, *attrs):
