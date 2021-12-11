@@ -30,7 +30,7 @@ class PartitionSampler(Sampler):
 
         # 丢掉不能被整分的partition
         remainder = len(self.indices) % self.num_workers
-        indices = self.indices[:-remainder]
+        indices = self.indices[remainder:]
 
         # 依次将每个partition分配给worker
         worker_indices = [[] for _ in range(self.num_workers)]
