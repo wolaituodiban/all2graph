@@ -17,7 +17,7 @@ class JsonParser(DataParser):
             self,
             # dataframe 列名
             json_col,
-            time_col=None,
+            time_col,
             time_format=None,
             # 图生成参数
             flatten_dict=False,
@@ -217,12 +217,8 @@ class JsonParser(DataParser):
             df: pd.DataFrame,
             disable: bool = True,
     ):
-        if self.time_col not in df:
-            for obj in tqdm(df[self.json_col], disable=disable, postfix='parsing json'):
-                yield self.parse_json(obj)
-        else:
-            for obj, now in tqdm(zip(df[self.json_col], df[self.time_col]), disable=disable, postfix='parsing json'):
-                yield self.parse_json(obj, now)
+        for obj, now in tqdm(zip(df[self.json_col], df[self.time_col]), disable=disable, postfix='parsing json'):
+            yield self.parse_json(obj, now)
 
     def save(self, df, dst, disable=True):
         assert self.global_id_keys is None
