@@ -20,7 +20,19 @@ class PartitionSampler(Sampler):
         self.batch_size = batch_size
 
     def __len__(self):
-        return int(np.ceil(max(max(ind) for ind in self.indices) / self.batch_size))
+        """
+        由于一下原因，我们无法得到每次迭代时的精确长度：
+        1、文件数量不一定是worker数量的整数倍
+        2、每个文件的长度不一定相同
+        3、shuffle带来的随机性
+        因此，我们只提供一个迭代器长度的上确界，
+        在任何情况下，迭代器的实际长度都小于这个上确界
+        Returns:
+
+        """
+        num_samples = max(max(ind) for ind in self.indices)
+        batch_per_worker = np.ceil(num_samples / self.num_workers / self.batch_size)
+        return batch_per_worker * self.num_workers
 
     def __iter__(self):
         if self.shuffle:

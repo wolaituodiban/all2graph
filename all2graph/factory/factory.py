@@ -190,7 +190,7 @@ class Factory(MetaStruct):
 
     def produce_dataloader(
             self, src=None, dst=None, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
-            shuffle=True, csv_configs=None, raw_graph=False, graph=False, processes=None, v2=False, meta_df=None,
+            shuffle=True, csv_configs=None, raw_graph=False, graph=False, processes=None, meta_df=None,
             num_workers=0, batch_size=1, **kwargs):
         """
 
@@ -208,7 +208,6 @@ class Factory(MetaStruct):
             raw_graph: 如果True，那么数据源视为RawGraph
             graph: 如果True，那么数据源视为Graph，并且覆盖raw_graph的效果
             processes: 当dst不是None时，执行save方法时，多进程的个数
-            v2: 使用dataset v2版本
             meta_df: 返回一个包含路径和元数据的DataFrame，需要有一列path，如果提供了dst，按么会使用分片存储后的meta_df
             num_workers: DataLoader多进程数量
             batch_size: batch大小
@@ -245,26 +244,12 @@ class Factory(MetaStruct):
                         src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
                         concat_chip=concat_chip, **(csv_configs or {}))
                     self.enable_preprocessing()
-                src = dst
 
-            if v2:
-                # 使用v2版本的dataset
-                from ..data import CSVDatasetV2
-                dataset = CSVDatasetV2(
-                    src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
-                    **(csv_configs or {}))
-                sampler = dataset.build_sampler(shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
-                return DataLoader(
-                    dataset, collate_fn=dataset.collate_fn, batch_sampler=sampler, num_workers=num_workers, **kwargs)
-            else:
-                # 使用老版本的dataset
-                from ..data import CSVDataset
-                dataset = CSVDataset(
-                    src, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser, chunksize=chunksize,
-                    shuffle=shuffle, disable=disable, error=error, warning=warning, **(csv_configs or {}))
-                return DataLoader(
-                    dataset, shuffle=shuffle, collate_fn=dataset.collate_fn, num_workers=num_workers,
-                    batch_size=batch_size, **kwargs)
+            from ..data import CSVDatasetV2
+            dataset = CSVDatasetV2(
+                src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
+                **(csv_configs or {}))
+            return dataset.build_dataloader(num_workers=num_workers, shuffle=shuffle, batch_size=batch_size, **kwargs)
 
     def produce_model(
             self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,

@@ -75,9 +75,8 @@ def test_dataset_v2():
     meta_df = ag.split_csv(df, 'temp', chunksize=1000, meta_cols=['uid'], concat_chip=False)
     dataset = ag.data.CSVDatasetV2(
         meta_df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']), index_col=0)
-    data_loader = DataLoader(
-        dataset, num_workers=3, collate_fn=dataset.collate_fn, prefetch_factor=1,
-        batch_sampler=dataset.build_sampler(num_workers=3, shuffle=True, batch_size=16))
+    data_loader = dataset.build_dataloader(
+        num_workers=3, prefetch_factor=1, shuffle=True, batch_size=16)
     #
     # for i in data_loader.sampler:
     #     print(i, dataset._get_partition_num(i))

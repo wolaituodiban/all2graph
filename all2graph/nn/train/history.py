@@ -108,21 +108,3 @@ class History:
     @torch.no_grad()
     def mean_loss(self, epoch):
         return torch.mean(self.epochs[epoch].loss)
-
-    def reset_dataloader(self, *args, **kwargs):
-        """
-        重新设置dataloader的参数
-        Args:
-            *args: DataLoader的参数
-            **kwargs: DataLoader的参数
-
-        Returns:
-
-        """
-        if not hasattr(self.loader, 'dataset'):
-            print('data loader do not have dataset, can not be reset', file=sys.stderr)
-        dataset = self.loader.dataset
-        if hasattr(dataset, 'collate_fn'):
-            self.loader = DataLoader(dataset, *args, **kwargs, collate_fn=dataset.collate_fn)
-        else:
-            self.loader = DataLoader(dataset, *args, **kwargs)

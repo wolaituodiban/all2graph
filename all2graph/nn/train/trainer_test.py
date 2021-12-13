@@ -75,11 +75,6 @@ def test_trainer():
     trainer.fit(1)
     assert trainer.error_msg is not None
 
-    # 测试reset DataLoader
-    trainer.reset_dataloader(batch_size=32, num_workers=2, valid_id=0)
-    assert trainer.valid_history[0].loader.batch_size == 32
-    assert trainer.valid_history[0].loader.num_workers == 2
-
     # 测试build Predictor
     trainer.predict('aa', error=False, data_parser=ag.json.JsonParser('a', 'b'))
 

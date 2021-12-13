@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 import torch
 from pandas.errors import ParserError
-from torch.utils.data import Dataset as _Dataset
+from torch.utils.data import Dataset as _Dataset, DataLoader
 
 from .sampler import PartitionSampler
 from ..graph import Graph
@@ -173,8 +173,13 @@ class CSVDatasetV2(Dataset):
         df = partition.iloc[[item - self._path['lb'].iloc[partition_num]]]
         return df
 
-    def build_sampler(self, **kwargs):
+    def batch_sampler(self, num_workers: int, shuffle=False, batch_size=1):
         indices = []
         for i, row in self._path.iterrows():
             indices.append(list(range(row['lb'], row['ub'])))
-        return PartitionSampler(indices=indices, **kwargs)
+        return PartitionSampler(indices=indices, num_workers=num_workers, shuffle=shuffle, batch_size=batch_size)
+
+    def build_dataloader(self, num_workers: int, shuffle=False, batch_size=1, **kwargs) -> DataLoader:
+        sampler = self.batch_sampler(shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
+        return DataLoader(
+            self, collate_fn=self.collate_fn, batch_sampler=sampler, num_workers=num_workers, **kwargs)

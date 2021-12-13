@@ -59,34 +59,24 @@ def test_produce_dataloader():
 
     with ag.Timer('raw_graph=True'):
         dataloader = factory.produce_dataloader(
-            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, raw_graph=True, processes=cpu_count)
-        assert isinstance(dataloader.dataset, ag.data.CSVDataset)
+            csv_path, dst=save_path, csv_configs=configs, num_workers=1, raw_graph=True, processes=cpu_count)
+        assert isinstance(dataloader.dataset, ag.data.CSVDatasetV2)
         for _ in ag.tqdm(dataloader):
             pass
         shutil.rmtree(save_path)
 
     with ag.Timer('raw_graph=False'):
         dataloader = factory.produce_dataloader(
-            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, raw_graph=False, processes=cpu_count)
-        assert isinstance(dataloader.dataset, ag.data.CSVDataset)
+            csv_path, dst=save_path, csv_configs=configs, num_workers=1, raw_graph=False, processes=cpu_count)
+        assert isinstance(dataloader.dataset, ag.data.CSVDatasetV2)
         for _ in ag.tqdm(dataloader):
             pass
         shutil.rmtree(save_path)
 
     with ag.Timer('graph=True'):
         dataloader = factory.produce_dataloader(
-            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, graph=True, processes=cpu_count)
+            csv_path, dst=save_path, csv_configs=configs, num_workers=1, graph=True, processes=cpu_count)
         assert isinstance(dataloader.dataset, ag.data.GraphDataset)
-        for _ in ag.tqdm(dataloader.dataset):
-            pass
-        shutil.rmtree(save_path)
-
-    with ag.Timer('v2=True'):
-        dataloader = factory.produce_dataloader(
-            csv_path, dst=save_path, csv_configs=configs, num_workers=cpu_count, processes=cpu_count, v2=True,
-            batch_size=16
-        )
-        assert isinstance(dataloader.dataset, ag.data.CSVDatasetV2)
         for _ in ag.tqdm(dataloader.dataset):
             pass
         shutil.rmtree(save_path)

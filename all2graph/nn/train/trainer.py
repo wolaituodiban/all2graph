@@ -154,21 +154,17 @@ class Trainer(torch.nn.Module):
             msg = json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent)
             print('epoch {} val {} metrics: {}'.format(epoch, i, msg))
 
-    def reset_dataloader(self, *args, valid_id=None, **kwargs):
-        """
-        重新设置dataloader的参数
-        Args:
-            *args: DataLoader的参数
-            valid_id: 如果None，那么重置train dataloder，否则重置对应的valid dataloader
-            **kwargs: DataLoader的参数
-
-        Returns:
-
-        """
+    def get_dataset(self, valid_id=None):
         if valid_id is None:
-            self.train_history.reset_dataloader(*args, **kwargs)
+            return self.train_history.dataset
         else:
-            self.valid_history[valid_id].reset_dataloader(*args, **kwargs)
+            return self.valid_history[0].dataset
+
+    def get_data_loader(self, valid_id=None):
+        if valid_id is None:
+            return self.train_history.loader
+        else:
+            return self.valid_history[0].loader
 
     def get_data_parser(self, valid_id=None):
         if valid_id is None:
