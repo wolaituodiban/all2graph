@@ -219,13 +219,12 @@ class Trainer(torch.nn.Module):
         dst = os.path.join(self.check_point, str(self._current_epoch))
         if not os.path.exists(dst):
             os.mkdir(dst)
-        dst = os.path.join(dst, 'pred_{}'.format(os.path.split(src)[-1]))
-        print("save prediction at '{}'".format(dst))
-
+        dst = os.path.join(dst, 'pred_{}.csv'.format(os.path.split(src)[-1]))
         predictor = self.build_predictor(valid_id=valid_id, data_parser=data_parser)
         if predictor is None:
             return pd.DataFrame()
         output = predictor.predict(src, **kwargs)
+        print("save prediction at '{}'".format(dst))
         output.to_csv(dst)
         return output
 
