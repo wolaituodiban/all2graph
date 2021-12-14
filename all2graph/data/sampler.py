@@ -32,7 +32,7 @@ class PartitionSampler(Sampler):
         """
         num_samples = max(max(ind) for ind in self.indices)
         batch_per_worker = np.ceil(num_samples / self.num_workers / self.batch_size)
-        return batch_per_worker * self.num_workers
+        return int(batch_per_worker * self.num_workers)
 
     def __iter__(self):
         if self.shuffle:

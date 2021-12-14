@@ -15,7 +15,7 @@ from ..meta_struct import MetaStruct
 class RawGraphParser(MetaStruct):
     def __init__(
             self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
-            targets: List[str] = None, tokenizer: Tokenizer = default_tokenizer, filter_key=False
+            targets: List[str] = None, tokenizer: Tokenizer = default_tokenizer(), filter_key=False
     ):
         """
         Graph与dgl.DiGraph的转换器
@@ -230,7 +230,7 @@ class RawGraphParser(MetaStruct):
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  targets=None, tokenizer: Tokenizer = default_tokenizer, filter_key=False):
+                  targets=None, tokenizer: Tokenizer = default_tokenizer(), filter_key=False):
         """
 
         Args:

@@ -73,7 +73,7 @@ class JsonParser(DataParser):
             self.json_path_tree = None
         self.tokenizer = tokenizer
         if self.segment_value and self.tokenizer is None:
-            self.tokenizer = default_tokenizer
+            self.tokenizer = default_tokenizer()
         self.error = error
         self.warning = warning
 
@@ -207,7 +207,7 @@ class JsonParser(DataParser):
 
         # json预处理
         if self.json_path_tree is not None:
-            if now is not None:
+            if pd.notna(now):
                 now = ddt.strptime(now, self.time_format)
             obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)
         return obj
