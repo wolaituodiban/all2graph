@@ -148,30 +148,6 @@ def test_shape():
     for attn_weight in attn_weights:
         assert attn_weight.shape == (num_edges, nhead)
 
-    conv.use_matmul = False
-    with ag.Timer('*'):
-        for _ in range(1000):
-            conv(
-                graph, feat, dict(
-                    src_key_weight=src_key_weight, src_key_bias=src_key_bias, dst_key_weight=dst_key_weight,
-                    dst_key_bias=dst_key_bias, src_value_weight=src_value_weight, src_value_bias=src_value_bias,
-                    dst_value_weight=dst_value_weight, dst_value_bias=dst_value_bias, query=query,
-                    node_weight=node_weight,
-                    node_bias=node_bias)
-            )
-
-    conv.use_matmul = True
-    with ag.Timer('*'):
-        for _ in range(1000):
-            conv(
-                graph, feat, dict(
-                    src_key_weight=src_key_weight, src_key_bias=src_key_bias, dst_key_weight=dst_key_weight,
-                    dst_key_bias=dst_key_bias, src_value_weight=src_value_weight, src_value_bias=src_value_bias,
-                    dst_value_weight=dst_value_weight, dst_value_bias=dst_value_bias, query=query,
-                    node_weight=node_weight,
-                    node_bias=node_bias)
-            )
-
 
 if __name__ == '__main__':
     test_statistics()

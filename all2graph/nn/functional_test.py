@@ -8,13 +8,7 @@ def test_tensor_op_speed():
     bias = torch.rand(10000, 8)
     with ag.Timer('*'):
         for _ in range(1000):
-            out1 = ag.nn.nodewise_linear(feat, weight, bias)
-
-    with ag.Timer('matmul'):
-        for _ in range(1000):
-            out2 = ag.nn.nodewise_linear(feat, weight, bias, use_matmul=True)
-
-    assert (out1 == out2).all()
+            ag.nn.nodewise_linear(feat, weight, bias)
 
 
 if __name__ == "__main__":

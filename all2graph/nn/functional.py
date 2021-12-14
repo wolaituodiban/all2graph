@@ -56,7 +56,6 @@ def nodewise_linear(
         dropout: torch.nn.Module = None,
         norm: torch.nn.Module = None,
         activation: torch.nn.Module = None,
-        use_matmul=False
 ) -> torch.Tensor:
     """
 
@@ -66,17 +65,12 @@ def nodewise_linear(
     :param norm      : 激活层之前的归一化
     :param activation: 激活层
     :param dropout   :
-    :param use_matmul: 是否使用matmul，否则会使用 * 加sum的操作替代。matmul速度较快，但是占用显存更多
     :return          : (num_nodes, *)
     """
     if dropout is not None:
         feat = dropout(feat)
-    if use_matmul:
-        shape = feat.shape[0], *[1]*(len(weight.shape)-len(feat.shape)-1), feat.shape[-1], 1
-        output = torch.matmul(weight, feat.view(shape)).view(weight.shape[:-1])
-    else:
-        shape = feat.shape[0], *[1]*(len(weight.shape)-len(feat.shape)), feat.shape[-1]
-        output = (feat.view(shape) * weight).sum(-1)
+    shape = feat.shape[0], *[1] * (len(weight.shape) - len(feat.shape) - 1), feat.shape[-1], 1
+    output = torch.matmul(weight, feat.view(shape)).view(weight.shape[:-1])
     if bias is not None:
         output += bias
     if norm is not None:

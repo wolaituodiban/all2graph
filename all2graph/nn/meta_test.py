@@ -114,7 +114,8 @@ def test_predict():
 
     sample = {'a': 'b'}
     df = pd.DataFrame({'id': [0], 'json': [sample]})
-    json_parser = ag.json.JsonParser('json', error=False, warning=False)
+    df['day'] = None
+    json_parser = ag.json.JsonParser('json', time_col='day', error=False, warning=False)
     raw_graph, *_ = json_parser.parse(df)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'])
@@ -128,7 +129,8 @@ def test_predict():
 def test_error_key():
     sample = {'a': 'b'}
     df = pd.DataFrame({'id': [0], 'json': [sample]})
-    json_parser = ag.json.JsonParser('json', error=False, warning=False)
+    df['day'] = None
+    json_parser = ag.json.JsonParser('json', time_col='day', error=False, warning=False)
     raw_graph, *_ = json_parser.parse(df)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'])
@@ -137,6 +139,7 @@ def test_error_key():
 
     sample2 = {'b': 'a'}
     df2 = pd.DataFrame({'id': [1], 'json': [sample2]})
+    df2['day'] = None
     raw_graph2, *_ = json_parser.parse(df2)
     graph2 = raw_graph_parser.parse(raw_graph2)
     try:
