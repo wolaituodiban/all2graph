@@ -60,7 +60,7 @@ class Trainer(torch.nn.Module):
             check_point = '.'.join([check_point, __version__])
             if not os.path.exists(check_point) or not os.path.isdir(check_point):
                 os.mkdir(check_point)
-            self.check_point = os.path.join(check_point, ddt.now().strftime('%Y-%m-%d %H:%M:%S.%f'))
+            self.check_point = os.path.join(check_point, ddt.now().strftime('%Y%m%d%H%M%S.%f'))
             os.mkdir(self.check_point)
         else:
             self.check_point = None
