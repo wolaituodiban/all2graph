@@ -73,7 +73,7 @@ class JsonParser(DataParser):
             self.json_path_tree = None
         self.tokenizer = tokenizer
         if self.segment_value and self.tokenizer is None:
-            self.tokenizer = default_tokenizer
+            self.tokenizer = default_tokenizer()
         self.error = error
         self.warning = warning
 

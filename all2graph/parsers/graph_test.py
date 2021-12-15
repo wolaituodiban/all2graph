@@ -10,9 +10,9 @@ path = os.path.dirname(path)
 
 csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
 df = pd.read_csv(csv_path, nrows=64)
-
+df['day'] = None
 parser = ag.json.JsonParser(
-    'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, self_loop=True,
+    'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True, self_loop=True,
     list_inner_degree=1, tokenizer=ag.JiebaTokenizer()
 )
 raw_graph, global_index_mapper, local_index_mappers = parser.parse(df, disable=False)

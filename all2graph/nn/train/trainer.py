@@ -26,7 +26,7 @@ class Trainer(torch.nn.Module):
             self, module: torch.nn.Module, loss: torch.nn.Module, data: DataLoader,
             optimizer: torch.optim.Optimizer = None, scheduler=None, valid_data: List[DataLoader] = None,
             early_stop: EarlyStop = None, metrics: Dict[str, Callable] = None, callbacks: List[Callable] = None,
-            valid_callbacks: List[Callable] = None, check_point=None, max_batch=None):
+            valid_callbacks: List[Callable] = None, check_point=None, max_batch=None, max_history=None):
         """
 
         Args:
@@ -42,6 +42,7 @@ class Trainer(torch.nn.Module):
             valid_callbacks:
             check_point: 保存路径
             max_batch: 当每个epoch训练的batch数量达到这个值时就会停止，可以用于防止batch太大时dataloader报mmap错误
+            max_history: 保留历史的epoch数量
         """
         super().__init__()
         self.module = module
@@ -55,6 +56,7 @@ class Trainer(torch.nn.Module):
         self.callbacks = callbacks or []
         self.valid_callbacks = valid_callbacks or []
         self.max_batch = max_batch
+        self.max_history = max_history
 
         if check_point:
             check_point = '.'.join([check_point, __version__])
@@ -120,6 +122,8 @@ class Trainer(torch.nn.Module):
                 self.fit_one_epoch(digits=digits)
                 self.pred_valid()
                 self.evaluate(digits=digits, indent=indent)
+                if self.max_history is not None:
+                    self.delete_history()
                 if self.check_point:
                     self.save()
                 if self.early_stop is not None and self.early_stop(self, None, self._current_epoch):
@@ -245,3 +249,17 @@ class Trainer(torch.nn.Module):
             data_parser=data_parser, raw_graph_parser_config=raw_graph_parser_config, meta_info_config=meta_info_config)
         factory.raw_graph_parser = raw_graph_parser
         return factory
+
+    def delete_history(self, epochs=None):
+        """
+
+        Args:
+            epochs: 保留多少个epoch的history，默认self.max_history
+
+        Returns:
+
+        """
+        epochs = epochs or self.max_history
+        self.train_history.delete_history(epochs=epochs)
+        for valid_history in self.valid_history:
+            valid_history.delete_history(epochs=epochs)

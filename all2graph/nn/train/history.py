@@ -73,6 +73,18 @@ class History:
         del self.epochs[min_epoch]
         return output
 
+    def delete_history(self, epochs):
+        """
+
+        Args:
+            epochs: 保留多少个epoch
+
+        Returns:
+
+        """
+        while self.num_epochs> epochs:
+            self.pop()
+
     @property
     def last(self) -> Epoch:
         max_epoch = max(list(self.epochs))

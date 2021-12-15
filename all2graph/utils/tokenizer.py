@@ -57,7 +57,14 @@ try:
 
         def __repr__(self):
             return '{}(kill_camel={})'.format(self.__class__.__name__, self.camel_to_snake_pattern is not None)
-
-    default_tokenizer = JiebaTokenizer(camel_to_snake=True, stopwords={SEP}.union(string.punctuation), join_token=SEP)
 except ImportError:
-    default_tokenizer = None
+    JiebaTokenizer = None
+_default_tokenizer = None
+
+
+def default_tokenizer():
+    global _default_tokenizer
+    if _default_tokenizer is None and JiebaTokenizer is not None:
+        _default_tokenizer = JiebaTokenizer(
+            camel_to_snake=True, stopwords={SEP}.union(string.punctuation), join_token=SEP)
+    return _default_tokenizer

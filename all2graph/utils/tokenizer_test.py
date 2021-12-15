@@ -6,8 +6,8 @@ def test():
     tokenizer = JiebaTokenizer()
     print(tokenizer)
     print(tokenizer.lcut(s))
-    print(default_tokenizer)
-    print(default_tokenizer.lcut(s))
+    print(default_tokenizer())
+    print(default_tokenizer().lcut(s))
 
 
 if __name__ == '__main__':

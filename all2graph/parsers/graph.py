@@ -15,7 +15,7 @@ from ..meta_struct import MetaStruct
 class RawGraphParser(MetaStruct):
     def __init__(
             self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
-            targets: List[str] = None, tokenizer: Tokenizer = default_tokenizer, filter_key=False
+            targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=False
     ):
         """
         Graph与dgl.DiGraph的转换器
@@ -26,6 +26,8 @@ class RawGraphParser(MetaStruct):
         :param targets:
         :param filter_key: 如果是True，那么parse函数会过滤掉不是别的key对应的node和edge
         """
+        if tokenizer is None:
+            tokenizer = default_tokenizer()
         super().__init__(initialized=True)
         self.meta_numbers = {k: MetaNumber.from_json(v.to_json()) for k, v in meta_numbers.items()}
         self.tokenizer = tokenizer
@@ -230,7 +232,7 @@ class RawGraphParser(MetaStruct):
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  targets=None, tokenizer: Tokenizer = default_tokenizer, filter_key=False):
+                  targets=None, tokenizer: Tokenizer = None, filter_key=False):
         """
 
         Args:
@@ -246,6 +248,8 @@ class RawGraphParser(MetaStruct):
         Returns:
 
         """
+        if tokenizer is None:
+            tokenizer = default_tokenizer()
         strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:
             if top_method == 'max_tfidf':
