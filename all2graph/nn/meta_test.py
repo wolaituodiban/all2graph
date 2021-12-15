@@ -152,7 +152,7 @@ def test_error_key():
 
 
 if __name__ == '__main__':
-    # test_learner()
+    test_learner()
     test_mock()
     test_predict()
     test_mock_load_pretrained()

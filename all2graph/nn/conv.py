@@ -306,8 +306,8 @@ class Body(torch.nn.ModuleList):
         keys = []
         values = []
         attn_weights = []
-        for i, conv in enumerate(self):
-            out_feat, key, value, attn_weight = conv(graph, in_feat, {k: v[i] for k, v in parameters.items()})
+        for i, block in enumerate(self):
+            out_feat, key, value, attn_weight = block(graph, in_feat, {k: v[i] for k, v in parameters.items()})
             out_feats.append(out_feat)
             keys.append(key)
             values.append(value)

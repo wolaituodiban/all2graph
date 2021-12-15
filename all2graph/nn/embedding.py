@@ -1,3 +1,4 @@
+from typing import Dict
 import torch
 from ..globals import SEP
 from ..preserves import NUMBER, WEIGHT, KEY, BIAS
@@ -37,7 +38,17 @@ class NodeEmbedding(torch.nn.Module):
     def device(self):
         return self.embedding.weight.device
 
-    def forward(self, feat, number, parameters) -> torch.Tensor:
+    def forward(self, feat: torch.Tensor, number: torch.Tensor, parameters: Dict[str, torch.Tensor]) -> torch.Tensor:
+        """
+
+        Args:
+            feat: tensor(num_nodes, dim)
+            number: tensor(num_nodes, )
+            parameters: dict of tensor(num_nodes, out_dim)
+
+        Returns:
+            (num_nodes, dim)
+        """
         output = feat
         mask = torch.isnan(number)
         mask = torch.bitwise_not(mask)

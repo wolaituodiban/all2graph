@@ -2,6 +2,7 @@ import copy
 import math
 from typing import Dict, List
 
+import dgl
 import dgl.function as fn
 import numpy as np
 import torch
@@ -81,7 +82,11 @@ class EncoderMetaLearner(MyModule):
             self.learners.append(BaseMetaLearner(num_latent, shape, dropout=dropout, norm=norm))
             for param in params:
                 self.name_to_layer[param] = len(self.learners) - 1
+
+        # 用于卷积元图的主干网络
         self.body = copy.deepcopy(encoder.body)
+
+        # 用于卷积值图的主干网络，学习器需要学习的结构
         self.encoder = encoder
 
     @property
@@ -103,7 +108,7 @@ class EncoderMetaLearner(MyModule):
             layer.reset_parameters()
 
     def update_param_emb(self):
-        self.param_graph.to(self.device)
+        self.param_graph.to(self.device, non_blocking=True)
         with self.param_graph.graph.local_scope():
             self.param_graph.graph.ndata['emb'] = self.encoder.value_embedding(self.param_graph.value)
             self.param_graph.graph.update_all(fn.copy_u('emb', 'emb'), fn.sum('emb', 'emb'))
@@ -115,10 +120,13 @@ class EncoderMetaLearner(MyModule):
 
     def gen_param(self, param_names: List[str], feat: torch.Tensor = None) -> Dict[str, torch.Tensor]:
         """
+        生成底层参数
+        Args:
+            param_names:
+            feat: (*, emb_dim)
 
-        :param param_names:
-        :param feat: (*, emb_dim)
-        :return: dict of shape(*, *param_shape)
+        Returns:
+            dict of shape(*, *param_shape)
         """
         layer_to_name = reverse_dict({name: self.name_to_layer[name] for name in param_names})
         output = {}
@@ -135,28 +143,114 @@ class EncoderMetaLearner(MyModule):
                 output[param_name] = param
         return output
 
+    def gen_meta_conv_param(self, meta_graph: dgl.DGLGraph) -> Dict[str, torch.Tensor]:
+        """
+
+        Args:
+            meta_graph: 元图
+
+        Returns:
+            meta_conv需要用到的参数
+            (num_blocks, num_nodes, *)
+            or (num_blocks, num_edges, *)
+        """
+        meta_conv_param = self.gen_param(self.body.dynamic_parameter_names)
+        for k in self.body.node_dynamic_parameter_names:
+            v = meta_conv_param[k]
+            meta_conv_param[k] = v.expand(len(self.body), meta_graph.num_nodes(), *v.shape)
+        for k in self.body.edge_dynamic_parameter_names:
+            v = meta_conv_param[k]
+            meta_conv_param[k] = v.expand(len(self.body), meta_graph.num_edges(), *v.shape)
+        return meta_conv_param
+
+    def gen_emb_param(self, meta_node_id: torch.Tensor, meta_emb: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """
+
+        Args:
+            meta_node_id: node对应关系
+            meta_emb: graph.meta_value的embedding
+
+        Returns:
+            (num_nodes, *)
+        """
+        emb_param = self.gen_param(self.encoder.node_embedding.dynamic_parameter_names, feat=meta_emb)
+        emb_param = {k: v[meta_node_id] for k, v in emb_param.items()}
+        return emb_param
+
+    def gen_conv_param(
+            self, meta_feats: List[torch.Tensor], meta_values: List[torch.Tensor],
+            meta_node_id: torch.Tensor, meta_edge_id: torch.Tensor) -> Dict[str, torch.Tensor]:
+        """
+
+        Args:
+            meta_feats: 元图卷积之后的list of feats，
+                num_blocks of (num_layers, num_meta_nodes, out_dim)
+            meta_values: 元图卷积之后的list of values,
+                num_blocks of (num_layers, num_meta_edges, out_dim)
+            meta_node_id: long, (num_nodes, )
+            meta_edge_id: long, (num_edges, )
+        Returns:
+            (num_blocks, num_nodes, *)
+            or (num_blocks, num_edges, *)
+        """
+        conv_param = {}
+        node_param = self.gen_param(
+            self.encoder.node_dynamic_parameter_names,
+            feat=torch.stack([meta_feat[-1] for meta_feat in meta_feats], dim=0))
+        for k, v in node_param.items():
+            conv_param[k] = v[:, meta_node_id]
+        edge_param = self.gen_param(
+            self.encoder.edge_dynamic_parameter_names,
+            feat=torch.stack([meta_value[-1] for meta_value in meta_values], dim=0))
+        for k, v in edge_param.items():
+            conv_param[k] = v[:, meta_edge_id]
+        return conv_param
+
+    def gen_output_params(
+            self, meta_feats: List[torch.Tensor], meta_node_id: torch.Tensor) -> List[Dict[str, torch.Tensor]]:
+        """
+
+        Args:
+            meta_feats: 元图卷积之后的list of feats，
+                num_blocks of (num_layers, num_meta_nodes, out_dim)
+            meta_node_id: long, (num_nodes, )
+
+        Returns:
+
+        """
+        # ! 每个block的层数可能不一样，不能直接stack
+        output_params = []
+        for meta_feat in meta_feats:
+            params = self.gen_param(self.encoder.output.dynamic_parameter_names, feat=meta_feat)
+            params = {k: v[:, meta_node_id] for k, v in params.items()}
+            output_params.append(params)
+        return output_params
+
     def meta_forward(self, graph: Graph):
-        # todo 在删除了Conv、Embedding和Output的forward函数的meta_node_id和meta_edge_id参数后，此函数已经不兼容
+        """
+        输出encoder需要的参数
+        Args:
+            graph:
+
+        Returns:
+        详细信息见各个gen_*_param方法
+        """
         # 原因在于Encoder已经不在处理parameter的映射逻辑
         if self.training:
             self.update_param_emb()
-
-        meta_graph = graph.meta_graph.to(self.device)
+        graph = graph.to(self.device, non_blocking=True)
         meta_emb = self.encoder.value_embedding(graph.meta_value)
-        meta_conv_param = self.gen_param(self.encoder.body.dynamic_parameter_names)
-        meta_conv_param = {k: [v] * self.num_blocks for k, v in meta_conv_param.items()}
+        # 生成参数meta_conv需要使用的参数
+        meta_conv_param = self.gen_meta_conv_param(meta_graph=graph.meta_graph)
         meta_feats, meta_keys, meta_values, meta_attn_weights = self.body(
-            graph=meta_graph, in_feat=meta_emb, parameters=meta_conv_param)
-        emb_param = self.gen_param(self.encoder.node_embedding.dynamic_parameter_names, feat=meta_emb)
-        conv_param = self.gen_param(
-            self.encoder.node_dynamic_parameter_names,
-            feat=torch.stack([meta_feat[-1] for meta_feat in meta_feats], dim=0))
-        conv_edge_param = self.gen_param(
-            self.encoder.edge_dynamic_parameter_names,
-            feat=torch.stack([meta_value[-1] for meta_value in meta_values], dim=0))
-        conv_param.update(conv_edge_param)
-        output_params = [
-            self.gen_param(self.encoder.output.dynamic_parameter_names, feat=meta_feat) for meta_feat in meta_feats]
+            graph=graph.meta_graph, in_feat=meta_emb, parameters=meta_conv_param)
+
+        # 生成encoder需要使用的参数
+        emb_param = self.gen_emb_param(meta_node_id=graph.meta_node_id, meta_emb=meta_emb)
+        conv_param = self.gen_conv_param(
+            meta_feats=meta_feats, meta_values=meta_values, meta_node_id=graph.meta_node_id,
+            meta_edge_id=graph.meta_edge_id)
+        output_params = self.gen_output_params(meta_feats=meta_feats, meta_node_id=graph.meta_node_id)
         return emb_param, conv_param, output_params, {
             'feats': meta_feats, 'keys': meta_keys, 'values': meta_values, 'attn_weights': meta_attn_weights
         }
