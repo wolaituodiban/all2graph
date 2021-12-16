@@ -1,5 +1,6 @@
 import os
-from typing import Dict, Union
+import sys
+from typing import Dict, Union, Tuple
 
 import numpy as np
 import pandas as pd
@@ -109,10 +110,16 @@ class MyModule(torch.nn.Module):
         self._loss = None
         self._optimizer = None
 
-    def forward(self, inputs) -> Graph:
+    @property
+    def device(self):
+        raise NotImplementedError
+
+    def forward(self, inputs) -> Tuple[Graph, torch.Tensor]:
         if isinstance(inputs, RawGraph):
             inputs = self.raw_graph_parser.parse(inputs)
-        return inputs
+        graph = inputs.to(self.device, non_blocking=True)
+        target_mask = graph.target_mask(self.raw_graph_parser.target_symbol)
+        return graph, target_mask
 
     def predict_dataloader(self, loader: DataLoader, postfix=None):
         if not hasattr(loader, 'dataset') or not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
@@ -161,6 +168,9 @@ class Predictor(torch.nn.Module):
                 v.disable_preprocessing()
 
     def forward(self, df: pd.DataFrame) -> Dict[str, torch.Tensor]:
+        if self.module.version <= '0.1.5' and __version__ >= '0.1.6':
+            print('old version model (<=0.1.5) has a bug in Conv.forward', file=sys.stderr)
+            print('from version 0.1.6, that bug has been fixed and output will be influenced', file=sys.stderr)
         parser_wrapper = self.parser_wrapper(temp_file=False)
         df, graphs, *_ = parser_wrapper.parse(df, disable=True)
         return self._predict(graphs)

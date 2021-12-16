@@ -31,5 +31,6 @@ for name, group in new_df.groupby(['id', 'dateupdated']):
         'json': json.dumps(group.json.tolist())
     })
 new_new_df = pd.DataFrame(new_new_df)
+new_new_df['day'] = None
 
 new_new_df.to_csv('MensShoePrices.csv', index=False)

@@ -238,7 +238,6 @@ class EncoderMetaLearner(MyModule):
         # 原因在于Encoder已经不在处理parameter的映射逻辑
         if self.training:
             self.update_param_emb()
-        graph = graph.to(self.device, non_blocking=True)
         meta_emb = self.encoder.value_embedding(graph.meta_value)
         # 生成参数meta_conv需要使用的参数
         meta_conv_param = self.gen_meta_conv_param(meta_graph=graph.meta_graph)
@@ -256,9 +255,8 @@ class EncoderMetaLearner(MyModule):
         }
 
     def forward(self, graph: Graph, details=False):
-        graph = super().forward(graph)
+        graph, target_mask = super().forward(graph)
         emb_param, conv_param, output_params, meta_infos = self.meta_forward(graph)
-        target_mask = graph.target_mask(self.raw_graph_parser.target_symbol)
         outputs, value_infos = self.encoder(
             graph, emb_param=emb_param, conv_param=conv_param, output_params=output_params, target_mask=target_mask,
             targets=self.raw_graph_parser.targets
@@ -315,16 +313,13 @@ class EncoderMetaLearnerMocker(MyModule):
         if reset_encoder:
             self.encoder.reset_parameters()
 
-    def forward(self, graph: Graph, details=False):
-        graph = super().forward(graph)
-        graph = graph.to(self.device, non_blocking=True)
-        key = graph.key
+    def gen_param(self, key: torch.Tensor, edge_key: torch.Tensor):
         emb_param = {
             name: getattr(self, name)[key] for name in self.encoder.node_embedding.dynamic_parameter_names}
         conv_param = {
             name: getattr(self, name)[:, key] for name in self.encoder.body.node_dynamic_parameter_names}
         conv_param.update({
-            name: getattr(self, name)[:, graph.edge_key]
+            name: getattr(self, name)[:, edge_key]
             for name in self.encoder.body.edge_dynamic_parameter_names})
         output_params = [
             {
@@ -333,7 +328,11 @@ class EncoderMetaLearnerMocker(MyModule):
             }
             for i in range(self.encoder.num_blocks)
         ]
-        target_mask = graph.target_mask(self.raw_graph_parser.target_symbol)
+        return emb_param, conv_param, output_params
+
+    def forward(self, graph: Graph, details=False):
+        graph, target_mask = super().forward(graph)
+        emb_param, conv_param, output_params = self.gen_param(key=graph.key, edge_key=graph.edge_key)
         outputs, value_infos = self.encoder(
             graph, emb_param=emb_param, conv_param=conv_param, output_params=output_params,
             target_mask=target_mask, targets=self.raw_graph_parser.targets)

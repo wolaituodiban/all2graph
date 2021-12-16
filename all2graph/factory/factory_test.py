@@ -13,7 +13,8 @@ def test_analyse():
     nrows = 1000
 
     json_parser = ag.json.JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=ag.JiebaTokenizer()
+        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True,
+        tokenizer=ag.JiebaTokenizer()
     )
 
     with ag.Timer('工厂封装模式') as timer:
@@ -49,7 +50,8 @@ def test_produce_dataloader():
 
     cpu_count = os.cpu_count()
     json_parser = ag.json.JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=ag.JiebaTokenizer()
+        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True,
+        tokenizer=ag.JiebaTokenizer()
     )
     factory = ag.Factory(data_parser=json_parser, raw_graph_parser_config=dict(filter_key=True))
     factory.analyse(
@@ -91,7 +93,8 @@ def test_produce_model():
 
     cpu_count = os.cpu_count()
     json_parser = ag.json.JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, tokenizer=ag.JiebaTokenizer()
+        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True,
+        tokenizer=ag.JiebaTokenizer()
     )
     factory = ag.Factory(data_parser=json_parser)
     factory.analyse(

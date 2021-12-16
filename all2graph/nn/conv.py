@@ -153,12 +153,13 @@ class Conv(torch.nn.Module):
             )  # (, nheads, out_dim // nheads)
 
             # 通过feature计算value
+            # 0.1.5 之前有bug，value部分使用了key的参数
             graph.edata[VALUE] = edgewise_linear(
                 feat=in_feat, graph=graph, u_weight=parameters[self.SRC_VALUE_WEIGHT],
                 v_weight=parameters[self.DST_VALUE_WEIGHT],
-                u_bias=parameters[self.SRC_VALUE_BIAS] if self.key_bias else None,
-                v_bias=parameters[self.DST_VALUE_BIAS] if self.key_bias else None,
-                dropout=self.key_dropout, norm=self.key_norm, activation=self.key_activation
+                u_bias=parameters[self.SRC_VALUE_BIAS] if self.value_bias else None,
+                v_bias=parameters[self.DST_VALUE_BIAS] if self.value_bias else None,
+                dropout=self.value_dropout, norm=self.value_norm, activation=self.value_activation
             )  # (, nheads, out_dim // nheads)
 
             # attention
