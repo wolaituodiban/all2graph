@@ -62,14 +62,13 @@ def test_trainer():
     trainer.evaluate()
     epochs = 20
     trainer.fit(epochs)
-    assert trainer._current_epoch < epochs
-    assert trainer.train_history.num_epochs == 2
+    assert trainer._current_epoch < trainer.train_history.num_epochs < epochs
     trainer = torch.load(os.path.join(trainer.check_point, os.listdir(trainer.check_point)[0]))
     assert isinstance(trainer, ag.nn.Trainer)
     trainer.max_batch = 1000
     trainer.fit(epochs)
     assert trainer._current_epoch < epochs
-    assert trainer.train_history.num_epochs == 2
+    assert trainer.train_history.get_pred(0) is None
     trainer.early_stop = None
     trainer.fit(5)
 

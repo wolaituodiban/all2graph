@@ -40,6 +40,10 @@ class Epoch:
         loss = default_collate(buffer.loss)
         return cls(pred=pred, label=label, loss=loss)
 
+    def delete_pred_and_label(self):
+        self.pred = None
+        self.label = None
+
 
 class History:
     def __init__(self, loader: DataLoader):
@@ -82,8 +86,10 @@ class History:
         Returns:
 
         """
-        while self.num_epochs> epochs:
-            self.pop()
+        max_epoch = max(list(self.epochs))
+        for i, epoch in self.epochs.items():
+            if i + epochs <= max_epoch:
+                epoch.delete_pred_and_label()
 
     @property
     def last(self) -> Epoch:
