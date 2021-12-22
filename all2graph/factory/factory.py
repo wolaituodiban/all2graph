@@ -101,7 +101,7 @@ class Factory(MetaStruct):
                 weights.append(weight)
         else:
             with Pool(processes) as pool:
-                results = pool.imap(self._analyse, data)
+                results = pool.imap_unordered(self._analyse, data)
                 results = tqdm(results, disable=disable, postfix=postfix)
                 for meta_info, weight in results:
                     meta_infos.append(meta_info)

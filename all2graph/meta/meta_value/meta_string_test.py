@@ -8,7 +8,7 @@ import pandas as pd
 import all2graph as ag
 from all2graph import MetaString
 from all2graph.json import JsonParser
-from all2graph import json_diff
+from all2graph.json import json_diff
 
 
 def test_from_data():
@@ -91,7 +91,8 @@ def test_merge():
 
 def test_no_data():
     data = pd.DataFrame({'a': ['1']})
-    factory = ag.Factory(ag.JsonParser(json_col='a'))
+    data['day'] = None
+    factory = ag.Factory(ag.json.JsonParser(json_col='a', time_col='day'))
     factory.analyse(data, processes=0)
 
 
@@ -102,7 +103,8 @@ def speed():
     path = os.path.dirname(path)
     path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(path)
-    json_graph, *_ = JsonParser('json', flatten_dict=True).parse(df)
+    df['day'] = None
+    json_graph, *_ = JsonParser('json', time_col='day', flatten_dict=True).parse(df)
 
     num_samples = json_graph.num_components
 
