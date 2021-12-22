@@ -158,31 +158,38 @@ class Trainer(torch.nn.Module):
             msg = json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent)
             print('epoch {} val {} metrics: {}'.format(epoch, i, msg))
 
-    def get_dataset(self, valid_id=None):
+    def get_history(self, valid_id=None) -> History:
         if valid_id is None:
-            return self.train_history.dataset
+            return self.train_history
         else:
-            return self.valid_history[0].dataset
+            return self.valid_history[valid_id]
 
-    def get_data_loader(self, valid_id=None):
-        if valid_id is None:
-            return self.train_history.loader
-        else:
-            return self.valid_history[0].loader
+    def get_dataset(self, valid_id=None):
+        return self.get_history(valid_id=valid_id).dataset
+
+    def get_data_loader(self, valid_id=None) -> DataLoader:
+        return self.get_history(valid_id).loader
 
     def get_data_parser(self, valid_id=None):
-        if valid_id is None:
-            data_parser = self.train_history.data_parser
-        else:
-            data_parser = self.valid_history[0].data_parser
-        return data_parser
+        return self.get_history(valid_id=valid_id).data_parser
 
     def get_raw_graph_parser(self, valid_id=None):
-        if valid_id is None:
-            raw_graph_parser = self.train_history.raw_graph_parser
-        else:
-            raw_graph_parser = self.valid_history[0].raw_graph_parser
-        return raw_graph_parser
+        return self.get_history(valid_id=valid_id).raw_graph_parser
+
+    def get_pred(self, epoch, valid_id=None):
+        return self.get_history(valid_id=valid_id).get_pred(epoch=epoch)
+
+    def get_label(self, epoch, valid_id=None):
+        return self.get_history(valid_id=valid_id).get_label(epoch=epoch)
+
+    def get_metric(self, epoch, key, valid_id=None):
+        return self.get_history(valid_id=valid_id).get_metric(epoch=epoch, key=key)
+
+    def get_mean_loss(self, epoch, valid_id=None):
+        return self.get_history(valid_id=valid_id).mean_loss(epoch=epoch)
+
+    def set_data_loader(self, loader: DataLoader, valid_id=None):
+        self.get_history(valid_id=valid_id).loader = loader
 
     def build_predictor(self, valid_id=None, data_parser=None) -> Union[Predictor, None]:
         """
