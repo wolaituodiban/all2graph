@@ -135,6 +135,20 @@ def test_compress():
             q_diff(_, samples, ecdf)
 
 
+def test_minmax_scale():
+    a = [0, 1, 2, 3, 3, 4, 2, 1]
+    ecdf = ECDF.from_data(a, num_bins=10)
+    b = ecdf.minmax_scale(a)
+    assert np.isclose(b, [1/9, 3/9, 5/9, 7/9, 7/9, 1, 5/9, 3/9]).all()
+    c = [1, 5]
+    d = ecdf.minmax_scale(c, prob_range=(0.5, 1))
+    assert np.isclose(d, [-0.2, 1.4]).all(), d
+    e = ecdf.minmax_scale(c, clip=True)
+    assert np.isclose(e, [1/3, 1]).all()
+    f = ecdf.minmax_scale(c, prob_range=(0.5, 0.9), clip=True)
+    assert np.isclose(f, [0, 1]).all(), f
+
+
 def speed():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
@@ -158,8 +172,9 @@ def speed():
 
 
 if __name__ == '__main__':
-    test_one_sample()
-    test_not_eq()
-    test_ecdf()
-    test_compress()
-    speed()
+    # test_one_sample()
+    # test_not_eq()
+    # test_ecdf()
+    # test_compress()
+    test_minmax_scale()
+    # speed()

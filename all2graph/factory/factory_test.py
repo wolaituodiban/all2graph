@@ -40,6 +40,30 @@ def test_analyse():
     # assert used_time1 < used_time2
 
 
+def test_scale():
+    path = os.path.dirname(__file__)
+    path = os.path.dirname(path)
+    path = os.path.dirname(path)
+    csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
+    df = pd.read_csv(csv_path)
+
+    json_parser = ag.json.JsonParser(
+        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True,
+        tokenizer=ag.JiebaTokenizer()
+    )
+
+    factory = ag.Factory(
+        data_parser=json_parser,
+        raw_graph_parser_config=dict(scale_method='minmax', scale_kwargs=dict(clip=True))
+    )
+    processes = os.cpu_count()
+
+    factory.analyse(
+        df, chunksize=int(np.ceil(df.shape[0] / processes)), disable=True, processes=processes, nrows=1000
+    )
+    print(factory.produce_graph_and_label(df.iloc[:10]))
+
+
 def test_produce_dataloader():
     path = os.path.dirname(__file__)
     path = os.path.dirname(path)
@@ -106,5 +130,6 @@ def test_produce_model():
 
 if __name__ == '__main__':
     test_analyse()
+    test_scale()
     test_produce_dataloader()
     test_produce_model()

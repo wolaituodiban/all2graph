@@ -39,7 +39,6 @@ class Factory(MetaStruct):
                 disable: 禁用进度条
                 num_bins: 统计各种分布时的分箱数量
             raw_graph_parser_config:
-                meta_info:
                 min_df: 字符串最小文档平吕
                 max_df: 字符串最大文档频率
                 top_k: 选择前k个字符串
@@ -47,7 +46,8 @@ class Factory(MetaStruct):
                 targets:
                 tokenizer:
                 filter_key:
-
+                scale_method: 'prob' or 'minmax_scale'
+                scale_kwargs: 具体见MetaNumber.get_probs和MetaNumber.minmax_scale
         """
 
         super().__init__(initialized=True)

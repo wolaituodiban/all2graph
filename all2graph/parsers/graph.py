@@ -15,16 +15,21 @@ from ..meta_struct import MetaStruct
 class RawGraphParser(MetaStruct):
     def __init__(
             self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
-            targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=False
+            targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=False, scale_method='prob',
+            scale_kwargs=None
     ):
         """
         Graph与dgl.DiGraph的转换器
-        :param meta_numbers: 数值分布
-        :param strings: 字符串编码字典
-        :param keys: 如果是dict，那么dict的元素必须是list，代表name的分词
-        :param edge_type:
-        :param targets:
-        :param filter_key: 如果是True，那么parse函数会过滤掉不是别的key对应的node和edge
+        Args:
+            meta_numbers: 数值分布
+            strings: 字符串编码字典
+            keys: 如果是dict，那么dict的元素必须是list，代表name的分词
+            edge_type:
+            targets:
+            tokenizer:
+            filter_key: 如果是True，那么parse函数会过滤掉不是别的key对应的node和edge
+            scale_method: 'prob' or 'minmax_scale'
+            scale_kwargs: 具体见MetaNumber.get_probs和MetaNumber.minmax_scale
         """
         if tokenizer is None:
             tokenizer = default_tokenizer()
@@ -34,11 +39,14 @@ class RawGraphParser(MetaStruct):
         self.targets = sorted(list(targets or []))
         self.key_mapper = {k: i for i, k in enumerate(sorted(set(keys + self.targets)))}
 
+        # 构造etype mapper
         self.etype_mapper = {t: i for i, t in enumerate(sorted(set(edge_type)))}
         for target in self.targets:
             if (READOUT, target) not in self.etype_mapper:
                 self.etype_mapper[(READOUT, target)] = len(self.etype_mapper)
+        # 构造etype mapper end
 
+        # 构造string_mapper
         all_words = PRESERVED_WORDS + sorted(strings)
         for key in keys + self.targets:
             all_words += self.tokenizer.lcut(key)
@@ -46,8 +54,12 @@ class RawGraphParser(MetaStruct):
         for word in (word.lower() for word in all_words):
             if word not in self.string_mapper:
                 self.string_mapper[word] = len(self.string_mapper)
+        # 构造string_mapper end
 
         self.filter_key = filter_key
+        assert scale_method in {'prob', 'minmax'}, 'unknown scale_method {}'.format(scale_method)
+        self.scale_method = scale_method
+        self.scale_kwargs = scale_kwargs or {}
 
         assert all(i == self.string_mapper[w] for i, w in enumerate(PRESERVED_WORDS))
         assert set(map(type, self.string_mapper)) == {str}
@@ -99,6 +111,12 @@ class RawGraphParser(MetaStruct):
         else:
             return np.full_like(q, np.nan)
 
+    def minmax_scale(self, name, x, **kwargs):
+        if name in self.meta_numbers:
+            return self.meta_numbers[name].minmax_scale(x, **kwargs)
+        else:
+            return np.full_like(x, np.nan)
+
     def encode_string(self, inputs: list) -> List[int]:
         output = [self.string_mapper.get(str(x).lower(), self.string_mapper[NULL]) for x in inputs]
         return output
@@ -113,12 +131,18 @@ class RawGraphParser(MetaStruct):
         output = [self.etype_mapper.get(etype, -self.num_etypes-1) for etype in inputs]
         return output
 
-    def normalize(self, key, value) -> np.ndarray:
+    def scale(self, key, value) -> np.ndarray:
+        """归一化"""
         numbers = pd.to_numeric(pd.Series(value).values, errors='coerce')
         unique_names, inverse_indices = np.unique(key, return_inverse=True)
         masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
         for i in range(unique_names.shape[0]):
-            numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]])
+            if self.scale_method == 'prob':
+                numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]], **self.scale_kwargs)
+            elif self.scale_method == 'minmax':
+                numbers[masks[:, i]] = self.minmax_scale(unique_names[i], numbers[masks[:, i]], **self.scale_kwargs)
+            else:
+                raise KeyError('unknown scale_method {}'.format(self.scale_method))
         return numbers
 
     def parse(self, graph: RawGraph):
@@ -142,7 +166,7 @@ class RawGraphParser(MetaStruct):
             meta_graph=meta_graph, graph=graph, meta_key=self.encode_key(meta_graph.key),
             meta_value=self.encode_string(meta_graph.value), meta_symbol=self.encode_string(meta_graph.symbol),
             meta_component_id=meta_graph.component_id, meta_edge_key=self.encode_edge_key(meta_graph.edge_key),
-            value=self.encode_string(graph.value), number=self.normalize(graph.key, graph.value),
+            value=self.encode_string(graph.value), number=self.scale(graph.key, graph.value),
             symbol=self.encode_string(graph.symbol), meta_node_id=meta_node_id, meta_edge_id=meta_edge_id
         )
 
@@ -204,7 +228,22 @@ class RawGraphParser(MetaStruct):
         raise NotImplementedError
 
     @classmethod
-    def reduce(cls, parsers: list, tokenizer=None, weights=None, num_bins=None):
+    def reduce(cls, parsers: list, tokenizer=None, weights=None, num_bins=None, filter_key=False,
+               scale_method='prob', scale_kwargs=None):
+        """
+
+        Args:
+            parsers:
+            tokenizer:
+            weights:
+            num_bins:
+            filter_key:
+            scale_method:
+            scale_kwargs:
+
+        Returns:
+
+        """
         meta_numbers = {}
         strings = []
         keys = []
@@ -223,7 +262,7 @@ class RawGraphParser(MetaStruct):
             targets += list(parser.targets)
         return cls(
             meta_numbers=meta_numbers, strings=strings, keys=keys, edge_type=edge_type, targets=targets,
-            tokenizer=tokenizer)
+            tokenizer=tokenizer, filter_key=filter_key, scale_method=scale_method, scale_kwargs=scale_kwargs)
 
     def extra_repr(self) -> str:
         return 'num_numbers={}, num_strings={}, num_keys={}, num_etype={}, targets={}, filter_key={}'.format(
@@ -232,7 +271,8 @@ class RawGraphParser(MetaStruct):
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  targets=None, tokenizer: Tokenizer = None, filter_key=False):
+                  targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=False, scale_method='prob',
+                  scale_kwargs=None):
         """
 
         Args:
@@ -244,7 +284,8 @@ class RawGraphParser(MetaStruct):
             targets:
             tokenizer:
             filter_key:
-
+            scale_method: 'prob' or 'minmax_scale'
+            scale_kwargs: 具体见MetaNumber.get_probs和MetaNumber.minmax_scale
         Returns:
 
         """
@@ -275,4 +316,5 @@ class RawGraphParser(MetaStruct):
 
         all_keys = list(meta_info.meta_name)
         return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer, targets=targets,
-                   edge_type=meta_info.edge_type, filter_key=filter_key)
+                   edge_type=meta_info.edge_type, filter_key=filter_key, scale_method=scale_method,
+                   scale_kwargs=scale_kwargs)

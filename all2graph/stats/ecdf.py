@@ -61,6 +61,22 @@ class ECDF(Distribution):
                 assume_sorted=assume_sorted, fill_value=fill_value, **kwargs
             )(p)
 
+    def minmax_scale(self, x, prob_range=(0, 1), clip=False):
+        """
+        Args:
+            x: 输入
+            prob_range: 上下限的概率
+            clip: 是否clip到0和1之间
+
+        Returns:
+
+        """
+        lower, upper = self.get_quantiles(prob_range)
+        output = (x - lower) / (upper - lower)
+        if clip:
+            output = np.clip(output, 0, 1)
+        return output
+
     def __eq__(self, other) -> bool:
         if super().__eq__(other) \
                 and self.quantiles.shape[0] == other.quantiles.shape[0] \

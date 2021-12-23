@@ -144,6 +144,7 @@ class MyModule(torch.nn.Module):
 class Predictor(torch.nn.Module):
     def __init__(self, data_parser: Union[DataParser, Dict[str, DataParser]], module: MyModule):
         super().__init__()
+        self.version = __version__
         self.data_parser = data_parser
         self.module = module
 
