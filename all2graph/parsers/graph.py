@@ -15,7 +15,7 @@ from ..meta_struct import MetaStruct
 class RawGraphParser(MetaStruct):
     def __init__(
             self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
-            targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=False, scale_method='prob',
+            targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=False, scale_method=None,
             scale_kwargs=None
     ):
         """
@@ -57,6 +57,7 @@ class RawGraphParser(MetaStruct):
         # 构造string_mapper end
 
         self.filter_key = filter_key
+        scale_method = scale_method or 'prob'
         assert scale_method in {'prob', 'minmax'}, 'unknown scale_method {}'.format(scale_method)
         self.scale_method = scale_method
         self.scale_kwargs = scale_kwargs or {}
@@ -228,8 +229,7 @@ class RawGraphParser(MetaStruct):
         raise NotImplementedError
 
     @classmethod
-    def reduce(cls, parsers: list, tokenizer=None, weights=None, num_bins=None, filter_key=False,
-               scale_method='prob', scale_kwargs=None):
+    def reduce(cls, parsers: list, tokenizer=None, weights=None, num_bins=None, **kwargs):
         """
 
         Args:
@@ -237,9 +237,7 @@ class RawGraphParser(MetaStruct):
             tokenizer:
             weights:
             num_bins:
-            filter_key:
-            scale_method:
-            scale_kwargs:
+            kwargs: 详情见构造函数
 
         Returns:
 
@@ -262,7 +260,7 @@ class RawGraphParser(MetaStruct):
             targets += list(parser.targets)
         return cls(
             meta_numbers=meta_numbers, strings=strings, keys=keys, edge_type=edge_type, targets=targets,
-            tokenizer=tokenizer, filter_key=filter_key, scale_method=scale_method, scale_kwargs=scale_kwargs)
+            tokenizer=tokenizer, **kwargs)
 
     def extra_repr(self) -> str:
         return 'num_numbers={}, num_strings={}, num_keys={}, num_etype={}, targets={}, filter_key={}'.format(
@@ -271,8 +269,7 @@ class RawGraphParser(MetaStruct):
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',
-                  targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=False, scale_method='prob',
-                  scale_kwargs=None):
+                  **kwargs):
         """
 
         Args:
@@ -281,16 +278,10 @@ class RawGraphParser(MetaStruct):
             max_df: 字符串最大文档频率
             top_k: 选择前k个字符串
             top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
-            targets:
-            tokenizer:
-            filter_key:
-            scale_method: 'prob' or 'minmax_scale'
-            scale_kwargs: 具体见MetaNumber.get_probs和MetaNumber.minmax_scale
+            kwargs: 详情见构造函数
         Returns:
 
         """
-        if tokenizer is None:
-            tokenizer = default_tokenizer()
         strings = [k for k, df in meta_info.meta_string.doc_freq().items() if min_df <= df <= max_df]
         if top_k is not None:
             if top_method == 'max_tfidf':
@@ -315,6 +306,4 @@ class RawGraphParser(MetaStruct):
         meta_numbers = {key: ecdf for key, ecdf in meta_info.meta_numbers.items() if ecdf.value_ecdf.mean_var[1] > 0}
 
         all_keys = list(meta_info.meta_name)
-        return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, tokenizer=tokenizer, targets=targets,
-                   edge_type=meta_info.edge_type, filter_key=filter_key, scale_method=scale_method,
-                   scale_kwargs=scale_kwargs)
+        return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, edge_type=meta_info.edge_type, **kwargs)

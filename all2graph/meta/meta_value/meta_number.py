@@ -96,14 +96,12 @@ class MetaNumber(MetaValue):
         return self.value_ecdf.get_quantiles(
             p=p, bounds_error=bounds_error, fill_value=fill_value, assume_sorted=assume_sorted, **kwargs)
 
-    def minmax_scale(self, x, prob_range=(0, 1), clip=False):
+    def minmax_scale(self, *args, **kwargs):
         """
         Args:
-            x: 输入
-            prob_range: 上下限的概率
-            clip: 是否clip到0和1之间
+            详情见ECDF.minmax_scale
 
         Returns:
 
         """
-        return self.value_ecdf.minmax_scale(x, prob_range=prob_range, clip=clip)
+        return self.value_ecdf.minmax_scale(*args, **kwargs)

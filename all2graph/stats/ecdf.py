@@ -65,7 +65,7 @@ class ECDF(Distribution):
         """
         Args:
             x: 输入
-            prob_range: 上下限的概率
+            prob_range: 上下限的概率，如果对应的上下限是nan，那么会被替换成min或者max
             clip: 是否clip到0和1之间
 
         Returns:
@@ -75,6 +75,10 @@ class ECDF(Distribution):
             lower, upper = self.minmax
         else:
             lower, upper = self.get_quantiles(prob_range)
+            if np.isnan(lower):
+                lower = self.min
+            if np.isnan(upper):
+                upper = self.max
         output = (x - lower) / (upper - lower)
         if clip:
             output = np.clip(output, 0, 1)
