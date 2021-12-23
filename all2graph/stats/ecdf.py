@@ -61,7 +61,7 @@ class ECDF(Distribution):
                 assume_sorted=assume_sorted, fill_value=fill_value, **kwargs
             )(p)
 
-    def minmax_scale(self, x, prob_range=(0, 1), clip=False):
+    def minmax_scale(self, x, prob_range=None, clip=False):
         """
         Args:
             x: 输入
@@ -71,7 +71,10 @@ class ECDF(Distribution):
         Returns:
 
         """
-        lower, upper = self.get_quantiles(prob_range)
+        if prob_range is None:
+            lower, upper = self.minmax
+        else:
+            lower, upper = self.get_quantiles(prob_range)
         output = (x - lower) / (upper - lower)
         if clip:
             output = np.clip(output, 0, 1)
@@ -87,12 +90,24 @@ class ECDF(Distribution):
             return False
 
     @property
+    def notna_quantiles(self):
+        return self.quantiles[np.bitwise_not(np.isnan(self.quantiles))]
+
+    @property
     def num_bins(self):
         return self.quantiles.shape[0]
 
     @property
     def max(self):
-        return self.quantiles[-1]
+        return self.notna_quantiles[-1]
+
+    @property
+    def min(self):
+        return self.notna_quantiles[-1]
+
+    @property
+    def minmax(self):
+        return self.notna_quantiles[[0, -1]]
 
     @property
     def mean(self):

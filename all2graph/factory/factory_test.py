@@ -54,7 +54,7 @@ def test_scale():
 
     factory = ag.Factory(
         data_parser=json_parser,
-        raw_graph_parser_config=dict(scale_method='minmax', scale_kwargs=dict(clip=True))
+        raw_graph_parser_config=dict(scale_method='minmax')
     )
     processes = os.cpu_count()
 

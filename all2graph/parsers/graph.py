@@ -99,21 +99,21 @@ class RawGraphParser(MetaStruct):
     def set_filter_key(self, x):
         self.filter_key = x
 
-    def get_quantiles(self, name, p, **kwargs):
+    def get_quantiles(self, name, p):
         if name in self.meta_numbers:
-            return self.meta_numbers[name].get_quantiles(p, **kwargs)
+            return self.meta_numbers[name].get_quantiles(p, **self.scale_kwargs)
         else:
             return np.full_like(p, np.nan)
 
-    def get_probs(self, name, q, **kwargs):
+    def get_probs(self, name, q):
         if name in self.meta_numbers:
-            return self.meta_numbers[name].get_probs(q, **kwargs)
+            return self.meta_numbers[name].get_probs(q, **self.scale_kwargs)
         else:
             return np.full_like(q, np.nan)
 
-    def minmax_scale(self, name, x, **kwargs):
+    def minmax_scale(self, name, x):
         if name in self.meta_numbers:
-            return self.meta_numbers[name].minmax_scale(x, **kwargs)
+            return self.meta_numbers[name].minmax_scale(x, **self.scale_kwargs)
         else:
             return np.full_like(x, np.nan)
 
@@ -138,9 +138,9 @@ class RawGraphParser(MetaStruct):
         masks = np.eye(unique_names.shape[0], dtype=bool)[inverse_indices]
         for i in range(unique_names.shape[0]):
             if self.scale_method == 'prob':
-                numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]], **self.scale_kwargs)
+                numbers[masks[:, i]] = self.get_probs(unique_names[i], numbers[masks[:, i]])
             elif self.scale_method == 'minmax':
-                numbers[masks[:, i]] = self.minmax_scale(unique_names[i], numbers[masks[:, i]], **self.scale_kwargs)
+                numbers[masks[:, i]] = self.minmax_scale(unique_names[i], numbers[masks[:, i]])
             else:
                 raise KeyError('unknown scale_method {}'.format(self.scale_method))
         return numbers

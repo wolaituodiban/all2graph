@@ -139,12 +139,12 @@ def test_minmax_scale():
     a = [0, 1, 2, 3, 3, 4, 2, 1]
     ecdf = ECDF.from_data(a, num_bins=10)
     b = ecdf.minmax_scale(a)
-    assert np.isclose(b, [1/9, 3/9, 5/9, 7/9, 7/9, 1, 5/9, 3/9]).all()
+    assert np.isclose(b, [0, 0.25, 0.5, 0.75, 0.75, 1, 0.5, 0.25]).all(), b
     c = [1, 5]
     d = ecdf.minmax_scale(c, prob_range=(0.5, 1))
     assert np.isclose(d, [-0.2, 1.4]).all(), d
     e = ecdf.minmax_scale(c, clip=True)
-    assert np.isclose(e, [1/3, 1]).all()
+    assert np.isclose(e, [0.25, 1]).all(), e
     f = ecdf.minmax_scale(c, prob_range=(0.5, 0.9), clip=True)
     assert np.isclose(f, [0, 1]).all(), f
 
