@@ -65,3 +65,33 @@ class MetaNumber(MetaValue):
 
     def extra_repr(self) -> str:
         return 'count={}\nvalue={}'.format(self.count_ecdf, self.value_ecdf)
+
+    def get_probs(
+            self, q, bounds_error=False, fill_value=(0, 1), assume_sorted=True, **kwargs
+    ) -> np.ndarray:
+        """
+
+        :param q: 分位数
+        :param bounds_error:
+        :param fill_value:
+        :param assume_sorted:
+        :param kwargs:
+        :return: 分位数对应的累计概率
+        """
+        return self.value_ecdf.get_probs(
+            q=q, bounds_error=bounds_error, fill_value=fill_value, assume_sorted=assume_sorted, **kwargs
+        )
+
+    def get_quantiles(self, p, bounds_error=False, fill_value="extrapolate", assume_sorted=True,
+                      **kwargs) -> np.ndarray:
+        """
+
+        :param p: 累积概率
+        :param bounds_error:
+        :param assume_sorted:
+        :param fill_value:
+        :param kwargs:
+        :return: 累积概率对应的分位数
+        """
+        return self.value_ecdf.get_quantiles(
+            p=p, bounds_error=bounds_error, fill_value=fill_value, assume_sorted=assume_sorted, **kwargs)

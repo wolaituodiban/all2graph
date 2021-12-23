@@ -89,13 +89,13 @@ class RawGraphParser(MetaStruct):
 
     def get_quantiles(self, name, p, **kwargs):
         if name in self.meta_numbers:
-            return self.meta_numbers[name].value_ecdf.get_quantiles(p, **kwargs)
+            return self.meta_numbers[name].get_quantiles(p, **kwargs)
         else:
             return np.full_like(p, np.nan)
 
     def get_probs(self, name, q, **kwargs):
         if name in self.meta_numbers:
-            return self.meta_numbers[name].value_ecdf.get_probs(q, **kwargs)
+            return self.meta_numbers[name].get_probs(q, **kwargs)
         else:
             return np.full_like(q, np.nan)
 
