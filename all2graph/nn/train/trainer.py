@@ -176,20 +176,27 @@ class Trainer(torch.nn.Module):
     def get_raw_graph_parser(self, valid_id=None):
         return self.get_history(valid_id=valid_id).raw_graph_parser
 
-    def get_pred(self, epoch, valid_id=None):
+    def get_pred(self, epoch=None, valid_id=None):
+        epoch = epoch or self._current_epoch
         return self.get_history(valid_id=valid_id).get_pred(epoch=epoch)
 
-    def get_label(self, epoch, valid_id=None):
+    def get_label(self, epoch=None, valid_id=None):
+        epoch = epoch or self._current_epoch
         return self.get_history(valid_id=valid_id).get_label(epoch=epoch)
 
-    def get_metric(self, epoch, key, valid_id=None):
+    def get_metric(self, epoch=None, key=None, valid_id=None):
+        epoch = epoch or self._current_epoch
         return self.get_history(valid_id=valid_id).get_metric(epoch=epoch, key=key)
 
-    def get_mean_loss(self, epoch, valid_id=None):
+    def get_mean_loss(self, epoch=None, valid_id=None):
+        epoch = epoch or self._current_epoch
         return self.get_history(valid_id=valid_id).mean_loss(epoch=epoch)
 
     def set_data_loader(self, loader: DataLoader, valid_id=None):
         self.get_history(valid_id=valid_id).loader = loader
+
+    def add_valid_data(self, loader: DataLoader):
+        self.valid_history.append(History(loader))
 
     def build_predictor(self, valid_id=None, data_parser=None) -> Union[Predictor, None]:
         """

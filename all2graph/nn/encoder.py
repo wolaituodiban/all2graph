@@ -13,14 +13,14 @@ from ..graph import Graph
 class Encoder(torch.nn.Module):
     """graph factorization machine"""
     def __init__(self, num_embeddings: int, d_model: int, nhead: int, num_layers: List[int], emb_config: dict = None,
-                 num_weight: bool = True, key_emb: bool = True, dropout: float = 0.1, conv_config: dict = None,
+                 num_weight: bool = True, key_emb: bool = True, dropout: float = 0.1, conv_configs: dict = None,
                  share_layer: bool = False, residual: bool = False, output_configs: dict = None):
         super().__init__()
         self.value_embedding = torch.nn.Embedding(
             num_embeddings=num_embeddings, embedding_dim=d_model, **emb_config or {})
         self.node_embedding = NodeEmbedding(embedding_dim=d_model, num_weight=num_weight, key_bias=key_emb)
         self.nhead = nhead
-        conv_layer = Conv(normalized_shape=d_model, dropout=dropout, **conv_config or {})
+        conv_layer = Conv(normalized_shape=d_model, dropout=dropout, **conv_configs or {})
         self.body = Body(
             num_layers=num_layers, conv_layer=conv_layer, share_layer=share_layer, residual=residual)
         self.output = FC(**output_configs or {})
