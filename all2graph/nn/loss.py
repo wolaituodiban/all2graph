@@ -15,6 +15,8 @@ class DictLoss(torch.nn.Module):
         self.weights = weights or {}
 
     def forward(self, inputs: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]):
+        if len(target) == 0:
+            raise ValueError('get empty target! plz check your configs, especially RawGraphParser.targets')
         loss = 0
         weight_sum = 0
         for key, _target in target.items():

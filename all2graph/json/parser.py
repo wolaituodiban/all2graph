@@ -30,6 +30,7 @@ class JsonParser(DataParser):
             segment_value=False,
             self_loop=True,
             # 预处理
+            processor=None,
             processors=None,
             tokenizer: Tokenizer = None,
             error=True,
@@ -51,6 +52,10 @@ class JsonParser(DataParser):
             global_id_keys:
             segment_value:
             self_loop:
+            processor: callable
+                    def processor(json_obj, now=None, tokenizer=None, **kwargs):
+                        new_json_obj = ...
+                        return new_json_obj
             processors: JsonPathTree的参数,
             tokenizer: 默认使用None
             error: 如果遇到错误，会报错
@@ -67,7 +72,10 @@ class JsonParser(DataParser):
         self.global_id_keys = global_id_keys
         self.segment_value = segment_value
         self.self_loop = self_loop
-        if processors is not None:
+        if processor is not None:
+            self.json_path_tree = processor
+        elif processors is not None:
+            print('processors is depreciated, please use procesor')
             self.json_path_tree = JsonPathTree(processors=processors)
         else:
             self.json_path_tree = None
