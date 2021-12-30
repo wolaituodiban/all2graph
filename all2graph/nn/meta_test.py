@@ -51,7 +51,10 @@ def test_mock():
     nhead = 2
     model = EncoderMetaLearnerMocker(
         raw_graph_parser=parser,
-        encoder=Encoder(num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3]))
+        encoder=Encoder(
+            num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3], num_activation='relu')
+    )
+    print(model.eval())
     with Timer('cpu forward'):
         out = model(graph, details=True)
 

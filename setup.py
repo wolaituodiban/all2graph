@@ -24,5 +24,6 @@ setup(
         'numpy',
         'pandas',
         'scipy',
+        'jsonpromax>=0.2.4'
     ],
 )

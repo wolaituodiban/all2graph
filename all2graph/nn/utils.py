@@ -1,3 +1,4 @@
+import copy
 import os
 import sys
 from typing import Dict, Union, Tuple
@@ -102,7 +103,7 @@ def num_parameters(module: torch.nn.Module):
     return sum(map(lambda x: np.prod(x.shape), parameters.values()))
 
 
-class MyModule(torch.nn.Module):
+class Module(torch.nn.Module):
     def __init__(self, raw_graph_parser: RawGraphParser):
         super().__init__()
         self.version = __version__
@@ -142,7 +143,7 @@ class MyModule(torch.nn.Module):
 
 
 class Predictor(torch.nn.Module):
-    def __init__(self, data_parser: Union[DataParser, Dict[str, DataParser]], module: MyModule):
+    def __init__(self, data_parser: Union[DataParser, Dict[str, DataParser]], module: Module):
         super().__init__()
         self.version = __version__
         self.data_parser = data_parser
@@ -209,3 +210,12 @@ class Predictor(torch.nn.Module):
 
     def set_filter_key(self, x):
         self.module.set_filter_key(x)
+
+
+def _get_activation(act):
+    if act == 'relu':
+        return torch.nn.ReLU()
+    elif act == 'gelu':
+        return torch.nn.GELU()
+    else:
+        return copy.deepcopy(act)

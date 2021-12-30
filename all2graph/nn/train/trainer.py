@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 from .early_stop import EarlyStop
 from .history import History, EpochBuffer
 from .metric import Metric
-from ..utils import predict_dataloader, Predictor, MyModule
+from ..utils import predict_dataloader, Predictor, Module
 from ...utils import tqdm, json_round
 from ...version import __version__
 from ...factory import Factory
@@ -192,6 +192,10 @@ class Trainer(torch.nn.Module):
         epoch = epoch or self._current_epoch
         return self.get_history(valid_id=valid_id).mean_loss(epoch=epoch)
 
+    def get_loss(self, epoch=None, valid_id=None):
+        epoch = epoch or self._current_epoch
+        return self.get_history(valid_id=valid_id).get_loss(epoch)
+
     def set_data_loader(self, loader: DataLoader, valid_id=None):
         self.get_history(valid_id=valid_id).loader = loader
 
@@ -213,7 +217,7 @@ class Trainer(torch.nn.Module):
             print('can not get DataParser, failed to build Predictor', file=sys.stderr)
             return
 
-        if not isinstance(self.module, MyModule):
+        if not isinstance(self.module, Module):
             print('module is not a all2graph Module, can build predictor', file=sys.stderr)
             return
 

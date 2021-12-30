@@ -112,6 +112,10 @@ class History:
             else:
                 return metric
 
+    def get_loss(self, epoch) -> torch.Tensor:
+        if epoch in self.epochs:
+            return self.epochs[epoch].loss
+
     def add_metric(self, epoch, key, value):
         self.epochs[epoch].metric[key] = value
 

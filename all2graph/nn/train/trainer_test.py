@@ -26,7 +26,7 @@ class TestDataset(ag.data.Dataset):
         return {self.key: self.x[item]}, {self.key: self.y[item]}
 
 
-class TestModule(ag.nn.MyModule):
+class TestModule(ag.nn.Module):
     def __init__(self, in_feats, out_feats, key):
         super().__init__(raw_graph_parser=ag.RawGraphParser({}, [], [], set()))
         self.linear1 = torch.nn.Linear(in_features=in_feats, out_features=in_feats)

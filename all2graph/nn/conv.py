@@ -7,18 +7,9 @@ from dgl.nn.functional import edge_softmax
 import torch
 
 from .functional import edgewise_linear, nodewise_linear
-from .utils import num_parameters
+from .utils import num_parameters, _get_activation
 from ..globals import FEATURE, ATTENTION, SEP
 from ..preserves import KEY, QUERY, SRC, WEIGHT, BIAS, DST, NODE, VALUE
-
-
-def _get_activation(act):
-    if act == 'relu':
-        return torch.nn.ReLU()
-    elif act == 'gelu':
-        return torch.nn.GELU()
-    else:
-        return copy.deepcopy(act)
 
 
 class Conv(torch.nn.Module):

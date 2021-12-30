@@ -1,5 +1,6 @@
 from typing import Dict
 import torch
+from .utils import _get_activation
 from ..globals import SEP
 from ..preserves import NUMBER, WEIGHT, KEY, BIAS
 
@@ -8,7 +9,7 @@ class NodeEmbedding(torch.nn.Module):
     NUMBER_WEIGHT = SEP.join([NUMBER, WEIGHT])
     KEY_BIAS = SEP.join([KEY, BIAS])
 
-    def __init__(self, embedding_dim, num_weight: bool, key_bias: bool):
+    def __init__(self, embedding_dim, num_weight: bool, key_bias: bool, activation=None):
         super().__init__()
         self.num_weight = num_weight
         if self.num_weight:
@@ -16,6 +17,7 @@ class NodeEmbedding(torch.nn.Module):
         else:
             self.num_norm = torch.nn.BatchNorm1d(1)
         self.key_bias = key_bias
+        self.activation = _get_activation(activation)
 
     @property
     def node_dynamic_parameter_names(self):
@@ -57,6 +59,8 @@ class NodeEmbedding(torch.nn.Module):
         if self.num_weight and number.shape[0] > 0:
             num_weight = parameters[self.NUMBER_WEIGHT][mask]
             number = number * num_weight.view(num_weight.shape[0], -1)
+            if self.activation is not None:
+                number = self.activation(number)
         output[mask] += self.num_norm(number)
         if self.key_bias:
             key_bias = parameters[self.KEY_BIAS]

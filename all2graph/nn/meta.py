@@ -9,7 +9,7 @@ import torch
 from torch.nn.functional import linear
 
 from .encoder import Encoder
-from .utils import num_parameters, MyModule
+from .utils import num_parameters, Module
 from ..graph import Graph
 from ..meta import MetaNumber
 from ..parsers import RawGraphParser
@@ -67,7 +67,7 @@ def reverse_dict(d: dict):
     return output
 
 
-class EncoderMetaLearner(MyModule):
+class EncoderMetaLearner(Module):
     def __init__(
             self, raw_graph_parser: RawGraphParser, encoder: Encoder, num_latent, dropout=0.1,
             norm=True):
@@ -272,7 +272,7 @@ class EncoderMetaLearner(MyModule):
         return output
 
 
-class EncoderMetaLearnerMocker(MyModule):
+class EncoderMetaLearnerMocker(Module):
     def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings, 'parser与encoder不对应'
         super().__init__(raw_graph_parser=raw_graph_parser)
