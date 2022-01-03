@@ -106,5 +106,5 @@ class ParserWrapper:
                 yield foo()
         else:
             with Pool(processes) as pool:
-                for item in tqdm(pool.imap(self.parse, data), disable=disable, postfix=postfix):
+                for item in tqdm(pool.imap_unordered(self.parse, data), disable=disable, postfix=postfix):
                     yield foo()
