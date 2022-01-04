@@ -73,12 +73,12 @@ class EncoderMetaLearner(Module):
             norm=True):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings
         super().__init__(raw_graph_parser=raw_graph_parser)
-        self.param_graph = raw_graph_parser.gen_param_graph(encoder.dynamic_parameter_shapes)
+        self.param_graph = raw_graph_parser.gen_param_graph(encoder.parameter_shapes)
         self.linear = torch.nn.Linear(in_features=encoder.d_model, out_features=num_latent)
 
         self.name_to_layer = dict()
         self.learners = torch.nn.ModuleList()
-        for shape, params in reverse_dict(encoder.dynamic_parameter_shapes).items():
+        for shape, params in reverse_dict(encoder.parameter_shapes).items():
             self.learners.append(BaseMetaLearner(num_latent, shape, dropout=dropout, norm=norm))
             for param in params:
                 self.name_to_layer[param] = len(self.learners) - 1
@@ -99,7 +99,7 @@ class EncoderMetaLearner(Module):
 
     @property
     def shape_to_name(self):
-        return reverse_dict(self.encoder.dynamic_parameter_shapes)
+        return reverse_dict(self.encoder.parameter_shapes)
 
     def reset_parameters(self):
         self.encoder.reset_parameters()
@@ -154,11 +154,11 @@ class EncoderMetaLearner(Module):
             (num_blocks, num_nodes, *)
             or (num_blocks, num_edges, *)
         """
-        meta_conv_param = self.gen_param(self.body.dynamic_parameter_names)
-        for k in self.body.node_dynamic_parameter_names:
+        meta_conv_param = self.gen_param(self.body.parameter_names)
+        for k in self.body.node_parameter_names:
             v = meta_conv_param[k]
             meta_conv_param[k] = v.expand(len(self.body), meta_graph.num_nodes(), *v.shape)
-        for k in self.body.edge_dynamic_parameter_names:
+        for k in self.body.edge_parameter_names:
             v = meta_conv_param[k]
             meta_conv_param[k] = v.expand(len(self.body), meta_graph.num_edges(), *v.shape)
         return meta_conv_param
@@ -173,7 +173,7 @@ class EncoderMetaLearner(Module):
         Returns:
             (num_nodes, *)
         """
-        emb_param = self.gen_param(self.encoder.node_embedding.dynamic_parameter_names, feat=meta_emb)
+        emb_param = self.gen_param(self.encoder.node_embedding.parameter_names, feat=meta_emb)
         emb_param = {k: v[meta_node_id] for k, v in emb_param.items()}
         return emb_param
 
@@ -195,12 +195,12 @@ class EncoderMetaLearner(Module):
         """
         conv_param = {}
         node_param = self.gen_param(
-            self.encoder.node_dynamic_parameter_names,
+            self.encoder.node_parameter_names,
             feat=torch.stack([meta_feat[-1] for meta_feat in meta_feats], dim=0))
         for k, v in node_param.items():
             conv_param[k] = v[:, meta_node_id]
         edge_param = self.gen_param(
-            self.encoder.edge_dynamic_parameter_names,
+            self.encoder.edge_parameter_names,
             feat=torch.stack([meta_value[-1] for meta_value in meta_values], dim=0))
         for k, v in edge_param.items():
             conv_param[k] = v[:, meta_edge_id]
@@ -221,7 +221,7 @@ class EncoderMetaLearner(Module):
         # ! 每个block的层数可能不一样，不能直接stack
         output_params = []
         for meta_feat in meta_feats:
-            params = self.gen_param(self.encoder.output.dynamic_parameter_names, feat=meta_feat)
+            params = self.gen_param(self.encoder.output.parameter_names, feat=meta_feat)
             params = {k: v[:, meta_node_id] for k, v in params.items()}
             output_params.append(params)
         return output_params
@@ -276,21 +276,21 @@ class EncoderMetaLearnerMocker(Module):
     def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings, 'parser与encoder不对应'
         super().__init__(raw_graph_parser=raw_graph_parser)
-        for name, shape in encoder.dynamic_parameter_shapes.items():
-            if name in encoder.output.dynamic_parameter_names:
+        for name, shape in encoder.parameter_shapes.items():
+            if name in encoder.output.parameter_names:
                 for i, num_layers in enumerate(encoder.num_layers):
                     tensor = torch.Tensor(num_layers, raw_graph_parser.num_keys, *shape)
                     self.register_parameter('{}_{}'.format(name, i), torch.nn.Parameter(tensor))
 
-            elif name in encoder.node_embedding.node_dynamic_parameter_names:
+            elif name in encoder.node_embedding.node_parameter_names:
                 tensor = torch.Tensor(self.raw_graph_parser.num_keys, *shape)
                 self.register_parameter(name, torch.nn.Parameter(tensor))
 
-            elif name in encoder.body.node_dynamic_parameter_names:
+            elif name in encoder.body.node_parameter_names:
                 tensor = torch.Tensor(encoder.num_blocks, self.raw_graph_parser.num_keys, *shape)
                 self.register_parameter(name, torch.nn.Parameter(tensor))
 
-            elif name in encoder.body.edge_dynamic_parameter_names:
+            elif name in encoder.body.edge_parameter_names:
                 tensor = torch.Tensor(encoder.num_blocks, raw_graph_parser.num_etypes, *shape)
                 self.register_parameter(name, torch.nn.Parameter(tensor))
 
@@ -315,16 +315,16 @@ class EncoderMetaLearnerMocker(Module):
 
     def gen_param(self, key: torch.Tensor, edge_key: torch.Tensor):
         emb_param = {
-            name: getattr(self, name)[key] for name in self.encoder.node_embedding.dynamic_parameter_names}
+            name: getattr(self, name)[key] for name in self.encoder.node_embedding.parameter_names}
         conv_param = {
-            name: getattr(self, name)[:, key] for name in self.encoder.body.node_dynamic_parameter_names}
+            name: getattr(self, name)[:, key] for name in self.encoder.body.node_parameter_names}
         conv_param.update({
             name: getattr(self, name)[:, edge_key]
-            for name in self.encoder.body.edge_dynamic_parameter_names})
+            for name in self.encoder.body.edge_parameter_names})
         output_params = [
             {
                 name: getattr(self, '{}_{}'.format(name, i))[:, key]
-                for name in self.encoder.output.dynamic_parameter_names
+                for name in self.encoder.output.parameter_names
             }
             for i in range(self.encoder.num_blocks)
         ]
@@ -367,7 +367,7 @@ class EncoderMetaLearnerMocker(Module):
 
         load_num = 0
         self_num = num_parameters(self)
-        for name in other.encoder.output.dynamic_parameter_names:
+        for name in other.encoder.output.parameter_names:
             for layer_i in range(other.encoder.num_blocks):
                 name_i = '{}_{}'.format(name, layer_i)
                 if not hasattr(other, name_i) or not hasattr(self, name_i):
@@ -380,7 +380,7 @@ class EncoderMetaLearnerMocker(Module):
                     load_num += np.prod(temp.shape)
                     getattr(self, name_i)[:, key_j] = temp
 
-        for name in other.encoder.node_embedding.node_dynamic_parameter_names:
+        for name in other.encoder.node_embedding.node_parameter_names:
             if not hasattr(other, name) or not hasattr(self, name):
                 continue
             for key, key_i in other.raw_graph_parser.key_mapper.items():
@@ -391,7 +391,7 @@ class EncoderMetaLearnerMocker(Module):
                 load_num += np.prod(temp.shape)
                 getattr(self, name)[key_j] = temp
 
-        for name in other.encoder.body.node_dynamic_parameter_names:
+        for name in other.encoder.body.node_parameter_names:
             if not hasattr(other, name) or not hasattr(self, name):
                 continue
             for key, key_i in other.raw_graph_parser.key_mapper.items():
@@ -402,7 +402,7 @@ class EncoderMetaLearnerMocker(Module):
                 load_num += np.prod(temp.shape)
                 getattr(self, name)[:, key_j] = temp
 
-        for name in other.encoder.body.edge_dynamic_parameter_names:
+        for name in other.encoder.body.edge_parameter_names:
             if not hasattr(other, name) or not hasattr(self, name):
                 continue
             for key, key_i in other.raw_graph_parser.etype_mapper.items():

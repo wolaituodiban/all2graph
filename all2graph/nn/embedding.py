@@ -20,11 +20,11 @@ class NodeEmbedding(torch.nn.Module):
         self.activation = _get_activation(activation)
 
     @property
-    def node_dynamic_parameter_names(self):
-        return self.dynamic_parameter_names_1d
+    def node_parameter_names(self):
+        return self.parameter_names_1d
 
     @property
-    def dynamic_parameter_names_1d(self):
+    def parameter_names_1d(self):
         output = []
         if self.num_weight:
             output.append(self.NUMBER_WEIGHT)
@@ -33,8 +33,8 @@ class NodeEmbedding(torch.nn.Module):
         return output
 
     @property
-    def dynamic_parameter_names(self):
-        return self.dynamic_parameter_names_1d
+    def parameter_names(self):
+        return self.parameter_names_1d
 
     @property
     def device(self):

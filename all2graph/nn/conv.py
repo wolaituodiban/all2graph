@@ -34,17 +34,17 @@ class Conv(torch.nn.Module):
                  value_bias=True, value_norm=False, value_activation=None, node_bias=True, node_norm=False,
                  node_activation='relu', residual=True, norm=True):
         super().__init__()
-        self.key_dropout = torch.nn.Dropout(dropout)
+        self.key_dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
         self.key_bias = key_bias
         self.key_norm = torch.nn.LayerNorm(normalized_shape) if key_norm else None
         self.key_activation = _get_activation(key_activation)
 
-        self.value_dropout = torch.nn.Dropout(dropout)
+        self.value_dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
         self.value_bias = value_bias
         self.value_norm = torch.nn.LayerNorm(normalized_shape) if value_norm else None
         self.value_activation = _get_activation(value_activation)
 
-        self.attn_dropout = torch.nn.Dropout(dropout)
+        self.attn_dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
 
         # self.node_dropout = torch.nn.Dropout(dropout)
         self.node_bias = node_bias
@@ -55,11 +55,11 @@ class Conv(torch.nn.Module):
         self.norm = torch.nn.LayerNorm(normalized_shape) if norm else None
 
     @property
-    def edge_dynamic_parameter_names_2d(self):
+    def edge_parameter_names_2d(self):
         return [self.SRC_KEY_WEIGHT, self.DST_KEY_WEIGHT, self.SRC_VALUE_WEIGHT, self.DST_VALUE_WEIGHT]
 
     @property
-    def edge_dynamic_parameter_names_1d(self):
+    def edge_parameter_names_1d(self):
         output = []
         if self.key_bias:
             output += [self.SRC_KEY_BIAS, self.DST_KEY_BIAS]
@@ -68,31 +68,31 @@ class Conv(torch.nn.Module):
         return output
 
     @property
-    def node_dynamic_parameter_names_2d(self):
+    def node_parameter_names_2d(self):
         return [self.NODE_WEIGHT]
 
     @property
-    def node_dynamic_parameter_names_1d(self):
+    def node_parameter_names_1d(self):
         output = [self.QUERY]
         if self.node_bias:
             output.append(self.NODE_BIAS)
         return output
 
     @property
-    def node_dynamic_parameter_names(self):
-        return self.node_dynamic_parameter_names_2d + self.node_dynamic_parameter_names_1d
+    def node_parameter_names(self):
+        return self.node_parameter_names_2d + self.node_parameter_names_1d
 
     @property
-    def edge_dynamic_parameter_names(self):
-        return self.edge_dynamic_parameter_names_2d + self.edge_dynamic_parameter_names_1d
+    def edge_parameter_names(self):
+        return self.edge_parameter_names_2d + self.edge_parameter_names_1d
 
     @property
-    def dynamic_parameter_names_2d(self):
-        return self.node_dynamic_parameter_names_2d + self.edge_dynamic_parameter_names_2d
+    def parameter_names_2d(self):
+        return self.node_parameter_names_2d + self.edge_parameter_names_2d
 
     @property
-    def dynamic_parameter_names_1d(self):
-        return self.node_dynamic_parameter_names_1d + self.edge_dynamic_parameter_names_1d
+    def parameter_names_1d(self):
+        return self.node_parameter_names_1d + self.edge_parameter_names_1d
 
     def reset_parameters(self):
         for module in self.children():
@@ -196,20 +196,20 @@ class Block(torch.nn.ModuleList):
         self.residual = residual
 
     @property
-    def node_dynamic_parameter_names(self):
-        return self[0].node_dynamic_parameter_names
+    def node_parameter_names(self):
+        return self[0].node_parameter_names
 
     @property
-    def edge_dynamic_parameter_names(self):
-        return self[0].edge_dynamic_parameter_names
+    def edge_parameter_names(self):
+        return self[0].edge_parameter_names
 
     @property
-    def dynamic_parameter_names_2d(self):
-        return self[0].dynamic_parameter_names_2d
+    def parameter_names_2d(self):
+        return self[0].parameter_names_2d
 
     @property
-    def dynamic_parameter_names_1d(self):
-        return self[0].dynamic_parameter_names_1d
+    def parameter_names_1d(self):
+        return self[0].parameter_names_1d
 
     def reset_parameters(self):
         for layer in self:
@@ -249,28 +249,28 @@ class Body(torch.nn.ModuleList):
     def __init__(self, conv_layer: Conv, num_layers: List[int], share_layer: bool, residual=True):
         blocks = [Block(conv_layer, n, share_layer=share_layer, residual=residual) for n in num_layers]
         super().__init__(blocks)
-        assert set(self.node_dynamic_parameter_names+self.edge_dynamic_parameter_names) ==\
-               set(self.dynamic_parameter_names)
+        assert set(self.node_parameter_names + self.edge_parameter_names) == \
+               set(self.parameter_names)
 
     @property
-    def node_dynamic_parameter_names(self):
-        return self[0].node_dynamic_parameter_names
+    def node_parameter_names(self):
+        return self[0].node_parameter_names
 
     @property
-    def edge_dynamic_parameter_names(self):
-        return self[0].edge_dynamic_parameter_names
+    def edge_parameter_names(self):
+        return self[0].edge_parameter_names
 
     @property
-    def dynamic_parameter_names_2d(self):
-        return self[0].dynamic_parameter_names_2d
+    def parameter_names_2d(self):
+        return self[0].parameter_names_2d
 
     @property
-    def dynamic_parameter_names_1d(self):
-        return self[0].dynamic_parameter_names_1d
+    def parameter_names_1d(self):
+        return self[0].parameter_names_1d
 
     @property
-    def dynamic_parameter_names(self):
-        return self.dynamic_parameter_names_1d + self.dynamic_parameter_names_2d
+    def parameter_names(self):
+        return self.parameter_names_1d + self.parameter_names_2d
 
     def use_matmul(self, b: bool):
         for block in self:

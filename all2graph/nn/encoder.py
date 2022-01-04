@@ -46,35 +46,33 @@ class Encoder(torch.nn.Module):
         return self.value_embedding.weight.device
 
     @property
-    def node_dynamic_parameter_names(self):
-        return self.node_embedding.node_dynamic_parameter_names + self.body.node_dynamic_parameter_names \
-               + self.output.node_dynamic_parameter_names
+    def node_parameter_names(self):
+        return self.node_embedding.node_parameter_names + self.body.node_parameter_names + self.output.node_parameter_names
 
     @property
-    def edge_dynamic_parameter_names(self):
-        return self.body.edge_dynamic_parameter_names
+    def edge_parameter_names(self):
+        return self.body.edge_parameter_names
 
     @property
-    def dynamic_parameter_names_2d(self):
-        return self.body.dynamic_parameter_names_2d
+    def parameter_names_2d(self):
+        return self.body.parameter_names_2d
 
     @property
-    def dynamic_parameter_names_1d(self):
-        return self.node_embedding.dynamic_parameter_names_1d + self.body.dynamic_parameter_names_1d \
-               + self.output.dynamic_parameter_names_1d
+    def parameter_names_1d(self):
+        return self.node_embedding.parameter_names_1d + self.body.parameter_names_1d + self.output.parameter_names_1d
 
     @property
-    def dynamic_parameter_names_0d(self):
-        return self.output.dynamic_parameter_names_0d
+    def parameter_names_0d(self):
+        return self.output.parameter_names_0d
 
     @property
-    def dynamic_parameter_shapes(self):
+    def parameter_shapes(self):
         output = {}
-        for name in self.dynamic_parameter_names_0d:
+        for name in self.parameter_names_0d:
             output[name] = (1, )
-        for name in self.dynamic_parameter_names_1d:
+        for name in self.parameter_names_1d:
             output[name] = (self.nhead, self.d_model // self.nhead)
-        for name in self.dynamic_parameter_names_2d:
+        for name in self.parameter_names_2d:
             output[name] = (self.nhead, self.d_model // self.nhead, self.d_model)
         return output
 

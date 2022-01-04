@@ -31,23 +31,23 @@ class FC(torch.nn.Module):
         return len(self.targets)
 
     @property
-    def dynamic_parameter_names_0d(self):
+    def parameter_names_0d(self):
         if self.bias:
             return [self.TARGET_BIAS]
         else:
             return []
 
     @property
-    def dynamic_parameter_names_1d(self):
+    def parameter_names_1d(self):
         return [self.TARGET_WEIGHT]
 
     @property
-    def dynamic_parameter_names(self):
-        return self.dynamic_parameter_names_1d + self.dynamic_parameter_names_0d
+    def parameter_names(self):
+        return self.parameter_names_1d + self.parameter_names_0d
 
     @property
-    def node_dynamic_parameter_names(self):
-        return self.dynamic_parameter_names
+    def node_parameter_names(self):
+        return self.parameter_names
 
     def forward(
             self, feats: List[torch.Tensor], parameters: List[Dict[str, torch.Tensor]], mask: torch.Tensor,
