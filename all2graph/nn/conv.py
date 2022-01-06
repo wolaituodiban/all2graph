@@ -154,7 +154,9 @@ class Conv(torch.nn.Module):
             # attention
             graph.ndata[QUERY] = parameters[self.QUERY]
             graph.apply_edges(fn.e_dot_v(KEY, QUERY, ATTENTION))
-            graph.edata[ATTENTION] = self.attn_dropout(edge_softmax(graph, graph.edata[ATTENTION]))
+            graph.edata[ATTENTION] = edge_softmax(graph, graph.edata[ATTENTION])
+            if self.attn_dropout is not None:
+                graph.edata[ATTENTION] = self.attn_dropout(graph.edata[ATTENTION])
             graph.edata[FEATURE] = graph.edata[VALUE] * graph.edata[ATTENTION]
             graph.update_all(fn.copy_e(FEATURE, FEATURE), fn.sum(FEATURE, FEATURE))
 

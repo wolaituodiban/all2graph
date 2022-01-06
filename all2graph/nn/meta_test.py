@@ -52,6 +52,7 @@ def test_mock():
     model = EncoderMetaLearnerMocker(
         raw_graph_parser=parser,
         encoder=Encoder(
+            dropout=0,
             num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3], num_activation='relu',
             conv_configs={'value_norm': True}
         )
