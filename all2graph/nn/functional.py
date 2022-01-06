@@ -30,7 +30,9 @@ def edgewise_linear(
     :return          : num_edges * nheads * out_dim
     """
     with graph.local_scope():
-        graph.ndata['feat'] = dropout(feat)
+        if dropout is not None:
+            feat = dropout(feat)
+        graph.ndata['feat'] = feat
         graph.edata['u_weight'] = u_weight
         graph.edata['v_weight'] = v_weight
         graph.apply_edges(fn.u_dot_e('feat', 'u_weight', 'u_feat'))
