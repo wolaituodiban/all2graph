@@ -25,7 +25,7 @@ class Encoder(torch.nn.Module):
         conv_layer = Conv(normalized_shape=d_model, dropout=dropout, **conv_configs or {})
         self.body = Body(
             num_layers=num_layers, conv_layer=conv_layer, share_layer=share_layer, residual=residual)
-        self.output = FC(**output_configs or {})
+        self.output = FC(dropout=dropout, **output_configs or {})
 
     @property
     def num_layers(self):
