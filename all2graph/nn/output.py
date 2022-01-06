@@ -33,7 +33,7 @@ class FC(torch.nn.Module):
         self.last_layer_only = last_layer_only
         self.share_block_param = share_block_param
         self.bias = bias
-        self.hiden_layers = hidden_layers
+        self.hidden_layers = hidden_layers
         self.hidden_bias = hidden_bias
 
     @property
@@ -45,11 +45,11 @@ class FC(torch.nn.Module):
 
     @property
     def target_hidden_weight(self):
-        return [SEP.join([self.TARGET_HIDDEN_WEIGHT, str(i)]) for i in range(self.hiden_layers)]
+        return [SEP.join([self.TARGET_HIDDEN_WEIGHT, str(i)]) for i in range(self.hidden_layers)]
 
     @property
     def target_hidden_bias(self):
-        return [SEP.join([self.TARGET_HIDDEN_BIAS, str(i)]) for i in range(self.hiden_layers)]
+        return [SEP.join([self.TARGET_HIDDEN_BIAS, str(i)]) for i in range(self.hidden_layers)]
 
     @property
     def parameter_names_1d(self):
@@ -94,7 +94,7 @@ class FC(torch.nn.Module):
         for feat, param in zip(feats[-self.last_block_only:], parameters[-self.last_block_only:]):
             feat = feat[-self.last_layer_only:, mask]  # (num_layers, num_nodes, emb_dim)
             # 隐藏层
-            for i in range(self.hiden_layers):
+            for i in range(self.hidden_layers):
                 num_layers, num_nodes, emb_dim = feat.shape
                 feat = feat.view(num_layers * num_nodes, emb_dim)
                 weight = param[self.target_hidden_weight[i]][-self.last_layer_only:, mask]
@@ -131,7 +131,7 @@ class FC(torch.nn.Module):
     def extra_repr(self) -> str:
         msg = 'last_block_only={}, last_layer_only={}, share_block_param={}, bias={}, hidden_layers={}, hidden_bias={}'
         msg = msg.format(
-            self.last_block_only, self.last_layer_only, self.share_block_param, self.bias, self.hiden_layers,
+            self.last_block_only, self.last_layer_only, self.share_block_param, self.bias, self.hidden_layers,
             self.hidden_bias
         )
         return msg
