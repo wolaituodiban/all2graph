@@ -41,13 +41,14 @@ def default_collate(batches):
 
 
 @torch.no_grad()
-def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader, desc=None):
+def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader, desc=None, max_batch=None):
     """
     仅支持torch.Tensor, list和dict作为输入
     Args:
         module:
         data_loader:
-        desc: 
+        desc:
+        max_batch: 达到最大数量就停止
 
     Returns:
 
@@ -57,7 +58,9 @@ def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader, desc=No
     labels = []
     last_output_type = None
     last_label_type = None
-    for graph, label in tqdm(data_loader, desc=desc):
+    for i, (graph, label) in enumerate(tqdm(data_loader, desc=desc)):
+        if max_batch is not None and i >= max_batch:
+            break
         label_type = _get_type(label)
         if last_label_type and label_type != last_label_type:
             raise TypeError('got inconsistent label type: {} and {}'.format(last_label_type, label_type))

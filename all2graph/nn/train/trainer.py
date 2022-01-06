@@ -140,7 +140,8 @@ class Trainer(torch.nn.Module):
     def pred_valid(self):
         for i, valid_data in enumerate(self.valid_history):
             pred, label = predict_dataloader(
-                self.module, valid_data.loader, desc='epoch {} val {}'.format(self._current_epoch, i)
+                self.module, valid_data.loader, desc='epoch {} val {}'.format(self._current_epoch, i),
+                max_batch=self.max_batch
             )
             valid_data.add_epoch(self._current_epoch, pred=pred, label=label)
 
