@@ -16,7 +16,7 @@ class FC(torch.nn.Module):
 
     def __init__(
             self, last_block_only=False, last_layer_only=False, share_block_param=False, bias=True,
-            hidden_layers=1, hidden_bias=True
+            hidden_layers=1, hidden_bias=True, activation='relu', dropout=0.1
     ):
         """
 
@@ -27,6 +27,8 @@ class FC(torch.nn.Module):
             bias: 是否使用bias
             hidden_layers: 隐藏层层数
             hidden_bias: 隐藏层bias
+            activation:
+            dropout:
         """
         super().__init__()
         self.last_block_only = last_block_only
@@ -35,6 +37,15 @@ class FC(torch.nn.Module):
         self.bias = bias
         self.hidden_layers = hidden_layers
         self.hidden_bias = hidden_bias
+        if self.hidden_layers > 0:
+            self.activation = _get_activation(activation)
+        else:
+            self.activation = None
+        if self.hidden_bias and dropout > 0:
+            self.dropout = torch.nn.Dropout(dropout)
+        else:
+            self.dropout = None
+
 
     @property
     def parameter_names_0d(self):
@@ -104,7 +115,8 @@ class FC(torch.nn.Module):
                     bias = bias.view(-1, emb_dim)
                 else:
                     bias = None
-                feat = nodewise_linear(feat=feat, weight=weight, bias=bias)
+                feat = nodewise_linear(
+                    feat=feat, weight=weight, bias=bias, activation=self.activation, dropout=self.dropout)
                 feat = feat.view(num_layers, num_nodes, emb_dim)
             # 隐藏层结果
             hidden_feats.append(feat)
