@@ -26,8 +26,6 @@ class Encoder(torch.nn.Module):
         self.body = Body(
             num_layers=num_layers, conv_layer=conv_layer, share_layer=share_layer, residual=residual)
         self.output = FC(**output_configs or {})
-        # assert set(self.dynamic_parameter_shapes) \
-        #        == set(self.node_dynamic_parameter_names + self.edge_dynamic_parameter_names)
 
     @property
     def num_layers(self):
@@ -47,7 +45,8 @@ class Encoder(torch.nn.Module):
 
     @property
     def node_parameter_names(self):
-        return self.node_embedding.node_parameter_names + self.body.node_parameter_names + self.output.node_parameter_names
+        return self.node_embedding.node_parameter_names + self.body.node_parameter_names\
+               + self.output.node_parameter_names
 
     @property
     def edge_parameter_names(self):
@@ -55,7 +54,7 @@ class Encoder(torch.nn.Module):
 
     @property
     def parameter_names_2d(self):
-        return self.body.parameter_names_2d
+        return self.body.parameter_names_2d + self.output.parameter_names_2d
 
     @property
     def parameter_names_1d(self):
@@ -90,13 +89,15 @@ class Encoder(torch.nn.Module):
         value_feats, value_keys, value_values, value_attn_weights = self.body(
             graph=graph.value_graph, in_feat=value_emb, parameters=conv_param
         )
-        outputs = self.output(feats=value_feats, parameters=output_params, mask=target_mask, targets=targets)
+        outputs, hidden_feats = self.output(
+            feats=value_feats, parameters=output_params, mask=target_mask, targets=targets)
         return outputs, {
             'emb': value_emb,
             'feats': value_feats,
             'keys': value_keys,
             'values': value_values,
-            'attn_weights': value_attn_weights
+            'attn_weights': value_attn_weights,
+            'hidden_feats': hidden_feats
         }
 
     def extra_repr(self) -> str:

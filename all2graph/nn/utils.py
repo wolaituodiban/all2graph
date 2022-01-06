@@ -217,5 +217,7 @@ def _get_activation(act):
         return torch.nn.ReLU()
     elif act == 'gelu':
         return torch.nn.GELU()
+    elif act == 'prelu':
+        return torch.nn.PReLU()
     else:
         return copy.deepcopy(act)

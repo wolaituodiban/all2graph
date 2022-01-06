@@ -75,7 +75,7 @@ def nodewise_linear(
         output += bias
     if norm is not None:
         shape = output.shape
-        output = norm(output.view(*shape[:-2], -1)).view(shape)
+        output = norm(output.view(*shape[:-1], -1)).view(shape)
     if activation is not None:
         output = activation(output)
     return output

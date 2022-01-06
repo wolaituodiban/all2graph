@@ -16,6 +16,7 @@ VALUE = 'value'
 NUMBER = 'number'
 TARGET = 'target'
 READOUT = 'readout'
+HIDDEN = 'hidden'
 
 
 PRESERVED_WORDS = [v for k, v in locals().items() if k[:2] != '__' and isinstance(v, str)]

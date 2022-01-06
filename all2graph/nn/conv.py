@@ -31,7 +31,7 @@ class Conv(torch.nn.Module):
     NODE_BIAS = SEP.join([NODE, BIAS])
 
     def __init__(self, normalized_shape, dropout=0.1, key_bias=True, key_norm=False, key_activation=None,
-                 value_bias=True, value_norm=False, value_activation=None, node_bias=True, node_norm=False,
+                 value_bias=True, value_norm=False, value_activation=None, node_bias=True,
                  node_activation='relu', residual=True, norm=True):
         super().__init__()
         self.key_dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
@@ -46,9 +46,7 @@ class Conv(torch.nn.Module):
 
         self.attn_dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
 
-        # self.node_dropout = torch.nn.Dropout(dropout)
         self.node_bias = node_bias
-        self.node_norm = torch.nn.LayerNorm(normalized_shape) if node_norm else None
         self.node_activation = _get_activation(node_activation)
 
         self.residual = residual
@@ -164,9 +162,7 @@ class Conv(torch.nn.Module):
             out_feat = graph.ndata[FEATURE].view(graph.num_nodes(), -1)
             out_feat = nodewise_linear(
                 out_feat, weight=parameters[self.NODE_WEIGHT],
-                bias=parameters[self.NODE_BIAS] if self.node_bias else None,
-                norm=self.node_norm, activation=self.node_activation)
-            # out_feat = self.node_dropout(out_feat)
+                bias=parameters[self.NODE_BIAS] if self.node_bias else None, activation=self.node_activation)
             out_feat = out_feat.view(graph.num_nodes(), -1)
 
             # add & norm

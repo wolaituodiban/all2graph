@@ -52,7 +52,9 @@ def test_mock():
     model = EncoderMetaLearnerMocker(
         raw_graph_parser=parser,
         encoder=Encoder(
-            num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3], num_activation='relu')
+            num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3], num_activation='relu',
+            conv_configs={'value_norm': True}
+        )
     )
     print(model.eval())
     with Timer('cpu forward'):
@@ -122,11 +124,12 @@ def test_predict():
     raw_graph, *_ = json_parser.parse(df)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'])
-    encoder = ag.nn.Encoder(raw_graph_parser.num_strings, d_model=8, nhead=2, num_layers=[3, 2])
+    encoder = ag.nn.Encoder(
+        raw_graph_parser.num_strings, d_model=8, nhead=2, num_layers=[3, 2])
     mocker = ag.nn.EncoderMetaLearnerMocker(raw_graph_parser, encoder).eval()
+    print(mocker)
     predictor = ag.nn.Predictor(data_parser=json_parser, module=mocker)
     pred_df = predictor.predict(df, processes=None, tempfile=True)
-    assert abs(pred_df.loc[0, 'target_output'] + 0.168832) < ag.EPSILON
 
 
 def test_error_key():
