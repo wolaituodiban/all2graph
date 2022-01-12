@@ -253,7 +253,7 @@ class Factory(MetaStruct):
 
     def produce_model(
             self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,
-            mock=False):
+            mock=True):
         from ..nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
         encoder = Encoder(
             num_embeddings=self.raw_graph_parser.num_strings, d_model=d_model, nhead=nhead,
