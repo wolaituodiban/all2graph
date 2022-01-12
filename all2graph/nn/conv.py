@@ -30,9 +30,9 @@ class Conv(torch.nn.Module):
     NODE_WEIGHT = SEP.join([NODE, WEIGHT])
     NODE_BIAS = SEP.join([NODE, BIAS])
 
-    def __init__(self, normalized_shape, dropout=0.1, key_bias=True, key_norm=False, key_activation=None,
-                 value_bias=True, value_norm=False, value_activation=None, node_bias=True,
-                 node_activation='relu', residual=True, norm=True):
+    def __init__(self, normalized_shape, dropout=0.1, key_bias=True, key_norm=True, key_activation='prelu',
+                 value_bias=True, value_norm=True, value_activation='prelu', node_bias=True,
+                 node_activation='prelu', residual=True, norm=True):
         super().__init__()
         self.key_dropout = torch.nn.Dropout(dropout) if dropout > 0 else None
         self.key_bias = key_bias

@@ -15,7 +15,7 @@ from ..meta_struct import MetaStruct
 class RawGraphParser(MetaStruct):
     def __init__(
             self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
-            targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=False, scale_method=None,
+            targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=True, scale_method=None,
             scale_kwargs=None
     ):
         """

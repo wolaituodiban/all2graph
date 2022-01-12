@@ -23,7 +23,7 @@ def test_load_pretrained():
     p1 = ag.RawGraphParser.from_data(i1, targets=['target'])
     m1 = ag.nn.Encoder(
         p1.num_strings, d_model=8, nhead=2, num_layers=[3], num_weight=False, key_emb=False,
-        conv_configs={'key_bias': False, 'value_bias': False, 'node_bias': False}, output_configs={'bias': False}
+        conv_config={'key_bias': False, 'value_bias': False, 'node_bias': False}, output_config={'bias': False}
     )
 
     # 3、根据s1和s2构造解析器p2和模型m2
@@ -31,7 +31,7 @@ def test_load_pretrained():
     p2 = ag.RawGraphParser.from_data(i2, targets=['target'])
     m2 = ag.nn.Encoder(
         p2.num_strings, d_model=8, nhead=2, num_layers=[3], num_weight=False, key_emb=False,
-        conv_configs={'key_bias': False, 'value_bias': False, 'node_bias': False}, output_configs={'bias': False}
+        conv_config={'key_bias': False, 'value_bias': False, 'node_bias': False}, output_config={'bias': False}
     )
 
     # 4、m2从m1加载参数

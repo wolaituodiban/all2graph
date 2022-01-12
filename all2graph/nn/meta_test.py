@@ -21,7 +21,7 @@ def test_learner():
         raw_graph_parser=parser,
         encoder=Encoder(
             num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3],
-            output_configs={'share_block_param': True}
+            output_config={'share_block_param': True}
         ),
         num_latent=num_latent)
     print(model.eval())
@@ -54,7 +54,7 @@ def test_mock():
         encoder=Encoder(
             dropout=0,
             num_embeddings=parser.num_strings, d_model=d_model, nhead=nhead, num_layers=[2, 3], num_activation='relu',
-            conv_configs={'value_norm': True}
+            conv_config={'value_norm': True}
         )
     )
     print(model.eval())
@@ -140,7 +140,7 @@ def test_error_key():
     json_parser = ag.json.JsonParser('json', time_col='day', error=False, warning=False)
     raw_graph, *_ = json_parser.parse(df)
     meta_info = ag.MetaInfo.from_data(raw_graph)
-    raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'])
+    raw_graph_parser = ag.RawGraphParser.from_data(meta_info, targets=['target'], filter_key=False)
     encoder = ag.nn.Encoder(raw_graph_parser.num_strings, d_model=8, nhead=2, num_layers=[3, 2])
     mocker = ag.nn.EncoderMetaLearnerMocker(raw_graph_parser, encoder).eval()
 

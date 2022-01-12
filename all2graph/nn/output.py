@@ -46,7 +46,6 @@ class FC(torch.nn.Module):
         else:
             self.dropout = None
 
-
     @property
     def parameter_names_0d(self):
         if self.bias:

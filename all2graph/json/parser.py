@@ -46,8 +46,8 @@ class JsonParser(DataParser):
             flatten_dict:
             dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
             list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
-            list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
-            r_list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
+            list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
+            r_list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
             local_id_keys:
             global_id_keys:
             segment_value:

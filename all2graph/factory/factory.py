@@ -34,12 +34,9 @@ class Factory(MetaStruct):
         Args:
             data_parser:
             meta_info_config:
-                graph: 输入，需要是RawGraph
-                index_nodes: index node的坐标，用于排除index
-                disable: 禁用进度条
                 num_bins: 统计各种分布时的分箱数量
             raw_graph_parser_config:
-                min_df: 字符串最小文档平吕
+                min_df: 字符串最小文档频率
                 max_df: 字符串最大文档频率
                 top_k: 选择前k个字符串
                 top_method: 'max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc'
@@ -252,17 +249,17 @@ class Factory(MetaStruct):
             return dataset.build_dataloader(num_workers=num_workers, shuffle=shuffle, batch_size=batch_size, **kwargs)
 
     def produce_model(
-            self, d_model: int, nhead: int, num_layers: List[int], encoder_configs=None, learner_configs=None,
+            self, d_model: int, nhead: int, num_layers: List[int], encoder_config=None, learner_config=None,
             mock=True):
         from ..nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
         encoder = Encoder(
             num_embeddings=self.raw_graph_parser.num_strings, d_model=d_model, nhead=nhead,
-            num_layers=num_layers, **(encoder_configs or {}))
+            num_layers=num_layers, **(encoder_config or {}))
         if mock:
             model = EncoderMetaLearnerMocker(raw_graph_parser=self.raw_graph_parser, encoder=encoder)
         else:
             model = EncoderMetaLearner(
-                raw_graph_parser=self.raw_graph_parser, encoder=encoder, **(learner_configs or {}))
+                raw_graph_parser=self.raw_graph_parser, encoder=encoder, **(learner_config or {}))
         return model
 
     def extra_repr(self) -> str:

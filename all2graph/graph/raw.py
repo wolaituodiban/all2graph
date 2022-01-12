@@ -343,8 +343,9 @@ class RawGraph(MetaStruct):
         return nx_graph
 
     def draw(
-            self, include_keys=None, exclude_keys=None, disable=True, pos=None, scale=1, center=None, dim=2,
-            node_size=32, arrowsize=8, norm=None, cmap='nipy_spectral', with_labels=False, ax=None, **kwargs
+            self, include_keys=None, exclude_keys=None, disable=True, pos='planar', scale=1, center=None, dim=2,
+            node_size=32, arrowsize=8, norm=None, cmap='nipy_spectral', with_labels=False, ax=None,
+            **kwargs
     ):
         """
 
@@ -382,7 +383,8 @@ class RawGraph(MetaStruct):
         # 转成networkx
         nx_graph = self.to_networkx(include_keys=include_keys, exclude_keys=exclude_keys, disable=disable)
         labels = {node: attr['key'] for node, attr in nx_graph.nodes.items()}
-        pos = pos or planar_layout(nx_graph, scale=scale, center=center, dim=dim)
+        if pos == 'planar':
+            pos = planar_layout(nx_graph, scale=scale, center=center, dim=dim)
 
         # 设置颜色
         node_color = pd.factorize(list(labels.values()))[0]
