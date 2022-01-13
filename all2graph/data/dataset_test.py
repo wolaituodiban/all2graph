@@ -5,7 +5,6 @@ import all2graph as ag
 import numpy as np
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader
 
 
 import platform
@@ -13,60 +12,23 @@ if 'darwin' in platform.system().lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-def test_dataset():
-    path = os.path.dirname(__file__)
-    path = os.path.dirname(path)
-    path = os.path.dirname(path)
-    csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
-    df = pd.read_csv(csv_path)
+class ParserMocker1:
+    def parse(self, df, **kwargs):
+        return df.values,
 
-    json_parser = ag.json.JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True
-    )
-    raw_graph_parser = ag.RawGraphParser.from_data(
-        ag.MetaInfo.from_data(json_parser.parse(df, disable=False)[0], disable=False)
-    )
-    # 测试保存文件
-    save_path = os.path.join(path, 'test_data', 'temp')
-    ag.split_csv(df, save_path, chunksize=5, disable=False, zip=True, concat_chip=True)
-    graph_paths = [os.path.join(save_path, file) for file in os.listdir(save_path)]
-
-    # 开始测试
-    with ag.Timer('dataset'):
-        dataset = ag.data.CSVDataset(
-            graph_paths, data_parser=json_parser, raw_graph_parser=raw_graph_parser,
-            chunksize=32, shuffle=True, disable=False)
-        num_rows2 = []
-        for _ in ag.tqdm(dataset):
-            num_rows2.append(_.shape[0])
-    shutil.rmtree(save_path)
-    temp = []
-    for a in dataset.paths:
-        for b, c in a.items():
-            for d in c:
-                temp.append((b, d))
-    # 测试每一个样本不重复不遗漏
-    assert len(set(temp)) == df.shape[0]
-    assert df.shape[0] == sum(num_rows2)
-    # 测试batchsize正确
-    assert set(num_rows2[:-1]) == {dataset.chunksize}, (num_rows2, dataset.chunksize)
+    def gen_targets(self, df, targets):
+        return torch.tensor(df[targets].values)
 
 
-def test_dataset_v2():
-    class ParserMocker1:
-        def parse(self, df, **kwargs):
-            return df.values,
+class ParserMocker2:
+    def __init__(self, targets):
+        self.targets = targets
 
-        def gen_targets(self, df, targets):
-            return torch.tensor(df[targets].values)
+    def parse(self, x):
+        return torch.tensor(x)
 
-    class ParserMocker2:
-        def __init__(self, targets):
-            self.targets = targets
 
-        def parse(self, x):
-            return torch.tensor(x)
-
+def test_csvdataset_v2():
     if os.path.exists('temp'):
         shutil.rmtree('temp')
     data = np.arange(9999)
@@ -91,6 +53,23 @@ def test_dataset_v2():
     shutil.rmtree('temp')
 
 
+def test_dfdataset():
+    data = np.arange(9999)
+    df = pd.DataFrame({'uid': data, 'data': data})
+
+    dataset = ag.data.DFDataset(
+        df=df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']))
+    data_loader = dataset.build_dataloader(
+        num_workers=3, prefetch_factor=1, shuffle=True, batch_size=16)
+
+    x, y = [], []
+    for batch in ag.tqdm(data_loader):
+        x.append(batch[0])
+        y.append(batch[1])
+    x = torch.cat(x)
+    y = torch.cat(y)
+
+
 if __name__ == '__main__':
-    test_dataset()
-    test_dataset_v2()
+    test_csvdataset_v2()
+    test_dfdataset()

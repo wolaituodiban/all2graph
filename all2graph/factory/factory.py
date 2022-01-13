@@ -186,25 +186,15 @@ class Factory(MetaStruct):
         return x, labels
 
     def produce_dataloader(
-            self, src=None, dst=None, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
-            shuffle=True, csv_configs=None, raw_graph=False, graph=False, processes=None, meta_df=None,
+            self, df=None, shuffle=True, csv_configs=None, raw_graph=False, meta_df=None,
             num_workers=0, batch_size=1, **kwargs):
         """
 
         Args:
-            src: path or list of path
-            dst: 如果不是None，src中的数据，将被分片存储在dst中
-            disable:
-            zip:
-            error:
-            warning:
-            concat_chip:
-            chunksize:
+            df: path or list of path
             shuffle:
             csv_configs:
             raw_graph: 如果True，那么数据源视为RawGraph
-            graph: 如果True，那么数据源视为Graph，并且覆盖raw_graph的效果
-            processes: 当dst不是None时，执行save方法时，多进程的个数
             meta_df: 返回一个包含路径和元数据的DataFrame，需要有一列path，如果提供了dst，按么会使用分片存储后的meta_df
             num_workers: DataLoader多进程数量
             batch_size: batch大小
@@ -213,40 +203,22 @@ class Factory(MetaStruct):
         Returns:
 
         """
-        from torch.utils.data import DataLoader
-
-        if graph:
-            from ..data import GraphDataset
-
-            if dst is not None:
-                # 存储Graph文件
-                self.save(
-                    src, dst, disable=disable, zip=zip, error=error, warning=warning, concat_chip=concat_chip,
-                    chunksize=chunksize, raw=False, processes=processes, **(csv_configs or {}))
-                src = dst
-
-            dataset = GraphDataset(src)
-            return DataLoader(dataset, batch_size=None, sampler=None, **kwargs)
+        if raw_graph:
+            self.data_parser.disable_preprocessing()
         else:
-            if dst is not None:
-                if raw_graph:
-                    # 存储RawGraph csv文件
-                    meta_df = self.save(
-                        src, dst, disable=disable, zip=zip, error=error, warning=warning, concat_chip=concat_chip,
-                        chunksize=chunksize, raw=True, processes=processes, **(csv_configs or {}))
-                    self.disable_preprocessing()  # 改变data_parser的模式
-                else:
-                    # 分割csv
-                    meta_df = split_csv(
-                        src=src, dst=dst, chunksize=chunksize, disable=disable, zip=zip, error=error, warning=warning,
-                        concat_chip=concat_chip, **(csv_configs or {}))
-                    self.enable_preprocessing()
+            self.data_parser.enable_preprocessing()
 
+        if df is None:
             from ..data import CSVDatasetV2
             dataset = CSVDatasetV2(
                 src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
                 **(csv_configs or {}))
-            return dataset.build_dataloader(num_workers=num_workers, shuffle=shuffle, batch_size=batch_size, **kwargs)
+        else:
+            from ..data import DFDataset
+            dataset = DFDataset(
+                df=df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser
+            )
+        return dataset.build_dataloader(num_workers=num_workers, shuffle=shuffle, batch_size=batch_size, **kwargs)
 
     def produce_model(
             self, d_model: int, nhead: int, num_layers: List[int], encoder_config=None, learner_config=None,

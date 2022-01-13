@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from ..data import CSVDataset, GraphDataset
+from ..data import Dataset
 from ..parsers import RawGraphParser, ParserWrapper
 from ..graph import Graph, RawGraph
 from ..parsers import DataParser
@@ -126,17 +126,17 @@ class Module(torch.nn.Module):
         return graph, target_mask
 
     def predict_dataloader(self, loader: DataLoader, postfix=None):
-        if not hasattr(loader, 'dataset') or not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
+        if not hasattr(loader, 'dataset') or not isinstance(loader.dataset, Dataset):
             print('recieved a not all2graph.Dataset, function check can not be done')
-        elif isinstance(loader.dataset, CSVDataset) and loader.dataset.raw_graph_parser != self.raw_graph_parser:
+        elif isinstance(loader.dataset, Dataset) and loader.dataset.raw_graph_parser != self.raw_graph_parser:
             print('raw_graph_parser are not the same, which may cause undefined behavior')
         return predict_dataloader(self, loader, postfix)
 
     def fit(self, loader: DataLoader, **kwargs):
-        if not isinstance(loader.dataset, (CSVDataset, GraphDataset)):
+        if not isinstance(loader.dataset, Dataset):
             print('recieved a not all2graph.Dataset, function check can not be done')
         elif hasattr(loader, 'dataset')\
-                and isinstance(loader.dataset, CSVDataset)\
+                and isinstance(loader.dataset, Dataset)\
                 and loader.dataset.raw_graph_parser != self.raw_graph_parser:
             print('raw_graph_parser are not the same, which may cause undefined behavior')
         raise NotImplementedError
