@@ -16,7 +16,7 @@ class FC(torch.nn.Module):
 
     def __init__(
             self, last_block_only=False, last_layer_only=False, share_block_param=False, bias=True,
-            hidden_layers=1, hidden_bias=True, activation='relu', dropout=0.1
+            hidden_layers=1, hidden_bias=True, activation='prelu', dropout=0.1
     ):
         """
 

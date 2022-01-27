@@ -193,7 +193,7 @@ class MetaString(MetaValue):
 
             with Pool(processes) as pool:
                 if chunksize is None:
-                    chunksize = int(max(np.ceil(len(terms)/(processes or os.cpu_count())), 1000))
+                    chunksize = int(min(np.ceil(len(terms)/(processes or os.cpu_count())), 1000))
                 term_count_ecdf = {
                     term: ecdf for term, ecdf in tqdm(
                         zip(terms, pool.imap(reduce_wrapper, term_count_ecdfs, chunksize=chunksize)),

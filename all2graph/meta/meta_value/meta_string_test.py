@@ -131,7 +131,7 @@ def speed():
     merge_time = time.time() - merge_start_time
 
     reduce_start_time = time.time()
-    meta_string = MetaString.reduce(meta_strings, num_bins=20, disable=False)
+    meta_string = MetaString.reduce(meta_strings, num_bins=20, disable=False, processes=None)
     reduce_time = time.time() - reduce_start_time
 
     print(reduce_time, merge_time)
