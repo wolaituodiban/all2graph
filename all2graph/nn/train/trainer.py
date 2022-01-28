@@ -128,7 +128,7 @@ class Trainer(torch.nn.Module):
                     self.save()
                 if self.early_stop is not None and self.early_stop(self, None, self._current_epoch):
                     break
-        except KeyboardInterrupt:
+        except (KeyboardInterrupt, SystemExit):
             print('KeyboardInterrupt')
         except:
             self.error_msg = traceback.format_exc()
