@@ -56,7 +56,8 @@ def test_trainer():
         valid_data=[dataloader, dataloader],
         early_stop=ag.nn.EarlyStop(1, False, tol=0.01, json_path=ag.json.JsonPathTree([('$.mse', ), ('$.haha', )])),
         check_point=os.path.join(os.path.dirname(__file__), __file__),
-        max_history=2
+        max_history=2,
+        save_loader=True
     )
     print(trainer)
     trainer.evaluate()
@@ -64,6 +65,7 @@ def test_trainer():
     trainer.fit(epochs)
     assert trainer._current_epoch < trainer.train_history.num_epochs < epochs
     trainer = torch.load(os.path.join(trainer.check_point, os.listdir(trainer.check_point)[0]))
+    trainer.save_loader = False
     assert isinstance(trainer, ag.nn.Trainer)
     trainer.max_batch = 1000
     trainer.fit(epochs)

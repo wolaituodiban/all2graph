@@ -26,7 +26,8 @@ class Trainer(torch.nn.Module):
             self, module: torch.nn.Module, loss: torch.nn.Module, data: DataLoader,
             optimizer: torch.optim.Optimizer = None, scheduler=None, valid_data: List[DataLoader] = None,
             early_stop: EarlyStop = None, metrics: Dict[str, Callable] = None, callbacks: List[Callable] = None,
-            valid_callbacks: List[Callable] = None, check_point=None, max_batch=None, max_history=None):
+            valid_callbacks: List[Callable] = None, check_point=None, max_batch=None, max_history=None,
+            save_loader=False):
         """
 
         Args:
@@ -43,6 +44,7 @@ class Trainer(torch.nn.Module):
             check_point: 保存路径
             max_batch: 当每个epoch训练的batch数量达到这个值时就会停止，可以用于防止batch太大时dataloader报mmap错误
             max_history: 保留历史的epoch数量
+            save_loader: 是否保存data loader
         """
         super().__init__()
         self.module = module
@@ -57,6 +59,7 @@ class Trainer(torch.nn.Module):
         self.valid_callbacks = valid_callbacks or []
         self.max_batch = max_batch
         self.max_history = max_history
+        self.save_loader = save_loader
 
         if check_point:
             check_point = '.'.join([check_point, __version__])
@@ -85,11 +88,26 @@ class Trainer(torch.nn.Module):
             output.append('current_epoch={}'.format(self._current_epoch))
         return ',\n'.join(output)
 
+    @property
+    def path(self):
+        return os.path.join(self.check_point, '{}.all2graph.trainer'.format(self._current_epoch))
+
     def save(self):
         self.module.eval()
-        path = os.path.join(self.check_point, '{}.all2graph.trainer'.format(self._current_epoch))
-        print('save at "{}"'.format(path))
-        torch.save(self, path)
+        print('save at "{}"'.format(self.path))
+        if self.save_loader:
+            torch.save(self, self.path)
+        else:
+            train_loader = self.get_data_loader()
+            self.train_history.loader = None
+            valid_loaders = []
+            for valid_history in self.valid_history:
+                valid_loaders.append(valid_history.loader)
+                valid_history.loader = None
+            torch.save(self, self.path)
+            self.set_data_loader(train_loader)
+            for i, loader in enumerate(valid_loaders):
+                self.set_data_loader(loader, valid_id=i)
 
     def fit_one_epoch(self, digits=3):
         self._current_epoch += 1
