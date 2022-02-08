@@ -1,3 +1,4 @@
+import copy
 from copy import deepcopy
 from typing import Callable
 
@@ -25,11 +26,19 @@ class EarlyStop(CallBack):
 
         self._best_metric = None
         self._best_epoch = None
-        self._bset_state = None
+        self._best_state_dict = None
 
     @property
     def sign(self):
         return 2 * self.higher - 1
+
+    @property
+    def best_metric(self):
+        return copy.deepcopy(self._best_metric)
+
+    @property
+    def best_epoch(self):
+        return copy.deepcopy(self.best_epoch)
 
     def __repr__(self):
         if self.json_path_tree:

@@ -1,4 +1,4 @@
-from .train import Trainer, EarlyStop
+from .train import Trainer, EarlyStop, HyperBand
 from .conv import Conv, Block, Body
 from .embedding import NodeEmbedding
 from .encoder import Encoder

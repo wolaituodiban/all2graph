@@ -1,3 +1,4 @@
+import copy
 import os
 import json
 import sys
@@ -27,7 +28,7 @@ class Trainer(torch.nn.Module):
             optimizer: torch.optim.Optimizer = None, scheduler=None, valid_data: List[DataLoader] = None,
             early_stop: EarlyStop = None, metrics: Dict[str, Callable] = None, callbacks: List[Callable] = None,
             valid_callbacks: List[Callable] = None, check_point=None, max_batch=None, max_history=None,
-            save_loader=False):
+            save_loader=True):
         """
 
         Args:
@@ -87,6 +88,10 @@ class Trainer(torch.nn.Module):
         if self._current_epoch:
             output.append('current_epoch={}'.format(self._current_epoch))
         return ',\n'.join(output)
+
+    @property
+    def current_epoch(self):
+        return copy.deepcopy(self._current_epoch)
 
     @property
     def path(self):
