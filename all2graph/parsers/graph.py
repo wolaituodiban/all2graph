@@ -16,7 +16,7 @@ class RawGraphParser(MetaStruct):
     def __init__(
             self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
             targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=True, scale_method=None,
-            scale_kwargs=None
+            scale_kwargs=None, inplace=False, mask_prob=0
     ):
         """
         Graph与dgl.DiGraph的转换器
@@ -30,7 +30,11 @@ class RawGraphParser(MetaStruct):
             filter_key: 如果是True，那么parse函数会过滤掉不是别的key对应的node和edge
             scale_method: 'prob' or 'minmax_scale'
             scale_kwargs: 具体见MetaNumber.get_probs和MetaNumber.minmax_scale
+            inplace:
+            mask_prob: 是否使用开启mask模式用于预训练，此时target需要是None
         """
+        if mask_prob > 0:
+            assert targets is None
         if tokenizer is None:
             tokenizer = default_tokenizer()
         super().__init__(initialized=True)
@@ -61,6 +65,8 @@ class RawGraphParser(MetaStruct):
         assert scale_method in {'prob', 'minmax'}, 'unknown scale_method {}'.format(scale_method)
         self.scale_method = scale_method
         self.scale_kwargs = scale_kwargs or {}
+        self.inplace = inplace
+        self.mask_prob = mask_prob
 
         assert all(i == self.string_mapper[w] for i, w in enumerate(PRESERVED_WORDS))
         assert set(map(type, self.string_mapper)) == {str}
@@ -154,7 +160,11 @@ class RawGraphParser(MetaStruct):
         """
         from all2graph.graph.graph import Graph
 
-        graph = graph.add_targets(self.targets)
+        if self.mask_prob > 0:
+            graph = graph.add_mask(p=self.mask_prob, inplace=self.inplace)
+        elif self.targets:
+            graph = graph.add_targets(self.targets, inplace=self.inplace)
+
         if self.filter_key:
             graph, dropped_keys = graph.filter_node(self.key_mapper)
             if len(dropped_keys) > 0:

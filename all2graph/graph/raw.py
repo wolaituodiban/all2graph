@@ -102,9 +102,12 @@ class RawGraph(MetaStruct):
         return self.insert_node(
             component_id=component_id, key=READOUT, value=value, self_loop=self_loop, symbol=READOUT)
 
-    def add_targets(self, targets):
-        new_graph = RawGraph(component_id=list(self.component_id), key=list(self.key), value=list(self.value),
-                             src=list(self.src), dst=list(self.dst), symbol=list(self.symbol))
+    def add_targets(self, targets, inplace=False):
+        if inplace:
+            new_graph = self
+        else:
+            new_graph = RawGraph(component_id=list(self.component_id), key=list(self.key), value=list(self.value),
+                                 src=list(self.src), dst=list(self.dst), symbol=list(self.symbol))
         for i, _type in enumerate(new_graph.symbol):
             if _type == READOUT:
                 for target in targets:
@@ -228,36 +231,33 @@ class RawGraph(MetaStruct):
     def reduce(cls, structs, weights=None, **kwargs):
         raise NotImplementedError
 
-    def add_mask(self, p):
+    def add_mask(self, p, inplace=False):
         """
         对value添加mask，用于预训练
         返回的RawGraph是原来的浅拷贝
         会修改mask对应位置的symbol为TARGET
         Args:
             p: mask的概率
-
+            inplace: 如果是，按么在原来的图上做修改
         Returns:
             raw_graph: mask了一部分value的RawGraph
             masked_value: 被mask掉的value
         """
-        new_symbol = []
-        new_value = []
+        if inplace:
+            new_graph = self
+        else:
+            new_graph = RawGraph(
+                component_id=self.component_id, key=self.key, value=list(self.value), src=self.src, dst=self.dst,
+                symbol=list(self.symbol))
         mask_value = []
         for i in range(self.num_nodes):
             if np.random.rand() < p:
-                new_symbol.append(TARGET)
-                new_value.append(None)
+                new_graph.symbol[i] = TARGET
+                new_graph.value[i] = None
                 mask_value.append(self.value[i])
-            else:
-                assert self.symbol[i] != TARGET, 'mask的target与原来存在的target冲突'
-                new_symbol.append(self.symbol[i])
-                new_value.append(self.value[i])
-        new_graph = RawGraph(
-            component_id=self.component_id, key=self.key, value=new_value, src=self.src, dst=self.dst,
-            symbol=new_symbol)
         return new_graph, mask_value
 
-    def filter_node(self, keys: Set[str]):
+    def filter_node(self, keys: Union[dict, Set[str]]):
         """
         return sub graph with given node keys
         Args:

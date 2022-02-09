@@ -74,7 +74,7 @@ def test_complicated_situation():
     inputs['day'] = None
     jg1, *_ = JsonParser(
         'json', time_col='day', flatten_dict=True, dict_dst_degree=0, list_dst_degree=0,
-        list_inner_degree=2, r_list_inner_degree=1, target_cols=['a', 'b'], self_loop=False).parse(inputs)
+        list_inner_degree=2, r_list_inner_degree=1, self_loop=False).parse(inputs)
     assert jg1.num_nodes == 10 and jg1.num_edges == 34, jg1.to_df('value')
 
 

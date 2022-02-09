@@ -6,7 +6,7 @@ from .version import __version__
 
 class MetaStruct(ABC):
     """基类结构"""
-    def __init__(self, initialized=False, type=None, version=None, **kwargs):
+    def __init__(self, initialized=False, type=None, version=None):
         """
         用户请使用from_json和from_data创建对象
         除非你知道你自己在干什么，否则不要调用构造函数
@@ -18,8 +18,6 @@ class MetaStruct(ABC):
         if version is not None and version != __version__:
             print('{}.__init__ current version is {}, but got version {}'.format(
                 self.__class__.__name__, __version__, version), file=sys.stderr)
-        if len(kwargs) > 0:
-            print('{}.__init__ got unused parameters {}'.format(self.__class__.__name__, kwargs), file=sys.stderr)
         self._initialized = initialized
         self.version = __version__
 

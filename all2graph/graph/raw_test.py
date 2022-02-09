@@ -14,7 +14,7 @@ def test_meta_graph():
     node_df = pd.read_csv(csv_path, nrows=64)
 
     parser = JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True, self_loop=True,
+        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True, self_loop=True,
         list_inner_degree=1
     )
     graph, global_index_mapper, local_index_mappers = parser.parse(node_df, disable=False)
@@ -127,7 +127,7 @@ def test_draw():
         }
     )
 
-    parser = JsonParser('json', local_id_keys={'ord_no'}, list_inner_degree=1, self_loop=False)
+    parser = JsonParser('json', time_col='crt_dte', local_id_keys={'ord_no'}, list_inner_degree=1, self_loop=False)
     graph, global_index_mapper, local_index_mappers = parser.parse(data, disable=False)
     graph.draw(disable=False)
     plt.show()

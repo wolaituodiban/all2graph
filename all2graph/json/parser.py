@@ -29,6 +29,8 @@ class JsonParser(DataParser):
             global_id_keys: Set[str] = None,
             segment_value=False,
             self_loop=True,
+            dict_bidirection=False,
+            list_bidirection=False,
             # 预处理
             processor=None,
             processors=None,
@@ -52,6 +54,8 @@ class JsonParser(DataParser):
             global_id_keys:
             segment_value:
             self_loop:
+            dict_bidirection: 所有dict的元素都添加双向边
+            list_bidirection: 所有list的元素都添加双向边
             processor: callable
                     def processor(json_obj, now=None, tokenizer=None, **kwargs):
                         new_json_obj = ...
@@ -72,6 +76,8 @@ class JsonParser(DataParser):
         self.global_id_keys = global_id_keys
         self.segment_value = segment_value
         self.self_loop = self_loop
+        self.dict_bidirection = dict_bidirection
+        self.list_bidirection = list_bidirection
         if processor is not None:
             self.json_path_tree = processor
         elif processors is not None:
@@ -102,7 +108,6 @@ class JsonParser(DataParser):
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int],
     ):
-        # local index和global index的逻辑有点问题
         for k, v in value.items():
             if self.local_id_keys is not None and k in self.local_id_keys:
                 if v in local_index_mapper:
@@ -126,7 +131,7 @@ class JsonParser(DataParser):
                 node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                 new_dsts = dsts[-self.dict_dst_degree:]
                 new_srcs = [node_id] * len(new_dsts)
-                graph.insert_edges(dsts=new_dsts, srcs=new_srcs)
+                graph.insert_edges(dsts=new_dsts, srcs=new_srcs, bidirection=self.dict_bidirection)
                 self.insert_component(
                     graph=graph, component_id=component_id, key=k, value=v, dsts=dsts + [node_id],
                     local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
@@ -164,7 +169,7 @@ class JsonParser(DataParser):
                 new_dsts += node_ids[-self.r_list_inner_degree:]
                 new_srcs += [node_id] * (len(new_dsts) - len(new_srcs))
 
-            graph.insert_edges(dsts=new_dsts, srcs=new_srcs)
+            graph.insert_edges(dsts=new_dsts, srcs=new_srcs, bidirection=self.list_bidirection)
             node_ids.append(node_id)
             if recursive_flag:
                 self.insert_component(

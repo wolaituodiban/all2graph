@@ -149,6 +149,7 @@ def test_filter_key():
         component_id=[0, 0], key=['b', 'c'], value=['f', 'd'], src=[0, 1], dst=[0, 0], symbol=['value', 'value']
     )
     raw_graph_parser = ag.RawGraphParser.from_data(ag.MetaInfo.from_data(s2))
+    raw_graph_parser.set_filter_key(False)
     assert (raw_graph_parser.parse(s1).key < 0).any()
     raw_graph_parser.set_filter_key(True)
     assert raw_graph_parser.parse(s1).value_graph.num_edges() > 0
