@@ -1,10 +1,14 @@
+from typing import Union, List
+
 import os
 import numpy as np
 import torch
 
+from .trainer import Trainer
+
 
 class HyperBand:
-    def __init__(self, trainers, R, eta=3):
+    def __init__(self, trainers: List[Union[Trainer, str]], R, eta=3):
         """
         R: 单个超参能被分配的最大资源
         eta: 淘汰比例
@@ -19,7 +23,7 @@ class HyperBand:
     def __getitem__(self, i):
         trainer = self.trainers[i]
         if isinstance(trainer, str):
-            file_names = os.listdir(trainer)
+            file_names = [x for x in os.listdir(trainer) if '.all2graph.trainer' in x]
             file_name = sorted(file_names, key=lambda x: x.split('.')[0])[-1]
             trainer = torch.load(os.path.join(trainer, file_name))
         return trainer
