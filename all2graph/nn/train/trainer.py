@@ -97,6 +97,14 @@ class Trainer(torch.nn.Module):
     def path(self):
         return os.path.join(self.check_point, '{}.all2graph.trainer'.format(self._current_epoch))
 
+    @property
+    def best_metric(self):
+        return self.early_stop.best_metric
+
+    @property
+    def sign(self):
+        return self.early_stop.sign
+
     def save(self):
         self.module.eval()
         print('save at "{}"'.format(self.path))

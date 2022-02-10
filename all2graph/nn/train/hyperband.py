@@ -31,11 +31,11 @@ class HyperBand:
     def top_id(self, n):
         def key(i):
             trainer = self[i]
-            best_metric = trainer.early_stop.best_metric
+            best_metric = trainer.best_metric
             if best_metric is None:
                 trainer.fit(1)
-                best_metric = trainer.early_stop.best_metric
-            return best_metric * trainer.early_stop.sign
+                best_metric = trainer.best_metric
+            return best_metric * trainer.sign
 
         return sorted(list(range(len(self))), key=key, reverse=True)[:n]
 
@@ -43,7 +43,7 @@ class HyperBand:
         rounds = int(np.log(len(self)) / np.log(self.eta)) + 1
         for k in range(rounds):
             n = int(np.ceil(len(self) / self.eta ** k))
-            r = int(np.ceil(self.R / n))
+            r = int(self.R / self.eta ** (rounds - k - 1))
             for i in self.top_id(n):
                 print('hyperband round={}/{}, n={}/{}, r={}/{}, i={}'.format(k + 1, rounds, n, len(self), r, self.R, i))
                 trainer = self[i]
