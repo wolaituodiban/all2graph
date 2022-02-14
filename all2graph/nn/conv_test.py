@@ -63,8 +63,9 @@ def test_statistics():
 
     feat = torch.randn(num_nodes, emb_dim)
     conv = Conv(
-        None, node_activation=None, dropout=0, residual=False, node_norm=False, key_norm=False, value_norm=False,
-        norm=False)
+        None, dropout=0, key_norm=False, key_activation=None,
+        value_norm=False, value_activation=None,
+        node_activation=None, residual=False, norm=False)
     out_feat, key, value, attn_weight = conv(
         graph, feat, dict(
             src_key_weight=src_key_weight[meta_edge_id], src_key_bias=src_key_bias[meta_edge_id],
@@ -149,6 +150,90 @@ def test_shape():
         assert attn_weight.shape == (num_edges, nhead)
 
 
+def speed():
+    def conv_speed():
+        src_key_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_edges, -1, -1, -1)
+        src_key_bias = torch.randn(nhead, dim_per_head).expand(num_edges, -1, -1)
+        dst_key_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_edges, -1, -1, -1)
+        dst_key_bias = torch.randn(nhead, dim_per_head).expand(num_edges, -1, -1)
+
+        src_value_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_edges, -1, -1, -1)
+        src_value_bias = torch.randn(nhead, dim_per_head).expand(num_edges, -1, -1)
+        dst_value_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_edges, -1, -1, -1)
+        dst_value_bias = torch.randn(nhead, dim_per_head).expand(num_edges, -1, -1)
+
+        query = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+        node_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        node_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+
+        conv = Conv(out_dim)
+        with ag.Timer('Conv'):
+            for _ in range(10):
+                conv(
+                    graph, feat, dict(
+                        src_key_weight=src_key_weight,
+                        src_key_bias=src_key_bias,
+                        dst_key_weight=dst_key_weight,
+                        dst_key_bias=dst_key_bias,
+                        src_value_weight=src_value_weight,
+                        src_value_bias=src_value_bias,
+                        dst_value_weight=dst_value_weight,
+                        dst_value_bias=dst_value_bias,
+                        query=query,
+                        node_weight=node_weight,
+                        node_bias=node_bias)
+                )
+
+    def convlite_speed():
+        src_key_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        src_key_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+        dst_key_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        dst_key_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+
+        src_value_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        src_value_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+        dst_value_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        dst_value_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+
+        query = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+        node_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        node_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+
+        conv = ag.nn.ConvLite(out_dim)
+        with ag.Timer('ConvLite'):
+            for _ in range(10):
+                conv(
+                    graph, feat, dict(
+                        src_key_weight=src_key_weight,
+                        src_key_bias=src_key_bias,
+                        dst_key_weight=dst_key_weight,
+                        dst_key_bias=dst_key_bias,
+                        src_value_weight=src_value_weight,
+                        src_value_bias=src_value_bias,
+                        dst_value_weight=dst_value_weight,
+                        dst_value_bias=dst_value_bias,
+                        query=query,
+                        node_weight=node_weight,
+                        node_bias=node_bias)
+                )
+
+    emb_dim = 16
+    nhead = 4
+    out_dim = emb_dim
+    dim_per_head = out_dim // nhead
+    num_nodes = 10000
+    num_edges = 100000
+    for _ in range(10):
+        graph = dgl.graph(
+            data=(torch.randint(num_nodes - 1, (num_edges,)), torch.randint(num_nodes - 1, (num_edges,))),
+            num_nodes=num_nodes
+        )
+        feat = torch.randn(num_nodes, emb_dim)
+        conv_speed()
+        convlite_speed()
+
+
 if __name__ == '__main__':
     test_statistics()
     test_shape()
+    speed()

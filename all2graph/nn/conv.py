@@ -97,6 +97,23 @@ class Conv(torch.nn.Module):
             if hasattr(module, 'reset_parameters'):
                 module.reset_parameters()
 
+    def _forward_edge(
+            self,
+            graph: dgl.DGLGraph,
+            feat: torch.Tensor,
+            u_weight: torch.Tensor,
+            v_weight: torch.Tensor,
+            dropout: torch.nn.Module,
+            v_bias: torch.Tensor = None,
+            u_bias: torch.Tensor = None,
+            norm: torch.nn.Module = None,
+            activation: torch.nn.Module = None,
+    ) -> torch.Tensor:
+        return edgewise_linear(
+            graph=graph, feat=feat, u_weight=u_weight, v_weight=v_weight, dropout=dropout, v_bias=v_bias, u_bias=u_bias,
+            norm=norm, activation=activation
+        )
+
     def forward(
             self, graph: dgl.DGLGraph, in_feat: torch.Tensor, parameters: Dict[str, torch.Tensor]
     ) -> (torch.Tensor, torch.Tensor):
@@ -133,7 +150,7 @@ class Conv(torch.nn.Module):
         """
         with graph.local_scope():
             # 通过feature计算key
-            graph.edata[KEY] = edgewise_linear(
+            graph.edata[KEY] = self._forward_edge(
                 feat=in_feat, graph=graph, u_weight=parameters[self.SRC_KEY_WEIGHT],
                 v_weight=parameters[self.DST_KEY_WEIGHT],
                 u_bias=parameters[self.SRC_KEY_BIAS] if self.key_bias else None,
@@ -143,7 +160,7 @@ class Conv(torch.nn.Module):
 
             # 通过feature计算value
             # 0.1.5 之前有bug，value部分使用了key的参数
-            graph.edata[VALUE] = edgewise_linear(
+            graph.edata[VALUE] = self._forward_edge(
                 feat=in_feat, graph=graph, u_weight=parameters[self.SRC_VALUE_WEIGHT],
                 v_weight=parameters[self.DST_VALUE_WEIGHT],
                 u_bias=parameters[self.SRC_VALUE_BIAS] if self.value_bias else None,
@@ -307,3 +324,45 @@ class Body(torch.nn.ModuleList):
 
     def extra_repr(self) -> str:
         return 'num_parameters={}'.format(num_parameters(self))
+
+
+class ConvLite(Conv):
+    @property
+    def edge_parameter_names_2d(self):
+        return []
+
+    @property
+    def edge_parameter_names_1d(self):
+        return []
+
+    @property
+    def node_parameter_names_2d(self):
+        return super().node_parameter_names_2d + super().edge_parameter_names_2d
+
+    @property
+    def node_parameter_names_1d(self):
+        return super().node_parameter_names_1d + super().edge_parameter_names_1d
+
+    def _forward_edge(
+            self,
+            graph: dgl.DGLGraph,
+            feat: torch.Tensor,
+            u_weight: torch.Tensor,
+            v_weight: torch.Tensor,
+            dropout: torch.nn.Module,
+            v_bias: torch.Tensor = None,
+            u_bias: torch.Tensor = None,
+            norm: torch.nn.Module = None,
+            activation: torch.nn.Module = None,
+    ) -> torch.Tensor:
+        with graph.local_scope():
+            graph.ndata['u'] = nodewise_linear(feat=feat, weight=u_weight, bias=u_bias, dropout=dropout)
+            graph.ndata['v'] = nodewise_linear(feat=feat, weight=v_weight, bias=v_bias, dropout=dropout)
+            graph.apply_edges(fn.u_add_v('u', 'v', 'o'))
+            o = graph.edata['o']
+            if norm is not None:
+                shape = o.shape
+                o = norm(o.view(o.shape[0], -1)).view(shape)
+            if activation is not None:
+                o = activation(o)
+            return o

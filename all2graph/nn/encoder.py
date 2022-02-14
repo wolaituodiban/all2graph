@@ -3,7 +3,7 @@ from typing import List
 import numpy as np
 import torch
 
-from .conv import Conv, Body
+from .conv import Body
 from .embedding import NodeEmbedding
 from .output import FC
 from .utils import num_parameters
@@ -15,13 +15,17 @@ class Encoder(torch.nn.Module):
     def __init__(self, num_embeddings: int, d_model: int, nhead: int, num_layers: List[int], emb_config: dict = None,
                  num_weight: bool = True, key_emb: bool = True, num_activation='prelu', dropout: float = 0.1,
                  conv_config: dict = None, share_layer: bool = False, residual: bool = False,
-                 output_config: dict = None):
+                 output_config: dict = None, lite=False):
         super().__init__()
         self.value_embedding = torch.nn.Embedding(
             num_embeddings=num_embeddings, embedding_dim=d_model, **emb_config or {})
         self.node_embedding = NodeEmbedding(
             embedding_dim=d_model, num_weight=num_weight, key_bias=key_emb, activation=num_activation)
         self.nhead = nhead
+        if lite:
+            from .conv import ConvLite as Conv
+        else:
+            from .conv import Conv
         conv_layer = Conv(normalized_shape=d_model, dropout=dropout, **conv_config or {})
         self.body = Body(
             num_layers=num_layers, conv_layer=conv_layer, share_layer=share_layer, residual=residual)
