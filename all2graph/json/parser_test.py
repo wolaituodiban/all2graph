@@ -1,28 +1,8 @@
-import os
 import json
-import numpy as np
 import pandas as pd
 import jsonpromax as jpm
 from all2graph.json import JsonParser
 from all2graph import JiebaTokenizer
-
-
-def test_flatten_dict():
-    inputs = {
-        'a': {
-            'b': {
-                'c': 'd',
-                'e': 'f'
-            },
-        }
-    }
-    inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
-    inputs['day'] = None
-    jg1, *_ = JsonParser('json', time_col='day', self_loop=False).parse(inputs)
-    assert jg1.num_nodes == 5 and jg1.num_edges == 4, '{}\n{}'.format(jg1.src, jg1.dst)
-
-    jg2, *_ = JsonParser('json', time_col='day', flatten_dict=True, self_loop=False).parse(inputs)
-    assert jg2.num_nodes == 3 and jg2.num_edges == 2
 
 
 def test_list_dst_degree():
@@ -33,11 +13,11 @@ def test_list_dst_degree():
     }
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
     inputs['day'] = None
-    jg1, *_ = JsonParser('json', time_col='day', self_loop=False, list_inner_degree=-1).parse(inputs)
+    jg1, *_ = JsonParser('json', time_col='day', self_loop=False, list_inner_degree=0).parse(inputs)
     assert jg1.num_nodes == 7, jg1.value
     assert jg1.num_edges == 6, jg1.to_df('value')
 
-    jg2, *_ = JsonParser('json', time_col='day', list_dst_degree=0, self_loop=False, list_inner_degree=-1).parse(inputs)
+    jg2, *_ = JsonParser('json', time_col='day', list_dst_degree=0, self_loop=False, list_inner_degree=0).parse(inputs)
     assert jg2.num_nodes == 7 and jg2.num_edges == 14, jg2.to_df('value')
 
 
@@ -50,14 +30,14 @@ def test_list_inner_degree():
     }
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
     inputs['day'] = None
-    jg1, *_ = JsonParser('json', time_col='day', self_loop=False, list_inner_degree=-1).parse(inputs)
+    jg1, *_ = JsonParser('json', time_col='day', self_loop=False, list_inner_degree=0).parse(inputs)
     assert jg1.num_nodes == 10 and jg1.num_edges == 9, jg1.to_df('value')
 
-    jg2, *_ = JsonParser('json', time_col='day', list_inner_degree=0, self_loop=False).parse(inputs)
+    jg2, *_ = JsonParser('json', time_col='day', list_inner_degree=-1, self_loop=False).parse(inputs)
     assert jg2.num_nodes == 10 and jg2.num_edges == 16, jg2.to_df('value')
 
     jg2, *_ = JsonParser(
-        'json', time_col='day', list_inner_degree=0, r_list_inner_degree=1, self_loop=False).parse(inputs)
+        'json', time_col='day', list_inner_degree=-1, r_list_inner_degree=1, self_loop=False).parse(inputs)
     assert jg2.num_nodes == 10 and jg2.num_edges == 21, jg2.to_df('value')
 
 
@@ -73,52 +53,16 @@ def test_complicated_situation():
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
     inputs['day'] = None
     jg1, *_ = JsonParser(
-        'json', time_col='day', flatten_dict=True, dict_dst_degree=0, list_dst_degree=0,
+        'json', time_col='day', dict_dst_degree=0, list_dst_degree=0,
         list_inner_degree=2, r_list_inner_degree=1, self_loop=False).parse(inputs)
-    assert jg1.num_nodes == 10 and jg1.num_edges == 34, jg1.to_df('value')
-
-
-def speed():
-    path = os.path.dirname(__file__)
-    path = os.path.dirname(path)
-    path = os.path.dirname(path)
-    path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
-    df = pd.read_csv(path)
-    df['day'] = None
-    json_graph, *_ = JsonParser('json', time_col='day', flatten_dict=True).parse(df, disable=False)
-    # assert json_graph.num_nodes - json_graph.num_edges == df.shape[0]
-    assert np.unique(np.abs(json_graph.component_id)).shape[0] == df.shape[0]
-    print(json_graph.num_nodes, json_graph.num_edges)
-    print(np.unique(json_graph.key))
-    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph.value))))
-
-    json_graph2, global_index_mapper, _ = JsonParser(
-        'json', time_col='day', dict_dst_degree=0, list_dst_degree=0, list_inner_degree=0, r_list_inner_degree=0,
-        global_id_keys={'name'}, segment_value=False, self_loop=True
-    ).parse(df, disable=False)
-    assert len(global_index_mapper) > 0
-    assert np.unique(np.abs(json_graph2.component_id)).shape[0] == df.shape[0]
-    assert json_graph2.num_nodes < json_graph.num_nodes
-    print(json_graph2.num_nodes, json_graph2.num_edges)
-    print(np.unique(json_graph2.key))
-    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph2.value))))
-
-    json_graph3, global_index_mapper, _ = JsonParser(
-        'json', time_col='day', flatten_dict=True, global_id_keys={'name'}, segment_value=True, self_loop=True,
-        tokenizer=JiebaTokenizer()).parse(df, disable=False)
-
-    assert len(global_index_mapper) > 0
-    assert np.unique(np.abs(json_graph2.component_id)).shape[0] == df.shape[0]
-    assert json_graph2.num_nodes < json_graph3.num_nodes
-    print(json_graph3.num_nodes, json_graph3.num_edges)
-    print(max(map(len, filter(lambda x: isinstance(x, str), json_graph3.value))))
+    assert jg1.num_nodes == 11 and jg1.num_edges == 44, jg1.to_df('value')
 
 
 def test_repr():
     import all2graph as ag
     parser = JsonParser(
-        'json', time_col='day', flatten_dict=True, global_id_keys={'name'}, segment_value=True, self_loop=True,
-        tokenizer=JiebaTokenizer(), processors=[
+        'json', time_col='day', global_id_keys={'name'}, self_loop=True, tokenizer=JiebaTokenizer(),
+        processor=ag.json.JsonPathTree([
             ('$.SMALL_LOAN',),
             ('$.*', ag.json.Timestamp('crt_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
             ('$.*', ag.json.Timestamp('rep_tim', '%Y-%m-%d %H:%M:%S', ['day', 'hour', 'weekday'])),
@@ -128,15 +72,26 @@ def test_repr():
             ('$.*.bsy_typ', ag.json.Split('_')),
             ('$.*.ded_typ', ag.json.Split('_')),
             ('$.*', jpm.Delete(['crt_tim', 'rep_tim', 'rep_dte', 'prc_amt', 'adt_lmt', 'avb_lmt']))
-        ]
+        ])
     )
     print(parser)
 
 
+def test_grid():
+    inputs = [{'a': 1}, {'a': 2}]
+    inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
+    inputs['day'] = None
+    jg1, *_ = JsonParser('json', time_col='day', grid=False, self_loop=False).parse(inputs)
+    jg2, *_ = JsonParser('json', time_col='day', grid=True, self_loop=False).parse(inputs)
+    assert jg2.num_edges - jg1.num_edges == 1
+    jg2.draw()
+    import matplotlib.pyplot as plt
+    plt.show()
+
+
 if __name__ == '__main__':
-    test_flatten_dict()
     test_list_dst_degree()
     test_list_inner_degree()
     test_complicated_situation()
     test_repr()
-    speed()
+    test_grid()

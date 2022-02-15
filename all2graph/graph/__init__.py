@@ -3,4 +3,4 @@ try:
     from .param import ParamGraph
 except ImportError:
     pass
-from .raw import RawGraph
+from .raw import RawGraph, sequence_edge

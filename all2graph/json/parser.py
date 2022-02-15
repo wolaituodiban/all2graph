@@ -8,8 +8,8 @@ import pandas as pd
 
 from jsonpromax import JsonPathTree
 from ..parsers import DataParser
-from ..graph import RawGraph
-from ..utils import tqdm, Tokenizer, default_tokenizer
+from ..graph import RawGraph, sequence_edge
+from ..utils import tqdm, Tokenizer
 
 
 class JsonParser(DataParser):
@@ -20,20 +20,18 @@ class JsonParser(DataParser):
             time_col,
             time_format=None,
             # 图生成参数
-            flatten_dict=False,
             dict_dst_degree=1,
             list_dst_degree=1,
             list_inner_degree=1,
-            r_list_inner_degree=-1,
+            r_list_inner_degree=0,
             local_id_keys: Set[str] = None,
             global_id_keys: Set[str] = None,
-            segment_value=False,
             self_loop=True,
             dict_bidirection=False,
             list_bidirection=False,
+            grid=False,
             # 预处理
             processor=None,
-            processors=None,
             tokenizer: Tokenizer = None,
             error=True,
             warning=True,
@@ -45,17 +43,16 @@ class JsonParser(DataParser):
             json_col:
             time_col:
             time_format:
-            flatten_dict:
-            dict_dst_degree: 自然数，插入dict时跳连前置节点的度数，0表示全部
-            list_dst_degree: 自然数，插入list时跳连前置节点的度数，0表示全部
-            list_inner_degree: 整数，list内部节点跳连后置节点的度数，0表述全部，-1表示没有
-            r_list_inner_degree: 整数，list内部节点跳连前置节点的度数，0表述全部，-1表示没有
+            dict_dst_degree: 自然数，插入dict时跳连前置节点的度数
+            list_dst_degree: 自然数，插入list时跳连前置节点的度数
+            list_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
+            r_list_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
             local_id_keys:
             global_id_keys:
-            segment_value:
             self_loop:
             dict_bidirection: 所有dict的元素都添加双向边
             list_bidirection: 所有list的元素都添加双向边
+            grid: 是否生成网格
             processor: callable
                     def processor(json_obj, now=None, tokenizer=None, **kwargs):
                         new_json_obj = ...
@@ -67,27 +64,18 @@ class JsonParser(DataParser):
             **kwargs:
         """
         super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, **kwargs)
-        self.flatten_dict = flatten_dict
         self.dict_dst_degree = dict_dst_degree
         self.list_dst_degree = list_dst_degree
         self.list_inner_degree = list_inner_degree
         self.r_list_inner_degree = r_list_inner_degree
         self.local_id_keys = local_id_keys
         self.global_id_keys = global_id_keys
-        self.segment_value = segment_value
         self.self_loop = self_loop
         self.dict_bidirection = dict_bidirection
         self.list_bidirection = list_bidirection
-        if processor is not None:
-            self.json_path_tree = processor
-        elif processors is not None:
-            print('processors is depreciated, please use procesor')
-            self.json_path_tree = JsonPathTree(processors=processors)
-        else:
-            self.json_path_tree = None
+        self.grid = grid
+        self.processor = processor
         self.tokenizer = tokenizer
-        if self.segment_value and self.tokenizer is None:
-            self.tokenizer = default_tokenizer()
         self.error = error
         self.warning = warning
 
@@ -123,10 +111,6 @@ class JsonParser(DataParser):
                     node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                     global_index_mapper[v] = node_id
                 graph.insert_edges(dsts=[dsts[-1]], srcs=[node_id], bidirection=True)
-            elif self.flatten_dict and isinstance(v, dict):
-                self.insert_component(
-                    graph=graph, component_id=component_id, key=k, value=v, dsts=dsts,
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
             else:
                 node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
                 new_dsts = dsts[-self.dict_dst_degree:]
@@ -146,35 +130,24 @@ class JsonParser(DataParser):
             local_index_mapper: Dict[str, int],
             global_index_mapper: Dict[str, int],
     ):
-        recursive_flag = True
-        if isinstance(value, str):
-            recursive_flag = False
-            value = self.tokenizer.lcut(value)
-            if len(value) < 2:
-                return
-            # 修改之前插入的value
-            graph.value[dsts[-1]] = value
-
+        # 记录所有点，以及递归解析
         node_ids = []
         for v in value:
             node_id = graph.insert_node(component_id, key, v, self_loop=self.self_loop)
-
-            new_dsts = dsts[-self.list_dst_degree:]
-            new_srcs = [node_id] * len(new_dsts)
-            if self.list_inner_degree >= 0:
-                new_srcs += node_ids[-self.list_inner_degree:]
-                new_dsts += [node_id] * (len(new_srcs) - len(new_dsts))
-
-            if self.r_list_inner_degree >= 0:
-                new_dsts += node_ids[-self.r_list_inner_degree:]
-                new_srcs += [node_id] * (len(new_dsts) - len(new_srcs))
-
-            graph.insert_edges(dsts=new_dsts, srcs=new_srcs, bidirection=self.list_bidirection)
             node_ids.append(node_id)
-            if recursive_flag:
-                self.insert_component(
-                    graph=graph, component_id=component_id, key=key, value=v, dsts=dsts + [node_id],
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+            self.insert_component(
+                graph=graph, component_id=component_id, key=key, value=v, dsts=dsts + [node_id],
+                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+        # 添加所有边
+        # 从属关系
+        sub_dsts = dsts[-self.list_dst_degree:]
+        new_dsts = sub_dsts * len(node_ids)
+        new_srcs = node_ids * len(sub_dsts)
+        if self.list_bidirection:
+            new_srcs, new_dsts = new_srcs + new_dsts, new_dsts + new_srcs
+        # 顺序关系
+        new_srcs2, new_dsts2 = sequence_edge(node_ids, degree=self.list_inner_degree, r_degree=self.r_list_inner_degree)
+        graph.insert_edges(dsts=new_dsts + new_dsts2, srcs=new_srcs + new_srcs2, bidirection=False)
 
     def insert_component(
             self,
@@ -206,7 +179,7 @@ class JsonParser(DataParser):
             self.insert_dict(
                 graph=graph, component_id=component_id, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
-        elif isinstance(value, list) or (self.segment_value and isinstance(value, str)):
+        elif isinstance(value, list):
             self.insert_array(
                 graph=graph, component_id=component_id, key=key, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
@@ -219,10 +192,10 @@ class JsonParser(DataParser):
             pass
 
         # json预处理
-        if self.json_path_tree is not None:
+        if self.processor is not None:
             if pd.notna(now):
                 now = ddt.strptime(now, self.time_format)
-            obj = self.json_path_tree(obj, now=now, tokenizer=self.tokenizer)
+            obj = self.processor(obj, now=now, tokenizer=self.tokenizer)
         return obj
 
     def parse_df(
@@ -245,6 +218,8 @@ class JsonParser(DataParser):
             self.insert_component(
                 graph=graph, component_id=0, value=obj, dsts=[],
                 local_index_mapper=local_index_mapper, global_index_mapper={})
+            if self.grid:
+                graph.add_key_edge(degree=self.list_inner_degree, r_degree=self.r_list_inner_degree, inplace=True)
             graphs.append(graph)
             local_index_mappers.append(local_index_mapper)
 
@@ -268,6 +243,8 @@ class JsonParser(DataParser):
                     graph=graph, component_id=component_id, value=obj, dsts=[],
                     local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
                 local_index_mappers.append(local_index_mapper)
+            if self.grid:
+                graph.add_key_edge(degree=self.list_inner_degree, r_degree=self.r_list_inner_degree, inplace=True)
         else:
             assert self.global_id_keys is None
             graph = RawGraph.batch(RawGraph.from_json(json.loads(obj)) for obj in df[self.json_col])
@@ -279,8 +256,8 @@ class JsonParser(DataParser):
             '{}={}'.format(k, v) for k, v in self.__dict__.items()
             if not ismethod(v) and not isinstance(v, JsonPathTree) and not k.startswith('_')
         )
-        if self.json_path_tree is not None:
+        if self.processor is not None:
             s += '\njson_path_tree:'
-            for line in str(self.json_path_tree).split('\n'):
-                s += '\n\t' + line
+            for line in str(self.processor).split('\n'):
+                s += '\n  ' + line
         return s

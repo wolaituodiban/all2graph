@@ -8,11 +8,20 @@ from ..preserves import KEY, VALUE, TARGET, READOUT, META
 from ..meta_struct import MetaStruct
 from ..utils import Tokenizer, tqdm
 
-# todo 支持点分类和点回归，支持mask自监督
-# 考虑在此模式下，将symbol作为他用，比如用于存储点的label
-# 或者增加设计labels，并设计symbol和labels启用的开关
-# 考虑dataset的兼容性和factory的兼容性
-# 考虑encoder的兼容性
+
+def sequence_edge(node_ids: List[int], degree: int, r_degree: int) -> Tuple[List[int], List[int]]:
+    new_dsts = []
+    new_srcs = []
+    for i, node_id in enumerate(node_ids):
+        # 正向
+        end = i + degree + 1 if degree >= 0 else len(node_ids)
+        new_dsts += node_ids[i + 1:end]
+        # 反向
+        start = max(0, i - r_degree) if r_degree >= 0 else 0
+        new_dsts += node_ids[start:i]
+        # 补全
+        new_srcs += [node_id] * (len(new_dsts) - len(new_srcs))
+    return new_dsts, new_srcs
 
 
 class RawGraph(MetaStruct):
@@ -57,6 +66,10 @@ class RawGraph(MetaStruct):
     @property
     def num_types(self):
         return np.unique(self.symbol).shape[0]
+
+    def copy(self):
+        return RawGraph(component_id=list(self.component_id), key=list(self.key), value=list(self.value),
+                 src=list(self.src), dst=list(self.dst), symbol=list(self.symbol))
 
     def insert_edges(self, srcs: List[int], dsts: List[int], bidirection=False):
         if bidirection:
@@ -106,8 +119,7 @@ class RawGraph(MetaStruct):
         if inplace:
             new_graph = self
         else:
-            new_graph = RawGraph(component_id=list(self.component_id), key=list(self.key), value=list(self.value),
-                                 src=list(self.src), dst=list(self.dst), symbol=list(self.symbol))
+            new_graph = self.copy()
         for i, _type in enumerate(new_graph.symbol):
             if _type == READOUT:
                 for target in targets:
@@ -246,9 +258,7 @@ class RawGraph(MetaStruct):
         if inplace:
             new_graph = self
         else:
-            new_graph = RawGraph(
-                component_id=self.component_id, key=self.key, value=list(self.value), src=self.src, dst=self.dst,
-                symbol=list(self.symbol))
+            new_graph = self.copy()
         mask_value = []
         for i in range(self.num_nodes):
             if np.random.rand() < p:
@@ -405,3 +415,30 @@ class RawGraph(MetaStruct):
         ax.legend(handles=patches.values())
 
         return fig, ax
+
+    def add_key_edge(self, degree, r_degree, inplace=False):
+        """
+        在key相同当点之间增加边
+        Args:
+            degree: 正向的度数
+            r_degree: 反向的度数
+            inplace: 如果False，那么不会改变原来的图，并且返回一个修改了的副本
+
+        Returns:
+
+        """
+        if inplace:
+            graph = self
+        else:
+            graph = self.copy()
+
+        new_dsts = []
+        new_srcs = []
+        df = pd.DataFrame({'componet_id': self.component_id, 'key': self.key, 'value': self.value})
+        df = df[df.value.apply(lambda x: not isinstance(x, dict) and not isinstance(x, list))]
+        for _, group in df.groupby(['componet_id', 'key']):
+            new_dsts2, new_srcs2 = sequence_edge(group.index.tolist(), degree=degree, r_degree=r_degree)
+            new_dsts += new_dsts2
+            new_srcs += new_srcs2
+        graph.insert_edges(dsts=new_dsts, srcs=new_srcs)
+        return graph

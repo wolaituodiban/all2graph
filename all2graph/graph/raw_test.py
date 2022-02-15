@@ -14,7 +14,7 @@ def test_meta_graph():
     node_df = pd.read_csv(csv_path, nrows=64)
 
     parser = JsonParser(
-        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True, self_loop=True,
+        'json', time_col='day', local_id_keys={'name'}, self_loop=True,
         list_inner_degree=1
     )
     graph, global_index_mapper, local_index_mappers = parser.parse(node_df, disable=False)
@@ -135,9 +135,22 @@ def test_draw():
     plt.show()
 
 
+def test_add_key_edge():
+    graph = ag.graph.RawGraph(
+        component_id=[0, 0, 1, 1], key=['a', 'a', 'a', 'a'], value=[1, 1, 1, 1], symbol=[0, 0, 0, 0],
+    )
+    graph2 = graph.add_key_edge(1, 1)
+    assert graph2.src == [0, 1, 2, 3]
+    assert graph2.dst == [1, 0, 3, 2]
+    assert graph.num_edges == 0
+    graph.add_key_edge(1, 1, inplace=True)
+    assert graph == graph2
+
+
 if __name__ == '__main__':
     test_meta_graph()
     test_batch()
     test_filter_node()
     test_filter_edge()
     test_draw()
+    test_add_key_edge()
