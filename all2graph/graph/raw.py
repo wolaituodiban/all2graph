@@ -191,6 +191,7 @@ class RawGraph(MetaStruct):
         edge_df = pd.DataFrame({'src': self.src, 'dst': self.dst})
         for col, series in node_df.iteritems():
             edge_df['src_{}'.format(col)] = series[edge_df.src].values
+        for col, series in node_df.iteritems():
             edge_df['dst_{}'.format(col)] = series[edge_df.dst].values
         return edge_df
 

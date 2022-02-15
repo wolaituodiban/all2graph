@@ -29,7 +29,7 @@ class JsonParser(DataParser):
             self_loop=True,
             dict_bidirection=False,
             list_bidirection=False,
-            grid=False,
+            global_sequence=False,
             # 预处理
             processor=None,
             tokenizer: Tokenizer = None,
@@ -52,7 +52,7 @@ class JsonParser(DataParser):
             self_loop:
             dict_bidirection: 所有dict的元素都添加双向边
             list_bidirection: 所有list的元素都添加双向边
-            grid: 是否生成网格
+            global_sequence: 是否生成网格
             processor: callable
                     def processor(json_obj, now=None, tokenizer=None, **kwargs):
                         new_json_obj = ...
@@ -73,7 +73,7 @@ class JsonParser(DataParser):
         self.self_loop = self_loop
         self.dict_bidirection = dict_bidirection
         self.list_bidirection = list_bidirection
-        self.grid = grid
+        self.global_sequence = global_sequence
         self.processor = processor
         self.tokenizer = tokenizer
         self.error = error
@@ -146,8 +146,11 @@ class JsonParser(DataParser):
         if self.list_bidirection:
             new_srcs, new_dsts = new_srcs + new_dsts, new_dsts + new_srcs
         # 顺序关系
-        new_srcs2, new_dsts2 = sequence_edge(node_ids, degree=self.list_inner_degree, r_degree=self.r_list_inner_degree)
-        graph.insert_edges(dsts=new_dsts + new_dsts2, srcs=new_srcs + new_srcs2, bidirection=False)
+        new_dsts2, new_srcs2 = sequence_edge(
+            node_ids, degree=self.list_inner_degree, r_degree=self.r_list_inner_degree)
+        new_srcs += new_srcs2
+        new_dsts += new_dsts2
+        graph.insert_edges(dsts=new_dsts, srcs=new_srcs, bidirection=False)
 
     def insert_component(
             self,
@@ -184,7 +187,7 @@ class JsonParser(DataParser):
                 graph=graph, component_id=component_id, key=key, value=value, dsts=dsts,
                 local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
 
-    def parse_json(self, obj, now=None):
+    def preprocess_json(self, obj, now=None):
         # json load
         try:
             obj = json.loads(obj)
@@ -198,31 +201,36 @@ class JsonParser(DataParser):
             obj = self.processor(obj, now=now, tokenizer=self.tokenizer)
         return obj
 
-    def parse_df(
+    def preprocess_df(
             self,
             df: pd.DataFrame,
             disable: bool = True,
+
     ):
         for obj, now in tqdm(zip(df[self.json_col], df[self.time_col]), disable=disable, postfix='parsing json'):
-            yield self.parse_json(obj, now)
+            yield self.preprocess_json(obj, now)
+
+    def parse_json(self, obj, component_id=0, graph: RawGraph = None, global_index_mapper: dict = None):
+        graph = graph or RawGraph()
+        global_index_mapper = global_index_mapper or {}
+        local_index_mapper = {}
+        self.insert_component(
+            graph=graph, component_id=component_id, value=obj, dsts=[],
+            local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+        return graph, global_index_mapper, local_index_mapper
 
     def save(self, df, dst, disable=True):
         assert self.global_id_keys is None
         self.enable_preprocessing()
-
         local_index_mappers = []
         graphs = []
-        for obj in self.parse_df(df=df, disable=disable):
-            graph = RawGraph()
-            local_index_mapper = {}
-            self.insert_component(
-                graph=graph, component_id=0, value=obj, dsts=[],
-                local_index_mapper=local_index_mapper, global_index_mapper={})
-            if self.grid:
+        for obj in self.preprocess_df(df=df, disable=disable):
+            graph, global_index_mapper, local_index_mapper = self.parse_json(obj)
+            if self.global_sequence:
                 graph.add_key_edge(degree=self.list_inner_degree, r_degree=self.r_list_inner_degree, inplace=True)
+                graph.drop_duplicated_edges()
             graphs.append(graph)
             local_index_mappers.append(local_index_mapper)
-
         df = df.copy()
         df[self.json_col] = [json.dumps(graph.to_json(drop_nested_value=True)) for graph in graphs]
         df['local_index_mapper'] = list(map(json.dumps, local_index_mappers))
@@ -237,14 +245,13 @@ class JsonParser(DataParser):
         if self._enable_preprocessing:
             graph = RawGraph()
             local_index_mappers = []
-            for component_id, obj in enumerate(self.parse_df(df=df, disable=disable)):
-                local_index_mapper = {}
-                self.insert_component(
-                    graph=graph, component_id=component_id, value=obj, dsts=[],
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+            for component_id, obj in enumerate(self.preprocess_df(df=df, disable=disable)):
+                graph, global_index_mapper, local_index_mapper = self.parse_json(
+                    obj, component_id=component_id, graph=graph, global_index_mapper=global_index_mapper)
                 local_index_mappers.append(local_index_mapper)
-            if self.grid:
+            if self.global_sequence:
                 graph.add_key_edge(degree=self.list_inner_degree, r_degree=self.r_list_inner_degree, inplace=True)
+                graph.drop_duplicated_edges()
         else:
             assert self.global_id_keys is None
             graph = RawGraph.batch(RawGraph.from_json(json.loads(obj)) for obj in df[self.json_col])

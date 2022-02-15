@@ -32,7 +32,7 @@ def plot_waveform(waveform, sample_rate, title="Waveform", xlim=None, ylim=None)
         axes = [axes]
     for c in range(num_channels):
         axes[c].plot(time_axis, waveform[c], linewidth=1)
-    axes[c].grid(True)
+    axes[c].global_sequence(True)
     if num_channels > 1:
         axes[c].set_ylabel(f'Channel {c+1}')
     if xlim:

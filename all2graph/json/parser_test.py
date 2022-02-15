@@ -1,5 +1,6 @@
 import json
 import pandas as pd
+import matplotlib.pyplot as plt
 import jsonpromax as jpm
 from all2graph.json import JsonParser
 from all2graph import JiebaTokenizer
@@ -77,16 +78,18 @@ def test_repr():
     print(parser)
 
 
-def test_grid():
+def test_global_sequence():
     inputs = [{'a': 1}, {'a': 2}]
     inputs = pd.DataFrame([json.dumps(inputs)], columns=['json'])
+    inputs = pd.concat([inputs] * 2)
     inputs['day'] = None
-    jg1, *_ = JsonParser('json', time_col='day', grid=False, self_loop=False).parse(inputs)
-    jg2, *_ = JsonParser('json', time_col='day', grid=True, self_loop=False).parse(inputs)
-    assert jg2.num_edges - jg1.num_edges == 1
+    jg1, *_ = JsonParser('json', time_col='day', global_sequence=False, self_loop=False).parse(inputs)
+    jg2, *_ = JsonParser('json', time_col='day', global_sequence=True, self_loop=False).parse(inputs)
+
     jg2.draw()
-    import matplotlib.pyplot as plt
     plt.show()
+    assert jg2.num_edges == 12, jg2.num_edges
+    assert jg1.num_edges == 10, jg2.num_edges
 
 
 if __name__ == '__main__':
@@ -94,4 +97,4 @@ if __name__ == '__main__':
     test_list_inner_degree()
     test_complicated_situation()
     test_repr()
-    test_grid()
+    test_global_sequence()
