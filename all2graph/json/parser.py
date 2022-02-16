@@ -201,12 +201,7 @@ class JsonParser(DataParser):
             obj = self.processor(obj, now=now, tokenizer=self.tokenizer)
         return obj
 
-    def preprocess_df(
-            self,
-            df: pd.DataFrame,
-            disable: bool = True,
-
-    ):
+    def preprocess_df(self, df: pd.DataFrame, disable: bool = True):
         for obj, now in tqdm(zip(df[self.json_col], df[self.time_col]), disable=disable, postfix='parsing json'):
             yield self.preprocess_json(obj, now)
 
@@ -236,11 +231,7 @@ class JsonParser(DataParser):
         df['local_index_mapper'] = list(map(json.dumps, local_index_mappers))
         df.to_csv(dst)
 
-    def parse(
-            self,
-            df: pd.DataFrame,
-            disable: bool = True,
-    ) -> (RawGraph, dict, List[dict]):
+    def parse(self, df: pd.DataFrame, disable: bool = True) -> (RawGraph, dict, List[dict]):
         global_index_mapper = {}
         if self._enable_preprocessing:
             graph = RawGraph()
