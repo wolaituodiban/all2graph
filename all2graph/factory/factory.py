@@ -57,7 +57,7 @@ class Factory(MetaStruct):
 
         self.data_parser = data_parser
         self.meta_info_config = meta_info_config or {}
-        self.graph_parser_config = raw_graph_parser_config or {}
+        self.raw_graph_parser_config = raw_graph_parser_config or {}
         self.raw_graph_parser: Union[RawGraphParser, None] = None
         self.save_path = None  # 多进程的cache
 
@@ -107,7 +107,7 @@ class Factory(MetaStruct):
         meta_info = MetaInfo.reduce(
             meta_infos, weights=weights, disable=disable, processes=processes, **self.meta_info_config
         )
-        self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.graph_parser_config)
+        self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.raw_graph_parser_config)
         return meta_info
 
     def _save(self, x: Tuple[pd.DataFrame, str, bool, bool, Union[None, list]]) -> pd.DataFrame:

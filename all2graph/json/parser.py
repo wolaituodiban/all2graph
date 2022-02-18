@@ -189,10 +189,8 @@ class JsonParser(DataParser):
 
     def preprocess_json(self, obj, now=None):
         # json load
-        try:
+        if not isinstance(obj, (list, dict)):
             obj = json.loads(obj)
-        except (json.JSONDecodeError, TypeError, ValueError, KeyError, IndexError):
-            pass
 
         # json预处理
         if self.processor is not None:
