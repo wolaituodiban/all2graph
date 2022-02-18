@@ -1,9 +1,7 @@
-import time
-import random
-import all2graph as ag
-import numpy as np
 import torch
 from torch.utils.data import Dataset, DataLoader
+
+import all2graph as ag
 
 
 class TestDataset(Dataset):
@@ -29,14 +27,21 @@ def test_partition_sampler():
     for x in [45, 11, 26, 23, 42, 22, 53]:
         indices.append(list(range(lines, lines + x)))
         lines += x
-    num_workers = 2
+    num_workers = 3
+
+    in_indices = []
+    for ind in indices:
+        in_indices += ind
 
     sampler = ag.data.PartitionSampler(indices=indices, num_workers=num_workers, shuffle=True, batch_size=2)
     dataset = TestDataset(lines)
     data_loader = DataLoader(dataset, num_workers=num_workers, batch_sampler=sampler)
 
+    out_indices = []
     for worker_id, ind in data_loader:
+        out_indices += ind.numpy().tolist()
         print(worker_id, ind, list(map(get_partition, ind)))
+    assert set(in_indices) == set(out_indices)
 
 
 if __name__ == '__main__':
