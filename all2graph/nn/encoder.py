@@ -22,8 +22,10 @@ class Encoder(torch.nn.Module):
         self.node_embedding = NodeEmbedding(
             embedding_dim=d_model, num_weight=num_weight, key_bias=key_emb, activation=num_activation)
         self.nhead = nhead
-        if lite:
+        if lite == 1:
             from .conv import ConvLite as Conv
+        elif lite == 2:
+            from .conv import ConvLite2 as Conv
         else:
             from .conv import Conv
         conv_layer = Conv(normalized_shape=d_model, dropout=dropout, **conv_config or {})

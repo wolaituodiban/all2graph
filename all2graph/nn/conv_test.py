@@ -217,12 +217,37 @@ def speed():
                         node_bias=node_bias)
                 )
 
+    def convlite2_speed():
+        src_key_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        src_key_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+
+        src_value_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        src_value_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+
+        query = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+        node_weight = torch.randn(nhead, dim_per_head, emb_dim).expand(num_nodes, -1, -1, -1)
+        node_bias = torch.randn(nhead, dim_per_head).expand(num_nodes, -1, -1)
+
+        conv = ag.nn.ConvLite2(out_dim)
+        with ag.Timer('ConvLite2'):
+            for _ in range(10):
+                conv(
+                    graph, feat, dict(
+                        src_key_weight=src_key_weight,
+                        src_key_bias=src_key_bias,
+                        src_value_weight=src_value_weight,
+                        src_value_bias=src_value_bias,
+                        query=query,
+                        node_weight=node_weight,
+                        node_bias=node_bias)
+                )
+
     emb_dim = 16
     nhead = 4
     out_dim = emb_dim
     dim_per_head = out_dim // nhead
     num_nodes = 10000
-    num_edges = 100000
+    num_edges = 200000
     for _ in range(10):
         graph = dgl.graph(
             data=(torch.randint(num_nodes - 1, (num_edges,)), torch.randint(num_nodes - 1, (num_edges,))),
@@ -231,6 +256,7 @@ def speed():
         feat = torch.randn(num_nodes, emb_dim)
         conv_speed()
         convlite_speed()
+        convlite2_speed()
 
 
 if __name__ == '__main__':

@@ -1,5 +1,5 @@
 from .train import Trainer, EarlyStop, HyperBand
-from .conv import Conv, Block, Body, ConvLite
+from .conv import Conv, Block, Body, ConvLite, ConvLite2
 from .embedding import NodeEmbedding
 from .encoder import Encoder
 from .functional import edgewise_linear, nodewise_linear

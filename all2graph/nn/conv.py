@@ -366,3 +366,99 @@ class ConvLite(Conv):
             if activation is not None:
                 o = activation(o)
             return o
+
+
+class ConvLite2(Conv):
+    @property
+    def edge_parameter_names_2d(self):
+        return []
+
+    @property
+    def edge_parameter_names_1d(self):
+        return []
+
+    @property
+    def node_parameter_names_2d(self):
+        return [self.NODE_WEIGHT, self.SRC_KEY_WEIGHT, self.SRC_VALUE_WEIGHT]
+
+    @property
+    def node_parameter_names_1d(self):
+        output = [self.QUERY]
+        if self.node_bias:
+            output.append(self.NODE_BIAS)
+        if self.key_bias:
+            output.append(self.SRC_KEY_BIAS)
+        if self.value_bias:
+            output.append(self.SRC_VALUE_BIAS)
+        return output
+
+    def forward(
+            self, graph: dgl.DGLGraph, in_feat: torch.Tensor, parameters: Dict[str, torch.Tensor]
+    ) -> (torch.Tensor, torch.Tensor):
+        """
+        K = dot(u, w_uk) + b_uk + dot(v, w_vk) + b_vk
+        V = dot(u, w_uv) + b_uv + dot(v, w_vv) + b_vv
+        attn_out = softmax(dot(Q, K_T)) * V
+        out = dot(attn_out, w_o) + b_o
+
+        :param graph:
+        :param in_feat: num_nodes * in_dim
+        :param parameters:
+        node weight
+            src_key_weight   : (, nhead, out_dim // nhead, in_dim)
+            src_key_bias     : (, nhead, out_dim // nhead)
+
+            src_value_weight : (, nhead, out_dim // nhead, in_dim)
+            src_value_bias   : (, nhead, out_dim // nhead)
+
+            query            : (, nhead, out_dim // nhead)
+            node_weight      : (, out_dim, in_dim)
+            node_bias        : (, out_dim)
+
+        :return:
+            out_feat    : (num_nodes, out_dim)
+            key_feat    : (num_nodes, out_dim)
+            value_feat  : (num_nodes, out_dim)
+            attn_weight : (num_edges, nhead)
+        """
+        with graph.local_scope():
+            # 通过feature计算key
+            graph.ndata[KEY] = nodewise_linear(
+                feat=in_feat, weight=parameters[self.SRC_KEY_WEIGHT],
+                bias=parameters[self.SRC_KEY_BIAS] if self.key_bias else None,
+                dropout=self.key_dropout, norm=self.key_norm, activation=self.key_activation
+            )  # (, nheads, out_dim // nheads)
+
+            # 计算value
+            graph.ndata[VALUE] = nodewise_linear(
+                feat=in_feat, weight=parameters[self.SRC_VALUE_WEIGHT],
+                bias=parameters[self.SRC_VALUE_BIAS] if self.value_bias else None,
+                dropout=self.value_dropout, norm=self.value_norm, activation=self.value_activation
+            )  # (, nheads, out_dim // nheads)
+
+            # attention
+            graph.ndata[QUERY] = parameters[self.QUERY]
+            graph.apply_edges(fn.u_dot_v(KEY, QUERY, ATTENTION))
+            graph.edata[ATTENTION] = edge_softmax(graph, graph.edata[ATTENTION])
+            if self.attn_dropout is not None:
+                graph.edata[ATTENTION] = self.attn_dropout(graph.edata[ATTENTION])
+            graph.update_all(fn.u_mul_e(VALUE, ATTENTION, FEATURE), fn.sum(FEATURE, FEATURE))
+
+            # linear
+            out_feat = graph.ndata[FEATURE].view(graph.num_nodes(), -1)
+            out_feat = nodewise_linear(
+                out_feat, weight=parameters[self.NODE_WEIGHT],
+                bias=parameters[self.NODE_BIAS] if self.node_bias else None, activation=self.node_activation)
+            out_feat = out_feat.view(graph.num_nodes(), -1)
+
+            # add & norm
+            if self.residual:
+                out_feat = in_feat + out_feat
+
+            if self.norm is not None:
+                out_feat = self.norm(out_feat)
+
+            key_feat = graph.ndata[KEY].view(graph.num_nodes(), -1)
+            value_feat = graph.ndata[VALUE].view(graph.num_nodes(), -1)
+            attn_weight = graph.edata[ATTENTION].view(graph.num_edges(), -1)
+            return out_feat, key_feat, value_feat, attn_weight
