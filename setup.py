@@ -18,8 +18,8 @@ setup(
     author_email='wolaituodiban@gmail.com',
     packages=find_packages(),
     install_requires=[
-        'dgl>=0.6.0',
-        'torch>=1.5.0',
+        # 'dgl>=0.6.0',
+        # 'torch>=1.5.0',
         'jieba>=0.39',
         'pandas',
         'scipy',
