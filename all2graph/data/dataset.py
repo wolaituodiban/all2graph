@@ -152,7 +152,9 @@ class GraphDataset(CSVDatasetV2):
         partition_num = self._get_partition_num(item)
         # print(torch.utils.data.get_worker_info().id, partition_num)
         graph, label = self._get_partition(partition_num)
-        graph = graph.component_subgraph(item - self._path['lb'].iloc[partition_num])
+        i = item - self._path['lb'].iloc[partition_num]
+        graph = graph.component_subgraph(i)
+        label = {k: v[i] for k, v in label.items()}
         return graph, label
 
     def collate_fn(self, batches: List[Tuple[Graph, Dict[str, torch.Tensor]]]) -> Tuple[Graph, Dict[str, torch.Tensor]]:

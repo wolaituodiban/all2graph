@@ -189,7 +189,7 @@ class Graph:
         return cls(graph=graphs[0]), labels
 
     def to(self, *args, **kwargs):
-        self.graph.to(*args, **kwargs)
+        self.graph = self.graph.to(*args, **kwargs)
         return self
 
     def to_df(self, *attrs):

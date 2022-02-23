@@ -144,20 +144,6 @@ class Predictor(torch.nn.Module):
     def set_data_parser(self, data_parser: Union[DataParser, Dict[str, DataParser]]):
         self.data_parser = data_parser
 
-    def enable_preprocessing(self):
-        if isinstance(self.data_parser, DataParser):
-            self.data_parser.enable_preprocessing()
-        elif isinstance(self.data_parser, dict):
-            for v in self.data_parser.values():
-                v.enable_preprocessing()
-
-    def disable_preprocessing(self):
-        if isinstance(self.data_parser, DataParser):
-            self.data_parser.disable_preprocessing()
-        elif isinstance(self.data_parser, dict):
-            for v in self.data_parser.values():
-                v.disable_preprocessing()
-
     def forward(self, df: pd.DataFrame) -> Dict[str, torch.Tensor]:
         if self.module.version <= '0.1.5' and __version__ >= '0.1.6':
             print('old version model (<=0.1.5) has a bug in Conv.forward', file=sys.stderr)
@@ -180,7 +166,7 @@ class Predictor(torch.nn.Module):
 
     @torch.no_grad()
     def predict(
-            self, src, chunksize=64, disable=False, processes=0, postfix='predicting', temp_file=False,
+            self, src, chunksize=64, disable=False, processes=None, postfix='predicting', temp_file=False,
             data_parser: DataParser = None, **kwargs) -> pd.DataFrame:
         self.eval()
         if processes == 0:

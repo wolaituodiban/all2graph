@@ -114,7 +114,7 @@ def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chi
 
 def split_csv(
         src, dst, chunksize, disable=False, zip=True, error=True, warning=True, concat_chip=True, meta_cols=None,
-        **kwargs):
+        drop_cols=None, **kwargs):
     """
 
     Args:
@@ -127,6 +127,7 @@ def split_csv(
         warning: 发生错误时会打印错误信息
         concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
         meta_cols: 需要保存到元信息dataframe的列名
+        drop_cols: 需要去掉的列，只在meta_col为None时生效
         **kwargs:
 
     Returns:
@@ -147,6 +148,9 @@ def split_csv(
         chunk.to_csv(to_file)
         if meta_cols is not None:
             meta_df = chunk[meta_cols]
+            meta_df['path'] = to_file
+        elif drop_cols is not None:
+            meta_df = chunk.drop(columns=drop_cols)
             meta_df['path'] = to_file
         else:
             meta_df = pd.DataFrame({'path': [to_file] * chunk.shape[0]})

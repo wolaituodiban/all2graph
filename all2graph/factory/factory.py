@@ -104,7 +104,13 @@ class Factory(MetaStruct):
         self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.raw_graph_parser_config)
         return meta_info
 
-    def _save(self, x: Tuple[pd.DataFrame, str, Union[None, list]]) -> pd.DataFrame:
+    def produce_graph_and_label(self, chunk: pd.DataFrame):
+        graph, *_ = self._produce_raw_graph(chunk)
+        x = self.raw_graph_parser.parse(graph)
+        labels = self.data_parser.gen_targets(chunk, target_cols=self.targets)
+        return x, labels
+
+    def _save(self, x: Tuple[pd.DataFrame, str, Union[None, list], Union[None, list]]) -> pd.DataFrame:
         """
         将原始数据加工后保存成一个文件
         Args:
@@ -116,33 +122,36 @@ class Factory(MetaStruct):
         Returns:
             返回一个包含路径和元数据的DataFrame
         """
-        df, dst, meta_col = x
+        df, dst, meta_col, drop_col = x
         path = '.'.join([dst, 'all2graph.graph'])
         raw_graph, *_ = self.data_parser.parse(df, disable=True)
-        graph = self.raw_graph_parser.parse(raw_graph)
-        labels = self.data_parser.gen_targets(df, self.targets)
+        graph, labels = self.produce_graph_and_label(df)
         graph.save(path, labels=labels)
-        meta_df = pd.DataFrame({'path': [path] * df.shape[0]})
+
         if meta_col is not None:
-            meta_df[meta_col] = df[meta_col].values
+            meta_df = df[meta_col]
+            meta_df['path'] = path
+        elif drop_col is not None:
+            meta_df = df.drop(columns=drop_col)
+            meta_df['path'] = path
+        else:
+            meta_df = pd.DataFrame({'path': [path] * df.shape[0]})
         return meta_df
 
     def save(
-            self, src, dst, disable=False, error=True, warning=True, concat_chip=True, chunksize=64,
-            postfix=None, processes=None, meta_col=None, **kwargs):
+            self, src, dst, disable=False, chunksize=64,
+            postfix=None, processes=None, meta_cols=None, drop_cols=None, **kwargs):
         """
         将原始数据加工后，存储成分片的文件
         Args:
             src: 原始数据
             dst: 存储文件夹路径
             disable: 是否禁用进度条
-            error: 读取数据遇到错误时报错
-            warning: 读取数据遇到错误是报警
-            concat_chip: 合并样本，强制保证每个分片的大小都是chunksize
             chunksize: 分片数据的大小
             postfix: 进度条后缀
             processes: 多进程数量
-            meta_col: 需要返回的元数据列
+            meta_cols: 需要返回的元数据列
+            drop_cols: 需要去掉的列，只在meta_col为None时生效
             **kwargs: 传递给dataframe_chunk_iter的额外参数
 
         Returns:
@@ -153,22 +162,15 @@ class Factory(MetaStruct):
         if postfix is None:
             postfix = 'saving graph'
         os.mkdir(dst)
-        generator = dataframe_chunk_iter(
-                src, error=error, warning=warning, concat_chip=concat_chip, chunksize=chunksize, **kwargs)
-        generator = ((df, os.path.join(dst, str(i)), meta_col) for i, df in enumerate(generator))
-        generator = tqdm(generator, disable=disable, postfix=postfix)
+        generator = dataframe_chunk_iter(src, chunksize=chunksize, **kwargs)
+        generator = ((df, os.path.join(dst, str(i)), meta_cols, drop_cols) for i, df in enumerate(generator))
         if processes == 0:
-            meta_df = pd.concat(map(self._save, generator))
+            meta_df = pd.concat(tqdm(map(self._save, generator), disable=disable, postfix=postfix))
         else:
             with Pool(processes) as pool:
-                meta_df = pd.concat(pool.imap(self._save, generator))
+                meta_df = pd.concat(tqdm(pool.imap(self._save, generator), disable=disable, postfix=postfix))
+        meta_df.to_csv(dst+'_meta.zip', index=False)
         return meta_df
-
-    def produce_graph_and_label(self, chunk: pd.DataFrame):
-        graph, *_ = self._produce_raw_graph(chunk)
-        x = self.raw_graph_parser.parse(graph)
-        labels = self.data_parser.gen_targets(chunk, target_cols=self.targets)
-        return x, labels
 
     def produce_dataloader(
             self, df=None, shuffle=True, csv_configs=None, graph=False, meta_df=None,
