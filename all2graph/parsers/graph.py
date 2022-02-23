@@ -173,12 +173,12 @@ class RawGraphParser(MetaStruct):
             if len(dropped_keys) > 0:
                 print('drop unknown edge keys: {}'.format(dropped_keys), file=sys.stderr)
         meta_graph, meta_node_id, meta_edge_id = graph.meta_graph(self.tokenizer)
-        return Graph(
-            meta_graph=meta_graph, graph=graph, meta_key=self.encode_key(meta_graph.key),
+        return Graph.from_raw_graph(
+            meta_graph=meta_graph, value_graph=graph, meta_key=self.encode_key(meta_graph.key),
             meta_value=self.encode_string(meta_graph.value), meta_symbol=self.encode_string(meta_graph.symbol),
             meta_component_id=meta_graph.component_id, meta_edge_key=self.encode_edge_key(meta_graph.edge_key),
             value=self.encode_string(graph.value), number=self.scale(graph.key, graph.value),
-            symbol=self.encode_string(graph.symbol), meta_node_id=meta_node_id, meta_edge_id=meta_edge_id
+            symbol=self.encode_string(graph.symbol), meta_node_id=meta_node_id,
         )
 
     def gen_param_graph(self, param_names):

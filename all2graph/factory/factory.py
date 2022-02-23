@@ -68,12 +68,6 @@ class Factory(MetaStruct):
         else:
             return self.raw_graph_parser.targets
 
-    def enable_preprocessing(self):
-        self.data_parser.enable_preprocessing()
-
-    def disable_preprocessing(self):
-        self.data_parser.disable_preprocessing()
-
     def _produce_raw_graph(self, chunk):
         return self.data_parser.parse(chunk, disable=True)
 
@@ -110,53 +104,44 @@ class Factory(MetaStruct):
         self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.raw_graph_parser_config)
         return meta_info
 
-    def _save(self, x: Tuple[pd.DataFrame, str, bool, bool, Union[None, list]]) -> pd.DataFrame:
+    def _save(self, x: Tuple[pd.DataFrame, str, Union[None, list]]) -> pd.DataFrame:
         """
         将原始数据加工后保存成一个文件
         Args:
             x: 包含五个变量
                 df: DataFrame，原始数据
                 dst: 文件夹路径
-                zip: 是否压缩，仅在raw=True是生效
-                raw: 是否保存成RawGraph
                 meta_col: 需要返回的元数据列
 
         Returns:
             返回一个包含路径和元数据的DataFrame
         """
-        df, dst, zip, raw, meta_col = x
-        if raw:
-            path = '.'.join([dst, 'zip' if zip else 'csv'])
-            self.data_parser.save(df, path)
-        else:
-            path = '.'.join([dst, 'all2graph.graph'])
-            raw_graph, *_ = self.data_parser.parse(df, disable=True)
-            graph = self.raw_graph_parser.parse(raw_graph)
-            labels = self.data_parser.gen_targets(df, self.targets)
-            graph.save(path, labels=labels)
-
+        df, dst, meta_col = x
+        path = '.'.join([dst, 'all2graph.graph'])
+        raw_graph, *_ = self.data_parser.parse(df, disable=True)
+        graph = self.raw_graph_parser.parse(raw_graph)
+        labels = self.data_parser.gen_targets(df, self.targets)
+        graph.save(path, labels=labels)
         meta_df = pd.DataFrame({'path': [path] * df.shape[0]})
         if meta_col is not None:
             meta_df[meta_col] = df[meta_col].values
         return meta_df
 
     def save(
-            self, src, dst, disable=False, zip=True, error=True, warning=True, concat_chip=True, chunksize=64,
-            postfix=None, processes=None, raw=False, meta_col=None, **kwargs):
+            self, src, dst, disable=False, error=True, warning=True, concat_chip=True, chunksize=64,
+            postfix=None, processes=None, meta_col=None, **kwargs):
         """
         将原始数据加工后，存储成分片的文件
         Args:
             src: 原始数据
             dst: 存储文件夹路径
             disable: 是否禁用进度条
-            zip: 是否压缩，仅在raw=True是生效
             error: 读取数据遇到错误时报错
             warning: 读取数据遇到错误是报警
             concat_chip: 合并样本，强制保证每个分片的大小都是chunksize
             chunksize: 分片数据的大小
             postfix: 进度条后缀
             processes: 多进程数量
-            raw: 是否保存成RawGraph
             meta_col: 需要返回的元数据列
             **kwargs: 传递给dataframe_chunk_iter的额外参数
 
@@ -166,11 +151,11 @@ class Factory(MetaStruct):
         # assert meta_col is None or isinstance(meta_col, list)
         assert not os.path.exists(dst), '{} already exists'.format(dst)
         if postfix is None:
-            postfix = 'saving{}graph'.format(' raw ' if raw else ' ')
+            postfix = 'saving graph'
         os.mkdir(dst)
         generator = dataframe_chunk_iter(
                 src, error=error, warning=warning, concat_chip=concat_chip, chunksize=chunksize, **kwargs)
-        generator = ((df, os.path.join(dst, str(i)), zip, raw, meta_col) for i, df in enumerate(generator))
+        generator = ((df, os.path.join(dst, str(i)), meta_col) for i, df in enumerate(generator))
         generator = tqdm(generator, disable=disable, postfix=postfix)
         if processes == 0:
             meta_df = pd.concat(map(self._save, generator))
@@ -186,7 +171,7 @@ class Factory(MetaStruct):
         return x, labels
 
     def produce_dataloader(
-            self, df=None, shuffle=True, csv_configs=None, raw_graph=False, meta_df=None,
+            self, df=None, shuffle=True, csv_configs=None, graph=False, meta_df=None,
             num_workers=0, batch_size=1, **kwargs):
         """
 
@@ -194,7 +179,7 @@ class Factory(MetaStruct):
             df: path or list of path
             shuffle:
             csv_configs:
-            raw_graph: 如果True，那么数据源视为RawGraph
+            graph: 如果True，那么数据源视为Graph
             meta_df: 返回一个包含路径和元数据的DataFrame，需要有一列path，如果提供了dst，按么会使用分片存储后的meta_df
             num_workers: DataLoader多进程数量
             batch_size: batch大小
@@ -203,16 +188,15 @@ class Factory(MetaStruct):
         Returns:
 
         """
-        if raw_graph:
-            self.data_parser.disable_preprocessing()
-        else:
-            self.data_parser.enable_preprocessing()
-
         if df is None:
-            from ..data import CSVDatasetV2
-            dataset = CSVDatasetV2(
-                src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
-                **(csv_configs or {}))
+            if graph:
+                from ..data import GraphDataset
+                dataset = GraphDataset(src=meta_df)
+            else:
+                from ..data import CSVDatasetV2
+                dataset = CSVDatasetV2(
+                    src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
+                    **(csv_configs or {}))
         else:
             from ..data import DFDataset
             dataset = DFDataset(

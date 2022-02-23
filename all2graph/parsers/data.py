@@ -12,12 +12,6 @@ class DataParser(MetaStruct):
         self.time_col = time_col
         self.time_format = time_format
 
-    def disable_preprocessing(self):
-        raise NotImplementedError
-
-    def enable_preprocessing(self):
-        raise NotImplementedError
-
     @staticmethod
     def gen_targets(df: pd.DataFrame, target_cols):
         import torch
@@ -26,10 +20,7 @@ class DataParser(MetaStruct):
             for k in target_cols if k in df
         }
 
-    def save(self, df, dst, disable=True):
-        raise NotImplementedError
-
-    def parse(self, data, disable: bool = True) -> Tuple[RawGraph, dict, List[dict]]:
+    def parse(self, data, disable: bool = True) -> (RawGraph, dict, List[dict]):
         raise NotImplementedError
 
     def __eq__(self, other):
@@ -63,11 +54,3 @@ class DataAugmenter(DataParser):
     def parse(self, data, disable: bool = True, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
         parser = np.random.choice(self.parsers, p=self.weights)
         return parser.parse(data, disable=disable, **kwargs)
-
-    def disable_preprocessing(self):
-        for parser in self.parsers:
-            parser.disable_preprocessing()
-
-    def enable_preprocessing(self):
-        for parser in self.parsers:
-            parser.enable_preprocessing()

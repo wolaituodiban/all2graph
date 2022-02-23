@@ -8,7 +8,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from ..data import Dataset
+from ..data import Dataset, default_collate
 from ..parsers import RawGraphParser, ParserWrapper
 from ..graph import Graph, RawGraph
 from ..parsers import DataParser
@@ -23,20 +23,6 @@ def _get_type(x):
         return 'list'
     elif isinstance(x, dict):
         return 'dict'
-    raise TypeError('only accept "tensor", "list", "dict"')
-
-
-def default_collate(batches):
-    fst_item = batches[0]
-    if isinstance(fst_item, torch.Tensor):
-        if len(fst_item.shape) == 0:
-            return torch.stack(batches)
-        else:
-            return torch.cat(batches, dim=0)
-    elif isinstance(fst_item, list):
-        return [default_collate(tensors) for tensors in zip(*batches)]
-    elif isinstance(fst_item, dict):
-        return {key: default_collate([batch[key] for batch in batches]) for key in batches[0]}
     raise TypeError('only accept "tensor", "list", "dict"')
 
 

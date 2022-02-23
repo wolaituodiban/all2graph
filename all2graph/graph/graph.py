@@ -1,74 +1,56 @@
-from typing import Union
+from typing import List, Union
 
 import dgl
+import numpy as np
 import torch
 
 from .raw import RawGraph
-from ..globals import EPSILON
-from ..version import __version__
-from ..preserves import KEY, VALUE, NUMBER
+from ..globals import EPSILON, EDGE
+from ..preserves import KEY, VALUE, NUMBER, META
 
 
 class Graph:
-    def __init__(self, meta_graph: Union[RawGraph, dgl.DGLGraph], graph: Union[RawGraph, dgl.DGLGraph], meta_key=None,
-                 meta_value=None, meta_symbol=None, meta_component_id=None, meta_edge_key=None, value=None, number=None,
-                 symbol=None, meta_node_id=None, meta_edge_id=None):
-        self.version = __version__
-        # 构建元图
-        if isinstance(meta_graph, RawGraph):
-            self.meta_graph: dgl.DGLGraph = dgl.graph(
-                data=(torch.tensor(meta_graph.src, dtype=torch.long), torch.tensor(meta_graph.dst, dtype=torch.long)),
-                num_nodes=meta_graph.num_nodes
-            )
-        elif isinstance(meta_graph, dgl.DGLGraph):
-            self.meta_graph = meta_graph
-        else:
-            raise TypeError('unknown type of meta_graph: {}'.format(type(meta_graph)))
+    def __init__(self, graph: dgl.DGLHeteroGraph):
+        self.graph = graph
 
-        if meta_key is not None:
-            self.meta_graph.ndata[KEY] = meta_key if isinstance(meta_key, torch.Tensor) \
-                else torch.tensor(meta_key, dtype=torch.long)
-        if meta_value is not None:
-            self.meta_graph.ndata[VALUE] = meta_value if isinstance(meta_value, torch.Tensor) \
-                else torch.tensor(meta_value, dtype=torch.long)
-        if meta_symbol is not None:
-            self.meta_graph.ndata['meta_symbol'] = meta_symbol if isinstance(meta_symbol, torch.Tensor) \
-                else torch.tensor(meta_symbol, dtype=torch.long)
-        if meta_component_id is not None:
-            self.meta_graph.ndata['meta_component_id'] = meta_component_id \
-                if isinstance(meta_component_id, torch.Tensor) \
-                else torch.tensor(meta_component_id, dtype=torch.long)
-        if meta_edge_key is not None:
-            self.meta_graph.edata[KEY] = meta_edge_key if isinstance(meta_edge_key, torch.Tensor) \
-                else torch.tensor(meta_edge_key, dtype=torch.long)
+    @classmethod
+    def from_raw_graph(
+            cls,
+            meta_graph: RawGraph,
+            value_graph: RawGraph,
+            meta_key: Union[np.ndarray, List[int]],
+            meta_value: Union[np.ndarray, List[int]],
+            meta_symbol: Union[np.ndarray, List[int]],
+            meta_component_id: Union[np.ndarray, List[int]],
+            meta_edge_key: Union[np.ndarray, List[int]],
+            value: Union[np.ndarray, List[int]],
+            number: Union[np.ndarray, List[float]],
+            symbol: Union[np.ndarray, List[int]],
+            meta_node_id: Union[np.ndarray, List[int]],
+    ):
+        graph = dgl.heterograph(
+            data_dict={
+                (META, EDGE, META): (
+                    torch.tensor(meta_graph.src, dtype=torch.long), torch.tensor(meta_graph.dst, dtype=torch.long)),
+                (VALUE, EDGE, VALUE): (
+                    torch.tensor(value_graph.src, dtype=torch.long), torch.tensor(value_graph.dst, dtype=torch.long)),
+                (VALUE, EDGE, META): (
+                    torch.arange(value_graph.num_nodes, dtype=torch.long), torch.tensor(meta_node_id, dtype=torch.long))
+            },
+            num_nodes_dict={META: meta_graph.num_nodes, VALUE: value_graph.num_nodes}
+        )
+        # 元图属性
+        graph.nodes[META].data[KEY] = torch.tensor(meta_key, dtype=torch.long)
+        graph.nodes[META].data[VALUE] = torch.tensor(meta_value, dtype=torch.long)
+        graph.nodes[META].data['symbol'] = torch.tensor(meta_symbol, dtype=torch.long)
+        graph.nodes[META].data['component_id'] = torch.tensor(meta_component_id, dtype=torch.long)
+        graph.edges[(META, EDGE, META)].data[KEY] = torch.tensor(meta_edge_key, dtype=torch.long)
 
-        # 构建值图
-        if isinstance(graph, RawGraph):
-            self.value_graph: dgl.DGLGraph = dgl.graph(
-                data=(torch.tensor(graph.src, dtype=torch.long), torch.tensor(graph.dst, dtype=torch.long)),
-                num_nodes=graph.num_nodes
-            )
-        elif isinstance(graph, dgl.DGLGraph):
-            self.value_graph = graph
-        else:
-            raise TypeError('unknown type of value_graph: {}'.format(type(graph)))
-
-        if number is not None:
-            self.value_graph.ndata[NUMBER] = number if isinstance(symbol, torch.Tensor) else \
-                torch.tensor(number, dtype=torch.float32)
-        if value is not None:
-            self.value_graph.ndata[VALUE] = value if isinstance(symbol, torch.Tensor) else \
-                torch.tensor(value, dtype=torch.long)
-        if symbol is not None:
-            self.value_graph.ndata['symbol'] = symbol if isinstance(symbol, torch.Tensor) else \
-                torch.tensor(symbol, dtype=torch.long)
-        if meta_node_id is not None:
-            self.value_graph.ndata['meta_node_id'] = meta_node_id if isinstance(meta_node_id, torch.Tensor) \
-                else torch.tensor(meta_node_id, dtype=torch.long)
-
-        if meta_edge_id is not None:
-            self.value_graph.edata['meta_edge_id'] = meta_edge_id if isinstance(meta_edge_id, torch.Tensor) \
-                else torch.tensor(meta_edge_id, dtype=torch.long)
+        # 值图属性
+        graph.nodes[VALUE].data[NUMBER] = torch.tensor(number, dtype=torch.float32)
+        graph.nodes[VALUE].data[VALUE] = torch.tensor(value, dtype=torch.long)
+        graph.nodes[VALUE].data['symbol'] = torch.tensor(symbol, dtype=torch.long)
+        return cls(graph)
 
     def __eq__(self, other, debug=False):
         if (self.meta_graph.edges()[0] != other.meta_graph.edges()[0]).any():
@@ -126,43 +108,57 @@ class Graph:
         return True
 
     def __repr__(self):
-        return 'Meta{}\n{}'.format(self.meta_graph, self.value_graph)
+        return self.graph.__repr__()
+
+    @property
+    def meta_graph(self):
+        meta_graph = dgl.node_type_subgraph(self.graph, [META])
+        return dgl.to_homogeneous(meta_graph)
+
+    @property
+    def value_graph(self):
+        value_graph = dgl.node_type_subgraph(self.graph, [VALUE])
+        return dgl.to_homogeneous(value_graph)
 
     @property
     def number(self):
-        return self.value_graph.ndata[NUMBER]
+        return self.graph.nodes[VALUE].data[NUMBER]
 
     @property
     def value(self):
-        return self.value_graph.ndata[VALUE]
+        return self.graph.nodes[VALUE].data[VALUE]
 
     @property
     def symbol(self):
-        return self.value_graph.ndata['symbol']
+        return self.graph.nodes[VALUE].data['symbol']
 
     @property
     def meta_node_id(self):
-        return self.value_graph.ndata['meta_node_id']
+        return self.graph.edges(etype=(VALUE, EDGE, META))[1]
 
     @property
     def meta_edge_id(self):
-        return self.value_graph.edata['meta_edge_id']
+        src, dst = self.graph.edges(etype=(VALUE, EDGE, VALUE))
+        meta_node_id = self.meta_node_id
+        meta_scr = meta_node_id[src]
+        meta_dst = meta_node_id[dst]
+        return self.graph.edge_ids(meta_scr, meta_dst, etype=(META, EDGE, META))
 
     @property
     def meta_symbol(self):
-        return self.meta_graph.ndata['meta_symbol']
+        return self.graph.nodes[META].data['symbol']
 
     @property
     def meta_component_id(self):
-        return self.meta_graph.ndata['meta_component_id']
+        return self.graph.nodes[META].data['component_id']
 
     @property
     def meta_value(self):
-        return self.meta_graph.ndata[VALUE]
+        return self.graph.nodes[META].data[VALUE]
 
     @property
     def meta_key(self):
-        return self.meta_graph.ndata[KEY]
+        return self.graph.nodes[META].data[KEY]
 
     @property
     def key(self):
@@ -174,7 +170,7 @@ class Graph:
 
     @property
     def meta_edge_key(self):
-        return self.meta_graph.edata[KEY]
+        return self.graph.edges[(META, EDGE, META)].data[KEY]
 
     @property
     def edge_key(self):
@@ -185,16 +181,15 @@ class Graph:
         return (self.symbol.view(-1, 1) == target_symbol).any(-1)
 
     def save(self, filename, labels=None):
-        dgl.save_graphs(filename, [self.meta_graph, self.value_graph], labels=labels)
+        dgl.save_graphs(filename, [self.graph], labels=labels)
 
     @classmethod
     def load(cls, filename):
         graphs, labels = dgl.load_graphs(filename)
-        return cls(meta_graph=graphs[0], graph=graphs[1]), labels
+        return cls(graph=graphs[0]), labels
 
     def to(self, *args, **kwargs):
-        self.meta_graph = self.meta_graph.to(*args, **kwargs)
-        self.value_graph = self.value_graph.to(*args, **kwargs)
+        self.graph.to(*args, **kwargs)
         return self
 
     def to_df(self, *attrs):
@@ -224,16 +219,19 @@ class Graph:
         return pd.DataFrame(output)
 
     def pin_memory(self):
-        for k in self.value_graph.ndata:
-            self.value_graph.ndata[k] = self.value_graph.ndata[k].pin_memory()
+        for k, v in self.graph.ndata.items():
+            for kk, vv in v.items():
+                self.graph.ndata[k][kk] = vv.pin_memory()
 
-        for k in self.value_graph.edata:
-            self.value_graph.edata[k] = self.value_graph.edata[k].pin_memory()
-
-        for k in self.meta_graph.ndata:
-            self.meta_graph.ndata[k] = self.meta_graph.ndata[k].pin_memory()
-
-        for k in self.meta_graph.edata:
-            self.meta_graph.edata[k] = self.meta_graph.edata[k].pin_memory()
+        for k, v in self.graph.edata.items():
+            for kk, vv in v.items():
+                self.graph.edata[k][kk] = vv.pin_memory()
 
         return self
+
+    def component_subgraph(self, i):
+        return Graph(dgl.node_subgraph(self.graph, {META: self.meta_component_id == i, VALUE: self.component_id == i}))
+
+    @classmethod
+    def batch(cls, graphs):
+        return cls(dgl.batch([graph.graph for graph in graphs]))

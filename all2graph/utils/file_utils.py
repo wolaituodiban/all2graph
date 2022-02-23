@@ -80,7 +80,7 @@ def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chi
         warning: 发生错误时会打印错误信息
         concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
         recurse: 是否递归inputs，寻找包含的所有路径；如果False，那么默认inputs是一个list of path
-        **kwargs:
+        **kwargs: 传递给read_csv的参数
 
     Returns:
         dataframe分片生成器

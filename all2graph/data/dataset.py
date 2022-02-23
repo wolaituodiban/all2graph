@@ -5,8 +5,11 @@ import torch
 from torch.utils.data import Dataset as _Dataset, DataLoader
 
 from .sampler import PartitionSampler
+from .utils import default_collate
 from ..graph import Graph
 from ..parsers import DataParser, RawGraphParser
+
+
 
 
 class Dataset(_Dataset):
@@ -30,12 +33,6 @@ class Dataset(_Dataset):
         graph = self.raw_graph_parser.parse(graph)
         label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
         return graph, label
-
-    def enable_preprocessing(self):
-        self.data_parser.enable_preprocessing()
-
-    def disable_preprocessing(self):
-        self.data_parser.disable_preprocessing()
 
     def set_filter_key(self, x):
         self.raw_graph_parser.set_filter_key(x)
@@ -67,7 +64,7 @@ class CSVDatasetV2(Dataset):
         path['ub'] = path['lines'].cumsum()
         path['lb'] = path['ub'].shift(fill_value=0)
         self._path = path
-        self.__partitions = {}
+        self._partitions = {}
 
     def __len__(self):
         return self._path['ub'].iloc[-1]
@@ -85,12 +82,12 @@ class CSVDatasetV2(Dataset):
             return self._get_partition_num(item, left=left, right=mid)
 
     def _get_partition(self, partition_num):
-        if partition_num not in self.__partitions:
+        if partition_num not in self._partitions:
             # print(torch.utils.data.get_worker_info().id, partition_num)
-            self.__partitions = {
+            self._partitions = {
                 partition_num: pd.read_csv(self._path.index[partition_num], **self.kwargs)
             }
-        return self.__partitions[partition_num]
+        return self._partitions[partition_num]
 
     def __getitem__(self, item) -> pd.DataFrame:
         partition_num = self._get_partition_num(item)
@@ -124,3 +121,44 @@ class DFDataset(Dataset):
 
     def build_dataloader(self, **kwargs) -> DataLoader:
         return DataLoader(self, collate_fn=self.collate_fn, **kwargs)
+
+
+class GraphDataset(CSVDatasetV2):
+    def __init__(self, src: pd.DataFrame):
+        """
+
+        Args:
+            src: 长度为样本数量，需要有一列path
+                例如  path
+                    1.all2graph.trainer
+                    1.all2graph.trainer
+                    2.all2graph.trainer
+                    2.all2graph.trainer
+                    2.all2graph.trainer
+        """
+        super(GraphDataset, self).__init__(src=src, data_parser=None, raw_graph_parser=None)
+        del self.data_parser
+        del self.raw_graph_parser
+
+    def _get_partition(self, partition_num):
+        if partition_num not in self._partitions:
+            # print(torch.utils.data.get_worker_info().id, partition_num)
+            self._partitions = {
+                partition_num: Graph.load(self._path.index[partition_num])
+            }
+        return self._partitions[partition_num]
+
+    def __getitem__(self, item) -> Tuple[Graph, Dict[str, torch.Tensor]]:
+        partition_num = self._get_partition_num(item)
+        # print(torch.utils.data.get_worker_info().id, partition_num)
+        graph, label = self._get_partition(partition_num)
+        graph = graph.component_subgraph(item - self._path['lb'].iloc[partition_num])
+        return graph, label
+
+    def collate_fn(self, batches: List[Tuple[Graph, Dict[str, torch.Tensor]]]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
+        graphs = []
+        labels = []
+        for graph, label in batches:
+            graphs.append(graph)
+            labels.append(label)
+        return Graph.batch(graphs), default_collate(labels)

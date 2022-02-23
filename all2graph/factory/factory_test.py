@@ -13,8 +13,7 @@ def test_analyse():
     nrows = 1000
 
     json_parser = ag.json.JsonParser(
-        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True,
-        tokenizer=ag.JiebaTokenizer()
+        'json', time_col='day', local_id_keys={'name'}, tokenizer=ag.JiebaTokenizer()
     )
 
     with ag.Timer('工厂封装模式') as timer:
@@ -47,10 +46,7 @@ def test_scale():
     csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
     df = pd.read_csv(csv_path)
 
-    json_parser = ag.json.JsonParser(
-        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True,
-        tokenizer=ag.JiebaTokenizer()
-    )
+    json_parser = ag.json.JsonParser('json', time_col='day', local_id_keys={'name'}, tokenizer=ag.JiebaTokenizer())
 
     factory = ag.Factory(
         data_parser=json_parser,
@@ -73,31 +69,39 @@ def test_produce_dataloader():
     nrows = 1000
 
     cpu_count = os.cpu_count()
-    json_parser = ag.json.JsonParser(
-        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True,
-        tokenizer=ag.JiebaTokenizer()
-    )
-    factory = ag.Factory(data_parser=json_parser, raw_graph_parser_config=dict(filter_key=True))
-    factory.analyse(
-        csv_path, chunksize=int(nrows//cpu_count), disable=True, processes=cpu_count, nrows=nrows
-    )
-    configs = {'nrows': nrows}
-    meta_df = ag.split_csv(csv_path, save_path, chunksize=100, **configs)
+    try:
+        json_parser = ag.json.JsonParser('json', time_col='day',  local_id_keys={'name'}, tokenizer=ag.JiebaTokenizer())
+        factory = ag.Factory(data_parser=json_parser, raw_graph_parser_config=dict(filter_key=True))
+        factory.analyse(
+            csv_path, chunksize=int(nrows//cpu_count), disable=True, processes=cpu_count, nrows=nrows
+        )
+        configs = {'nrows': nrows}
+        meta_df = ag.split_csv(csv_path, save_path, chunksize=100, **configs)
 
-    with ag.Timer('csv'):
-        dataloader = factory.produce_dataloader(
-            meta_df=meta_df, csv_configs=configs, num_workers=1)
-        assert isinstance(dataloader.dataset, ag.data.CSVDatasetV2), dataloader.dataset
-        for _ in ag.tqdm(dataloader):
-            pass
-        shutil.rmtree(save_path)
+        with ag.Timer('csv'):
+            dataloader = factory.produce_dataloader(
+                meta_df=meta_df, csv_configs=configs, num_workers=1)
+            assert isinstance(dataloader.dataset, ag.data.CSVDatasetV2), dataloader.dataset
+            for _ in ag.tqdm(dataloader):
+                pass
+            shutil.rmtree(save_path)
 
-    with ag.Timer('df'):
-        dataloader = factory.produce_dataloader(
-            df=pd.read_csv(csv_path, **configs), num_workers=1)
-        assert isinstance(dataloader.dataset, ag.data.DFDataset), dataloader.dataset
-        for _ in ag.tqdm(dataloader):
-            pass
+        with ag.Timer('df'):
+            dataloader = factory.produce_dataloader(
+                df=pd.read_csv(csv_path, **configs), num_workers=1)
+            assert isinstance(dataloader.dataset, ag.data.DFDataset), dataloader.dataset
+            for _ in ag.tqdm(dataloader):
+                pass
+
+        meta_df = factory.save(csv_path, save_path, processes=cpu_count, chunksize=10)
+        with ag.Timer('graph'):
+            dataloader = factory.produce_dataloader(meta_df=meta_df, num_workers=1, graph=True)
+            assert isinstance(dataloader.dataset, ag.data.GraphDataset), dataloader.dataset
+            for _ in ag.tqdm(dataloader):
+                pass
+    finally:
+        if os.path.exists(save_path):
+            shutil.rmtree(save_path)
 
 
 def test_produce_model():
@@ -108,10 +112,7 @@ def test_produce_model():
     nrows = 1000
 
     cpu_count = os.cpu_count()
-    json_parser = ag.json.JsonParser(
-        'json', time_col='day', flatten_dict=True, local_id_keys={'name'}, segment_value=True,
-        tokenizer=ag.JiebaTokenizer()
-    )
+    json_parser = ag.json.JsonParser('json', time_col='day', local_id_keys={'name'}, tokenizer=ag.JiebaTokenizer())
     factory = ag.Factory(data_parser=json_parser)
     factory.analyse(
         csv_path, chunksize=int(nrows//cpu_count), disable=True, processes=cpu_count, nrows=nrows

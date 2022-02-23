@@ -10,6 +10,7 @@ from jsonpromax import JsonPathTree
 from ..parsers import DataParser
 from ..graph import RawGraph, sequence_edge
 from ..utils import tqdm, Tokenizer
+from ..preserves import ID
 
 
 class JsonParser(DataParser):
@@ -79,14 +80,6 @@ class JsonParser(DataParser):
         self.error = error
         self.warning = warning
 
-        self._enable_preprocessing = True
-
-    def enable_preprocessing(self):
-        self._enable_preprocessing = True
-
-    def disable_preprocessing(self):
-        self._enable_preprocessing = False
-
     def insert_dict(
             self,
             graph: RawGraph,
@@ -101,14 +94,14 @@ class JsonParser(DataParser):
                 if v in local_index_mapper:
                     node_id = local_index_mapper[v]
                 else:
-                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
+                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop, symbol=ID)
                     local_index_mapper[v] = node_id
                 graph.insert_edges(dsts=[dsts[-1]], srcs=[node_id], bidirection=True)
             elif self.global_id_keys is not None and k in self.global_id_keys:
                 if v in global_index_mapper:
                     node_id = global_index_mapper[v]
                 else:
-                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
+                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop, symbol=ID)
                     global_index_mapper[v] = node_id
                 graph.insert_edges(dsts=[dsts[-1]], srcs=[node_id], bidirection=True)
             else:
@@ -212,39 +205,17 @@ class JsonParser(DataParser):
             local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
         return graph, global_index_mapper, local_index_mapper
 
-    def save(self, df, dst, disable=True):
-        assert self.global_id_keys is None
-        self.enable_preprocessing()
-        local_index_mappers = []
-        graphs = []
-        for obj in self.preprocess_df(df=df, disable=disable):
-            graph, global_index_mapper, local_index_mapper = self.parse_json(obj)
-            if self.global_sequence:
-                graph.add_key_edge(degree=self.list_inner_degree, r_degree=self.r_list_inner_degree, inplace=True)
-                graph.drop_duplicated_edges()
-            graphs.append(graph)
-            local_index_mappers.append(local_index_mapper)
-        df = df.copy()
-        df[self.json_col] = [json.dumps(graph.to_json(drop_nested_value=True)) for graph in graphs]
-        df['local_index_mapper'] = list(map(json.dumps, local_index_mappers))
-        df.to_csv(dst)
-
     def parse(self, df: pd.DataFrame, disable: bool = True) -> (RawGraph, dict, List[dict]):
         global_index_mapper = {}
-        if self._enable_preprocessing:
-            graph = RawGraph()
-            local_index_mappers = []
-            for component_id, obj in enumerate(self.preprocess_df(df=df, disable=disable)):
-                graph, global_index_mapper, local_index_mapper = self.parse_json(
-                    obj, component_id=component_id, graph=graph, global_index_mapper=global_index_mapper)
-                local_index_mappers.append(local_index_mapper)
-            if self.global_sequence:
-                graph.add_key_edge(degree=self.list_inner_degree, r_degree=self.r_list_inner_degree, inplace=True)
-                graph.drop_duplicated_edges()
-        else:
-            assert self.global_id_keys is None
-            graph = RawGraph.batch(RawGraph.from_json(json.loads(obj)) for obj in df[self.json_col])
-            local_index_mappers = [json.loads(obj) for obj in df['local_index_mapper']]
+        graph = RawGraph()
+        local_index_mappers = []
+        for component_id, obj in enumerate(self.preprocess_df(df=df, disable=disable)):
+            graph, global_index_mapper, local_index_mapper = self.parse_json(
+                obj, component_id=component_id, graph=graph, global_index_mapper=global_index_mapper)
+            local_index_mappers.append(local_index_mapper)
+        if self.global_sequence:
+            graph.add_key_edge(degree=self.list_inner_degree, r_degree=self.r_list_inner_degree, inplace=True)
+            graph.drop_duplicated_edges()
         return graph, global_index_mapper, local_index_mappers
 
     def extra_repr(self) -> str:
