@@ -1,16 +1,14 @@
 import json
-from inspect import ismethod
 from datetime import datetime as ddt
-from typing import Dict, List, Union, Set
+from inspect import ismethod
+from typing import List
 
 import pandas as pd
 
-
-from jsonpromax import JsonPathTree
-from all2graph.parsers import DataParser
-from all2graph.graph import RawGraph, sequence_edge
-from all2graph.utils import tqdm
-from all2graph.preserves import ID
+from .data import DataParser
+from ..graph import RawGraph
+from ..utils import tqdm
+from ..globals import READOUT
 
 
 class JsonParser(DataParser):
@@ -20,15 +18,18 @@ class JsonParser(DataParser):
             json_col,
             time_col,
             time_format=None,
+            targets=None,
             # 图生成参数
-            dict_dst_degree=1,
-            dict_inner_edge=False,
-            list_dst_degree=1,
-            list_inner_degree=1,
-            r_list_inner_degree=0,
-            self_loop=True,
-            bidirection=False,
-            global_sequence=False,
+            d_degree=1,
+            d_inner_edge=False,
+            l_degree=1,
+            l_inner_degree=1,
+            r_l_inner_degree=0,
+            self_loop=False,
+            bidirectional=False,
+            global_seq=False,
+            lid_keys=None,
+            gid_keys=None,
             # 预处理
             processor=None,
             **kwargs
@@ -39,121 +40,75 @@ class JsonParser(DataParser):
             json_col:
             time_col:
             time_format:
-            dict_dst_degree: 自然数，插入dict时跳连前置节点的度数
-            dict_inner_edge: 字典内是否有边
-            list_dst_degree: 自然数，插入list时跳连前置节点的度数
-            list_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
-            r_list_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
-            local_id_keys:
-            global_id_keys:
-            self_loop:
-            bidirection: 双向边
-            global_sequence: 是否生成网格
-            processor: callable
-                    def processor(json_obj, now=None, tokenizer=None, **kwargs):
+            targets:
+            d_degree: 自然数，插入dict时跳连前置节点的度数
+            d_inner_edge: 字典内是否有边
+            l_degree: 自然数，插入list时跳连前置节点的度数
+            l_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
+            r_l_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
+            self_loop: 自关联
+            bidirectional: 双向边
+            global_seq: 是否生成网格
+            lid_keys: 样本内表示id的key
+            gid_keys: 样本间表示id的key
+            processor:
+                def processor(json_obj, now=None, tokenizer=None, **kwargs):
                         new_json_obj = ...
                         return new_json_obj
-            error: 如果遇到错误，会报错
-            warning: 如果遇到错误，会报警
             **kwargs:
         """
-        super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, **kwargs)
-        self.dict_dst_degree = dict_dst_degree
-        self.dict_inner_edge = dict_inner_edge
-        self.list_dst_degree = list_dst_degree
-        self.list_inner_degree = list_inner_degree
-        self.r_list_inner_degree = r_list_inner_degree
+        super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, targets=targets, **kwargs)
+        self.d_degree = d_degree
+        self.d_inner_edge = d_inner_edge
+        self.l_degree = l_degree
+        self.l_inner_degree = l_inner_degree
+        self.r_l_inner_degree = r_l_inner_degree
         self.self_loop = self_loop
-        self.bidirection = bidirection
-        self.global_sequence = global_sequence
+        self.bidirectional = bidirectional
+        self.global_seq = global_seq
+        self.lid_keys = lid_keys
+        self.gid_keys = gid_keys
         self.processor = processor
 
-    def insert_dict(
-            self,
-            graph: RawGraph,
-            component_id: int,
-            value: Union[Dict, List, str, int, float, None],
-            dsts: Union[List[int], None],
-            local_index_mapper: Dict[str, int],
-            global_index_mapper: Dict[str, int],
-    ):
-        for k, v in value.items():
-            node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
-            new_dsts = dsts[-self.dict_dst_degree:]
-            new_srcs = [node_id] * len(new_dsts)
-            graph.insert_edges(dsts=new_dsts, srcs=new_srcs, bidirection=self.bidirection)
-            self.insert_component(
-                graph=graph, component_id=component_id, key=k, value=v, dsts=dsts + [node_id],
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+    def _add_dict(self, graph: RawGraph, sid: int, obj: dict, vids: List[int]):
+        sub_vids = vids[-self.d_degree:]
+        nids = []
+        for key, value in obj.items():
+            if self.lid_keys and key in self.lid_keys:
+                # local id
+                nid = graph.add_lid_(sid, key, value, self.self_loop)
+                graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=True)
+            elif self.gid_keys and key in self.gid_keys:
+                # global id
+                nid = graph.add_gid_(key, value, self.self_loop)
+                graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=True)
+            else:
+                nid = graph.add_kv_(sid, key, value, self_loop=self.self_loop)
+                graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
+                self.add_obj(graph, sid=sid, obj=value, key=key, vids=vids + [nid])
+            nids.append(nid)
+        if self.d_inner_edge:
+            graph.add_edges_for_seq_(nids)
 
-    def insert_array(
-            self,
-            graph: RawGraph,
-            component_id: int,
-            key: str,
-            value: Union[Dict, List, str, int, float, None],
-            dsts: Union[List[int], None],
-            local_index_mapper: Dict[str, int],
-            global_index_mapper: Dict[str, int],
-    ):
-        # 记录所有点，以及递归解析
-        node_ids = []
-        for v in value:
-            node_id = graph.insert_node(component_id, key, v, self_loop=self.self_loop)
-            node_ids.append(node_id)
-            self.insert_component(
-                graph=graph, component_id=component_id, key=key, value=v, dsts=dsts + [node_id],
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
-        # 添加所有边
-        # 从属关系
-        sub_dsts = dsts[-self.list_dst_degree:]
-        new_dsts = sub_dsts * len(node_ids)
-        new_srcs = node_ids * len(sub_dsts)
-        if self.list_bidirection:
-            new_srcs, new_dsts = new_srcs + new_dsts, new_dsts + new_srcs
-        # 顺序关系
-        new_dsts2, new_srcs2 = sequence_edge(
-            node_ids, degree=self.list_inner_degree, r_degree=self.r_list_inner_degree)
-        new_srcs += new_srcs2
-        new_dsts += new_dsts2
-        graph.insert_edges(dsts=new_dsts, srcs=new_srcs, bidirection=False)
+    def _add_list(self, graph: RawGraph, sid: int, key, obj: list, vids: List[int]):
+        sub_vids = vids[-self.d_degree:]
+        nids = []
+        for value in obj:
+            nid = graph.add_kv_(sid, key, value, self_loop=self.self_loop)
+            nids.append(nid)
+            graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
+            self.add_obj(graph, sid=sid, obj=value, key=key, vids=vids+[nid])
+        if self.l_inner_degree != 0 or self.r_l_inner_degree != 0:
+            graph.add_edges_for_seq_(nids, degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
 
-    def insert_component(
-            self,
-            graph: RawGraph,
-            component_id: int,
-            value: Union[Dict, List, str, int, float, None],
-            dsts: List[int],
-            local_index_mapper: Dict[str, int],
-            global_index_mapper: Dict[str, int],
-            key: str = None,
-    ):
-        """
-        插入一个连通片（component）。如果图中任意两点都是连通的，那么图被称作连通图。
-        :param graph:
-        :param component_id: 连通片编号
-        :param key: 第一个节点的名称
-        :param value: 第一个节点的值
-        :param dsts: 前置节点的编号
-        :param local_index_mapper: index的value和node_id的映射
-        :param global_index_mapper: index的value和node_id的映射
-        :return:
-        """
-        if key is None:
-            readout_id = graph.insert_readout(component_id, value=value, self_loop=self.self_loop)
-            self.insert_component(
-                graph=graph, component_id=component_id, key=graph.key[-1], value=value, dsts=[readout_id],
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
-        elif isinstance(value, dict):
-            self.insert_dict(
-                graph=graph, component_id=component_id, value=value, dsts=dsts,
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
-        elif isinstance(value, list):
-            self.insert_array(
-                graph=graph, component_id=component_id, key=key, value=value, dsts=dsts,
-                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+    def add_obj(self, graph, sid, obj, key=READOUT, vids=None):
+        vids = vids or [graph.add_kv_(sid, key, obj, self.self_loop)]
+        if isinstance(obj, dict):
+            self._add_dict(graph, sid=sid, obj=obj, vids=vids)
+        elif isinstance(obj, list):
+            self._add_list(graph, sid=sid, key=key, obj=obj, vids=vids)
 
-    def preprocess_json(self, obj, now=None):
+    def process_json(self, obj, now=None):
         # json load
         if not isinstance(obj, (list, dict)):
             obj = json.loads(obj)
@@ -162,42 +117,22 @@ class JsonParser(DataParser):
         if self.processor is not None:
             if pd.notna(now):
                 now = ddt.strptime(now, self.time_format)
-            obj = self.processor(obj, now=now, tokenizer=self.tokenizer)
+            obj = self.processor(obj, now=now)
         return obj
 
-    def preprocess_df(self, df: pd.DataFrame, disable: bool = True):
-        for obj, now in tqdm(zip(df[self.json_col], df[self.time_col]), disable=disable, postfix='parsing json'):
-            yield self.preprocess_json(obj, now)
-
-    def parse_json(self, obj, component_id=0, graph: RawGraph = None, global_index_mapper: dict = None):
-        graph = graph or RawGraph()
-        global_index_mapper = global_index_mapper or {}
-        local_index_mapper = {}
-        self.insert_component(
-            graph=graph, component_id=component_id, value=obj, dsts=[],
-            local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
-        return graph, global_index_mapper, local_index_mapper
-
-    def parse(self, df: pd.DataFrame, disable: bool = True) -> (RawGraph, dict, List[dict]):
-        global_index_mapper = {}
+    def parse(self, df: pd.DataFrame, disable: bool = True) -> RawGraph:
         graph = RawGraph()
-        local_index_mappers = []
-        for component_id, obj in enumerate(self.preprocess_df(df=df, disable=disable)):
-            graph, global_index_mapper, local_index_mapper = self.parse_json(
-                obj, component_id=component_id, graph=graph, global_index_mapper=global_index_mapper)
-            local_index_mappers.append(local_index_mapper)
-        if self.global_sequence:
-            graph.add_key_edge(degree=self.list_inner_degree, r_degree=self.r_list_inner_degree, inplace=True)
-            graph.drop_duplicated_edges()
-        return graph, global_index_mapper, local_index_mappers
+        for sid, row in tqdm(df.iterrows(), disable=disable, postfix='parsing json'):
+            obj = self.process_json(row[self.json_col], now=row[self.time_col])
+            self.add_obj(graph, sid=sid, obj=obj)
+        graph.add_targets_(self.targets)
+        if self.global_seq:
+            graph.add_edges_for_seq_by_key_(degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
+        graph.to_simple_()
+        return graph
 
     def extra_repr(self) -> str:
-        s = ', '.join(
-            '{}={}'.format(k, v) for k, v in self.__dict__.items()
-            if not ismethod(v) and not isinstance(v, JsonPathTree) and not k.startswith('_')
+        s = '\n,'.join(
+            '{}={}'.format(k, v) for k, v in self.__dict__.items() if not ismethod(v) and not k.startswith('_')
         )
-        if self.processor is not None:
-            s += '\njson_path_tree:'
-            for line in str(self.processor).split('\n'):
-                s += '\n  ' + line
         return s

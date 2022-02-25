@@ -7,22 +7,25 @@ from ..meta_struct import MetaStruct
 
 
 class DataParser(MetaStruct):
-    def __init__(self, json_col, time_col, time_format, **kwargs):
+    def __init__(self, json_col, time_col, time_format, targets, **kwargs):
         super().__init__(initialized=True, **kwargs)
         self.json_col = json_col
         self.time_col = time_col
         self.time_format = time_format
+        self.targets = targets or []
 
-    @staticmethod
-    def gen_targets(df: pd.DataFrame, target_cols):
-        import torch
-        return {
-            k: torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32)
-            for k in target_cols if k in df
-        }
+    def gen_targets(self, df: pd.DataFrame):
+        if self.targets:
+            import torch
+            return {
+                k: torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32)
+                for k in self.targets if k in df
+            }
+        else:
+            return {}
 
     @abstractmethod
-    def parse(self, data, disable: bool = True) -> (RawGraph, dict, List[dict]):
+    def parse(self, data, disable: bool = True) -> RawGraph:
         raise NotImplementedError
 
     def __eq__(self, other):

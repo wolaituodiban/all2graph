@@ -54,7 +54,9 @@ class RawGraph(MetaStruct):
                 len(self.sids), len(self.values), len(self.key2value[0]), len(self.key2value[1])
         )
         assert len(self.key2target[0]) == len(self.key2target[1]) \
-               == len(self.value2target[0]) == len(self.value2target[1])
+               == len(self.value2target[0]) == len(self.value2target[1]), (
+            len(self.key2target[0]), len(self.key2target[1]), len(self.value2target[0]), len(self.value2target[1])
+        )
 
     @property
     def num_samples(self):
@@ -178,19 +180,24 @@ class RawGraph(MetaStruct):
     def add_edges_for_seq_(self, *args, **kwargs):
         self._add_edges_for_seq_(*args, etype=VALUE2VALUE, **kwargs)
 
-    def add_edges_for_seq_by_key_(self, key, **kwargs):
+    def add_edges_for_seq_by_key_(self, keys=None, **kwargs):
         """
         为某一个key的所有value点组成点序列增加边
         Args:
-            key:
+            keys:
             **kwargs: add_edges_for_seq的参数
 
         Returns:
 
         """
-        kid = self.__ori_kids[key]
-        vids = [v for u, v in zip(*self.edges[KEY2VALUE]) if u == kid]
-        self._add_edges_for_seq_(vids, VALUE2VALUE, **kwargs)
+        if keys is None:
+            keys = self.__ori_kids
+        if not isinstance(keys, list):
+            keys = list(keys)
+        for key in keys:
+            kid = self.__ori_kids[key]
+            vids = [v for u, v in zip(*self.edges[KEY2VALUE]) if u == kid]
+            self._add_edges_for_seq_(vids, VALUE2VALUE, **kwargs)
 
     def __add_k_(self, key) -> int:
         """
@@ -283,7 +290,8 @@ class RawGraph(MetaStruct):
 
     def add_targets_(self, keys: List[Union[str, Tuple]]):
         for kid in map(self.__add_k_, keys):
-            tids = list(range(self.num_nodes(TARGET), len(self.__sid2rid)))
+            num_targets = self.num_nodes(TARGET)
+            tids = list(range(num_targets, num_targets+len(self.__sid2rid)))
             self._add_edges_([kid] * len(tids), tids, KEY2TARGET)
             self._add_edges_(list(self.__sid2rid), tids, VALUE2TARGET)
 
@@ -320,22 +328,10 @@ class RawGraph(MetaStruct):
         else:
             raise ValueError('unknown etype "{}", must be one of {}'.format(etype, self.edges.keys()))
 
-    def to_df(self, exclude_keys=None, include_keys=None):
+    def to_df(self, key=False, exclude_keys=None, include_keys=None):
         sids, uids, vids = [], [], []
         utypes, u_keys, u_values = [], [], []
         vtypes, v_keys, v_values = [], [], []
-
-        # key graph
-        u, v = self.edges[KEY2KEY]
-        sids += [None] * len(u)
-        uids += u
-        vids += v
-        utypes += [KEY] * len(u)
-        vtypes += [KEY] * len(v)
-        u_keys += [KEY] * len(u)
-        v_keys += [KEY] * len(v)
-        u_values += self.get_keys(u, KEY)
-        v_values += self.get_keys(v, KEY)
 
         # value graph
         u, v = self.edges[VALUE2VALUE]
@@ -349,30 +345,6 @@ class RawGraph(MetaStruct):
         u_values += self.get_values(u)
         v_values += self.get_values(v)
 
-        # key2value
-        u, v = self.edges[KEY2VALUE]
-        sids += self.get_sids(v)
-        uids += u
-        vids += v
-        utypes += [KEY] * len(u)
-        vtypes += [VALUE] * len(v)
-        u_keys += [KEY] * len(u)
-        v_keys += self.get_keys(v, VALUE)
-        u_values += self.get_keys(u, KEY)
-        v_values += self.get_values(v)
-
-        # key2target
-        u, v = self.edges[KEY2TARGET]
-        sids += [None] * len(u)
-        uids += u
-        vids += v
-        utypes += [KEY] * len(u)
-        vtypes += [TARGET] * len(v)
-        u_keys += [KEY] * len(u)
-        v_keys += self.get_keys(v, TARGET)
-        u_values += self.get_keys(u, KEY)
-        v_values += [None] * len(v)
-
         # value2target
         u, v = self.edges[VALUE2TARGET]
         sids += [None] * len(u)
@@ -380,10 +352,47 @@ class RawGraph(MetaStruct):
         vids += v
         utypes += [VALUE] * len(u)
         vtypes += [TARGET] * len(v)
-        u_keys += self.get_keys(v, VALUE)
+        u_keys += self.get_keys(u, VALUE)
         v_keys += self.get_keys(v, TARGET)
         u_values += self.get_values(u)
         v_values += [None] * len(v)
+
+        if key:
+            # key graph
+            u, v = self.edges[KEY2KEY]
+            sids += [None] * len(u)
+            uids += u
+            vids += v
+            utypes += [KEY] * len(u)
+            vtypes += [KEY] * len(v)
+            u_keys += [KEY] * len(u)
+            v_keys += [KEY] * len(v)
+            u_values += self.get_keys(u, KEY)
+            v_values += self.get_keys(v, KEY)
+
+            # key2value
+            u, v = self.edges[KEY2VALUE]
+            sids += self.get_sids(v)
+            uids += u
+            vids += v
+            utypes += [KEY] * len(u)
+            vtypes += [VALUE] * len(v)
+            u_keys += [KEY] * len(u)
+            v_keys += self.get_keys(v, VALUE)
+            u_values += self.get_keys(u, KEY)
+            v_values += self.get_values(v)
+
+            # key2target
+            u, v = self.edges[KEY2TARGET]
+            sids += [None] * len(u)
+            uids += u
+            vids += v
+            utypes += [KEY] * len(u)
+            vtypes += [TARGET] * len(v)
+            u_keys += [KEY] * len(u)
+            v_keys += self.get_keys(v, TARGET)
+            u_values += self.get_keys(u, KEY)
+            v_values += [None] * len(v)
 
         df = pd.DataFrame({SID: sids, 'u': uids,  'utype': utypes, 'u_key': u_keys, 'u_value': u_values,
                            'vtype': vtypes, 'v': vids, 'v_key': v_keys,  'v_value': v_values})
@@ -405,10 +414,10 @@ class RawGraph(MetaStruct):
             df = df.drop(columns='include_mask')
         return df
 
-    def to_networkx(self, exclude_keys=None, include_keys=None, disable=True):
+    def to_networkx(self, key=False, exclude_keys=None, include_keys=None, disable=True):
         from networkx import MultiDiGraph
         graph = MultiDiGraph()
-        df = self.to_df(exclude_keys=exclude_keys, include_keys=include_keys)
+        df = self.to_df(key=key, exclude_keys=exclude_keys, include_keys=include_keys)
         for _, row in tqdm(df.iterrows(), disable=disable):
             u = row.utype + str(row.u)
             v = row.vtype + str(row.v)
@@ -418,12 +427,13 @@ class RawGraph(MetaStruct):
         return graph
 
     def draw(
-            self, include_keys=None, exclude_keys=None, disable=True, pos='planar', scale=1, center=None, dim=2,
-            norm=None, cmap='rainbow', ax=None, labels=None, with_labels=True, **kwargs
+            self, key=False, include_keys=None, exclude_keys=None, disable=True, pos='planar', scale=1, center=None,
+            dim=2, norm=None, cmap='rainbow', ax=None, labels=None, with_labels=True, **kwargs
     ):
         """
 
         Args:
+            key: 是否包含key graph
             include_keys: 仅包含key对应的点
             exclude_keys: 去掉key对应的点
             disable: 禁用进度条
@@ -454,7 +464,7 @@ class RawGraph(MetaStruct):
             fig = None
 
         # 转成networkx
-        graph = self.to_networkx(include_keys=include_keys, exclude_keys=exclude_keys, disable=disable)
+        graph = self.to_networkx(key=key, include_keys=include_keys, exclude_keys=exclude_keys, disable=disable)
 
         # 位置
         if pos == 'planar':
