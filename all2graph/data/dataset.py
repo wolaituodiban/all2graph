@@ -10,8 +10,6 @@ from ..graph import Graph
 from ..parsers import DataParser, RawGraphParser
 
 
-
-
 class Dataset(_Dataset):
     def __init__(self, data_parser: DataParser, raw_graph_parser: RawGraphParser, **kwargs):
         self.data_parser = data_parser

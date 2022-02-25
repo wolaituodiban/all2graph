@@ -6,16 +6,14 @@ import pandas as pd
 
 
 from ..graph import RawGraph
-from ..preserves import NULL, PRESERVED_WORDS, READOUT, KEY, TARGET, META
 from ..meta import MetaInfo, MetaNumber
-from ..utils import Tokenizer, default_tokenizer
 from ..meta_struct import MetaStruct
 
 
 class RawGraphParser(MetaStruct):
     def __init__(
             self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
-            targets: List[str] = None, tokenizer: Tokenizer = None, filter_key=True, scale_method=None,
+            targets: List[str] = None, filter_key=True, scale_method=None,
             scale_kwargs=None, inplace=False, mask_prob=0
     ):
         """
@@ -163,7 +161,7 @@ class RawGraphParser(MetaStruct):
         if self.mask_prob > 0:
             graph = graph.add_mask(p=self.mask_prob, inplace=self.inplace)
         elif self.targets:
-            graph = graph.add_targets(self.targets, inplace=self.inplace)
+            graph = graph.add_targets_(self.targets, inplace=self.inplace)
 
         if self.filter_key:
             graph, dropped_keys = graph.filter_node(self.key_mapper)
@@ -180,29 +178,6 @@ class RawGraphParser(MetaStruct):
             value=self.encode_string(graph.value), number=self.scale(graph.key, graph.value),
             symbol=self.encode_string(graph.symbol), meta_node_id=meta_node_id,
         )
-
-    def gen_param_graph(self, param_names):
-        from all2graph.graph.param import ParamGraph
-        param_mapper = {}
-        raw_graph = RawGraph()
-        for name in param_names:
-            if name not in param_mapper:
-                param_id = raw_graph.insert_node(0, key=KEY, value=KEY, self_loop=True, symbol=KEY)
-                param_mapper[name] = param_id
-                pre_ids = [param_id]
-                for token in self.tokenizer.cut(name):
-                    if token not in raw_graph.value:
-                        token_id = raw_graph.insert_node(0, key=META, value=token, self_loop=False, symbol=META)
-                    else:
-                        token_id = raw_graph.value.index(token)
-                    raw_graph.insert_edges([token_id] * len(pre_ids), pre_ids, bidirection=True)
-                    pre_ids.append(token_id)
-            else:
-                param_id = param_mapper[name]
-                raw_graph.key[param_id] = KEY
-                raw_graph.symbol[param_id] = KEY
-        raw_graph.drop_duplicated_edges()
-        return ParamGraph(graph=raw_graph, value=self.encode_string(raw_graph.value), mapper=param_mapper)
 
     def __eq__(self, other, debug=False):
         if not super().__eq__(other):

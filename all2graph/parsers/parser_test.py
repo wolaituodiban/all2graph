@@ -5,6 +5,49 @@ import jsonpromax as jpm
 from all2graph.json import JsonParser
 from all2graph import JiebaTokenizer
 
+data = {
+    'SMALL_LOAN': [
+        {
+            'ord_no': 'CH202007281033864',
+            'bsy_typ': 'CASH',
+            'prc_amt': 3600.0,
+            'crt_tim': '2020-07-28 16:54:31',
+            'adt_lmt': 3600.0,
+            'avb_lmt': 0.0,
+            'avb_lmt_rat': 0.0
+        },
+        {
+            'ord_no': 'CH202007281033864',
+            'bsy_typ': 'CASH',
+            'stg_no': '1',
+            'rep_dte': '2020-08-28',
+            'rep_tim': '2020-08-28 08:35:05',
+            'prc_amt': -286.93,
+            'ded_typ': 'AUTO_DEDUCT',
+            'adt_lmt': 3600.0,
+            'avb_lmt': 286.93,
+            'avb_lmt_rat': 0.079703
+        },
+        {
+            'ord_no': 'CH202007281033864',
+            'bsy_typ': 'CASH',
+            'stg_no': '2',
+            'rep_dte': '2020-09-28',
+            'rep_tim': '2020-09-28 10:17:18',
+            'prc_amt': -289.15,
+            'ded_typ': 'MANUAL_REPAY',
+            'adt_lmt': 3600.0,
+            'avb_lmt': 576.08,
+            'avb_lmt_rat': 0.160022
+        }
+    ]
+}
+data = pd.DataFrame(
+    {
+        'json': [json.dumps(data)],
+        'crt_dte': '2020-10-09'
+    }
+)
 
 def test_list_dst_degree():
     inputs = {

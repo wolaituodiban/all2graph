@@ -1,14 +1,9 @@
 from typing import Dict
 import torch
 from .utils import _get_activation
-from ..globals import SEP
-from ..preserves import NUMBER, WEIGHT, KEY, BIAS
 
 
 class NodeEmbedding(torch.nn.Module):
-    NUMBER_WEIGHT = SEP.join([NUMBER, WEIGHT])
-    KEY_BIAS = SEP.join([KEY, BIAS])
-
     def __init__(self, embedding_dim, num_weight: bool, key_bias: bool, activation=None):
         super().__init__()
         self.num_weight = num_weight

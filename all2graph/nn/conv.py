@@ -8,27 +8,10 @@ import torch
 
 from .functional import edgewise_linear, nodewise_linear
 from .utils import num_parameters, _get_activation
-from ..globals import FEATURE, ATTENTION, SEP
-from ..preserves import KEY, QUERY, SRC, WEIGHT, BIAS, DST, NODE, VALUE
 
 
 class Conv(torch.nn.Module):
-    QUERY = QUERY
 
-    SRC_KEY_WEIGHT = SEP.join([SRC, KEY, WEIGHT])
-    SRC_KEY_BIAS = SEP.join([SRC, KEY, BIAS])
-
-    DST_KEY_BIAS = SEP.join([DST, KEY, BIAS])
-    DST_KEY_WEIGHT = SEP.join([DST, KEY, WEIGHT])
-
-    SRC_VALUE_WEIGHT = SEP.join([SRC, VALUE, WEIGHT])
-    SRC_VALUE_BIAS = SEP.join([SRC, VALUE, BIAS])
-
-    DST_VALUE_WEIGHT = SEP.join([DST, VALUE, WEIGHT])
-    DST_VALUE_BIAS = SEP.join([DST, VALUE, BIAS])
-
-    NODE_WEIGHT = SEP.join([NODE, WEIGHT])
-    NODE_BIAS = SEP.join([NODE, BIAS])
 
     def __init__(self, normalized_shape, dropout=0.1, key_bias=True, key_norm=True, key_activation='prelu',
                  value_bias=True, value_norm=True, value_activation='prelu', node_bias=True,

@@ -4,15 +4,9 @@ import torch
 
 from .functional import nodewise_linear
 from .utils import _get_activation
-from ..globals import SEP
-from ..preserves import WEIGHT, TARGET, BIAS, HIDDEN
 
 
 class FC(torch.nn.Module):
-    TARGET_WEIGHT = SEP.join([TARGET, WEIGHT])
-    TARGET_BIAS = SEP.join([TARGET, BIAS])
-    TARGET_HIDDEN_WEIGHT = SEP.join([TARGET, HIDDEN, WEIGHT])
-    TARGET_HIDDEN_BIAS = SEP.join([TARGET, HIDDEN, BIAS])
 
     def __init__(
             self, last_block_only=False, last_layer_only=False, share_block_param=False, bias=True,

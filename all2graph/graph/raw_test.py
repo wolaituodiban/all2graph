@@ -1,156 +1,123 @@
-import os
-
-import pandas as pd
 import all2graph as ag
 import matplotlib.pyplot as plt
-from all2graph.json import JsonParser
 
 
-def test_meta_graph():
-    path = os.path.dirname(__file__)
-    path = os.path.dirname(path)
-    path = os.path.dirname(path)
-    csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
-    node_df = pd.read_csv(csv_path, nrows=64)
-
-    parser = JsonParser(
-        'json', time_col='day', local_id_keys={'name'}, self_loop=True,
-        list_inner_degree=1
-    )
-    graph, global_index_mapper, local_index_mappers = parser.parse(node_df, disable=False)
-
-    meta_graph, meta_node_id, meta_edge_id = graph.meta_graph()
-    assert graph.key == [meta_graph.value[i] for i in meta_node_id]
-    assert graph.component_id == [meta_graph.component_id[i] for i in meta_node_id]
-    assert [graph.key[i] for i in graph.src] == [meta_graph.value[meta_graph.src[i]] for i in meta_edge_id]
-    assert [graph.key[i] for i in graph.dst] == [meta_graph.value[meta_graph.dst[i]] for i in meta_edge_id]
-    print(graph)
-
-
-def test_batch():
-    # 测试思路
-    # 1、构造两个样本s1和s2
-    # 2、分别使用s1和s2构造两个元数据对象m1和m2
-    # 3、合并m1和m2得到m3
-    # 4、将s1和s2合并得到s3
-    # 5、使用s3构造元数据对象m4
-    # 如果代码正确，那么m3和m4应该相等
-    s1 = ag.graph.RawGraph(
-        component_id=[0, 0], key=['a', 'b'], value=['a', 'b'], src=[1], dst=[0], symbol=['readout', 'value'])
-    s2 = ag.graph.RawGraph(
-        component_id=[0, 0], key=['a', 'b'], value=['a', 'c'], src=[1], dst=[0], symbol=['readout', 'value'])
-    s3 = ag.graph.RawGraph.batch([s1, s2])
-
-    m1 = ag.MetaInfo.from_data(s1)
-    m2 = ag.MetaInfo.from_data(s2)
-    m3 = ag.MetaInfo.reduce([m1, m2])
-    m4 = ag.MetaInfo.from_data(s3)
-    assert m3.__eq__(m4, debug=True)
-
-
-def test_json():
-    import json
-    s1 = ag.graph.RawGraph(
-        component_id=[0, 0], key=['a', 'b'], value=['a', 'b'], src=[1], dst=[0], symbol=['readout', 'value'])
-    temp = json.dumps(s1.to_json())
-    temp = json.loads(temp)
-    s2 = ag.graph.RawGraph.from_json(temp)
-    assert s1 == s2
-
-
-def test_filter_node():
-    s1 = ag.graph.RawGraph(
-        component_id=[0, 0, 0], key=['a', 'b', 'c'], value=['e', 'f', 'd'], src=[1, 1, 2, 0], dst=[0, 1, 1, 1],
-        symbol=['readout', 'value', 'value']
-    )
-    s2, _ = s1.filter_node({'b', 'c'})
-    assert s2 == ag.graph.RawGraph(
-        component_id=[0, 0], key=['b', 'c'], value=['f', 'd'], src=[0, 1], dst=[0, 0], symbol=['value', 'value']
-    ), s2.to_json()
-
-
-def test_filter_edge():
-    s1 = ag.graph.RawGraph(
-        component_id=[0, 0, 0], key=['a', 'b', 'c'], value=['e', 'f', 'd'], src=[1, 1, 2, 0], dst=[0, 1, 1, 1],
-        symbol=['readout', 'value', 'value']
-    )
-    s2, _ = s1.filter_edge({('c', 'b')})
-    assert s2 == ag.graph.RawGraph(
-        component_id=[0, 0, 0], key=['a', 'b', 'c'], value=['e', 'f', 'd'], symbol=['readout', 'value', 'value'],
-        src=[2], dst=[1],
-    ), s2.to_json()
-
-
-def test_draw():
-    import json
-    data = {
-        'SMALL_LOAN': [
-            {
-                'ord_no': 'CH202007281033864',
-                'bsy_typ': 'CASH',
-                'prc_amt': 3600.0,
-                'crt_tim': '2020-07-28 16:54:31',
-                'adt_lmt': 3600.0,
-                'avb_lmt': 0.0,
-                'avb_lmt_rat': 0.0
-            },
-            {
-                'ord_no': 'CH202007281033864',
-                'bsy_typ': 'CASH',
-                'stg_no': '1',
-                'rep_dte': '2020-08-28',
-                'rep_tim': '2020-08-28 08:35:05',
-                'prc_amt': -286.93,
-                'ded_typ': 'AUTO_DEDUCT',
-                'adt_lmt': 3600.0,
-                'avb_lmt': 286.93,
-                'avb_lmt_rat': 0.079703
-            },
-            {
-                'ord_no': 'CH202007281033864',
-                'bsy_typ': 'CASH',
-                'stg_no': '2',
-                'rep_dte': '2020-09-28',
-                'rep_tim': '2020-09-28 10:17:18',
-                'prc_amt': -289.15,
-                'ded_typ': 'MANUAL_REPAY',
-                'adt_lmt': 3600.0,
-                'avb_lmt': 576.08,
-                'avb_lmt_rat': 0.160022
-            }
-        ]
-    }
-    data = pd.DataFrame(
-        {
-            'json': [json.dumps(data)],
-            'crt_dte': '2020-10-09'
-        }
-    )
-
-    parser = JsonParser('json', time_col='crt_dte', local_id_keys={'ord_no'}, list_inner_degree=1, self_loop=False)
-    graph, global_index_mapper, local_index_mappers = parser.parse(data, disable=False)
-    graph.draw(disable=False)
-    plt.show()
-    graph.draw(disable=False, exclude_keys={'avb_lmt'}, include_keys={'readout', 'SMALL_LOAN', 'avb_lmt'})
+def test_add_kv_():
+    graph = ag.graph.RawGraph()
+    graph.add_kv_(0, 'a', 'b', True)
+    graph.add_kv_(0, 'a', [1, 2, 3, 4], True)
+    graph.add_kv_(0, ('a', 'b'), 'b', False)
+    graph.add_kv_(0, ('a', 'b'), 'c', True)
+    graph._assert()
+    graph.draw()
+    plt.title('test_add_kv_')
     plt.show()
 
 
-def test_add_key_edge():
-    graph = ag.graph.RawGraph(
-        component_id=[0, 0, 1, 1], key=['a', 'a', 'a', 'a'], value=[1, 1, 1, 1], symbol=[0, 0, 0, 0],
-    )
-    graph2 = graph.add_key_edge(1, 1)
-    assert graph2.src == [0, 1, 2, 3]
-    assert graph2.dst == [1, 0, 3, 2]
-    assert graph.num_edges == 0
-    graph.add_key_edge(1, 1, inplace=True)
-    assert graph == graph2
+def test_add_targets_():
+    graph = ag.graph.RawGraph()
+    graph.add_kv_(0, 'a', 'b', True)
+    graph.add_kv_(1, 'a', [1, 2, 3, 4], True)
+    graph.add_kv_(0, ('a', 'b'), 'b', False)
+    graph.add_kv_(1, ('a', 'b'), 'c', True)
+    graph.add_targets_(['c'])
+    graph._assert()
+    graph.draw()
+    plt.title('test_add_targets_')
+    plt.show()
+
+
+def test_add_lid_():
+    graph = ag.graph.RawGraph()
+    graph.add_lid_(0, 'a', 'b', True)
+    graph.add_lid_(0, 'a', 'b', False)
+    graph.add_lid_(1, 'a', 'b', True)
+    graph._assert()
+    graph.draw()
+    plt.title('test_add_lid_')
+    plt.show()
+
+
+def test_add_gid_():
+    graph = ag.graph.RawGraph()
+    graph.add_gid_('a', 'b', True)
+    graph.add_gid_('a', 'b', False)
+    graph._assert()
+    graph.draw()
+    plt.title('test_add_gid_')
+    plt.show()
+
+
+def test_add_edge_():
+    graph = ag.graph.RawGraph()
+    graph.add_kv_(0, 'a', 'c', False)
+    graph.add_kv_(0, 'a', 'b', True)
+    graph.add_edge_(0, 1, bidirectional=True)
+    graph._assert()
+    graph.draw()
+    plt.title('test_add_edge_')
+    plt.show()
+
+
+def test_add_edges_():
+    graph = ag.graph.RawGraph()
+    graph.add_kv_(0, 'a', 'c', False)
+    graph.add_kv_(0, 'a', 'b', True)
+    graph.add_kv_(0, 'a', 'd', True)
+    graph.add_edges_([0, 1], [1, 2])
+    graph._assert()
+    graph.draw()
+    plt.title('test_add_edges_')
+    plt.show()
+
+
+def test_add_edges_for_seq_():
+    graph = ag.graph.RawGraph()
+    for i in range(7):
+        graph.add_kv_(0, ('a', 'b', 'c'), i, False)
+    graph.add_edges_for_seq_([0, 1, 2])
+    graph.add_edges_for_seq_([3, 4, 5, 6], degree=2, r_degree=1)
+    graph._assert()
+    graph.draw()
+    plt.title('test_add_edges_for_seq_')
+    plt.show()
+
+
+def test_add_edges_for_seq_by_key_():
+    graph = ag.graph.RawGraph()
+    for i in range(3):
+        graph.add_kv_(0, 'a', i, False)
+    for i in range(4):
+        graph.add_kv_(0, 'b', i, False)
+    graph.add_edges_for_seq_by_key_('a')
+    graph.add_edges_for_seq_by_key_('b', degree=2, r_degree=1)
+    graph._assert()
+    graph.draw()
+    plt.title('test_add_edges_for_seq_by_key_')
+    plt.show()
+
+
+def test_to_simple_():
+    graph = ag.graph.RawGraph()
+    graph.add_kv_(0, 'a', 'b', False)
+    graph.add_kv_(0, 'a', 'c', False)
+    graph.add_edges_([0, 0], [1, 1])
+    assert graph.num_edges(ag.VALUE2VALUE) == 2
+    graph.to_simple_()
+    assert graph.num_edges(ag.VALUE2VALUE) == 1
+    graph._assert()
+    graph.draw()
+    plt.title('test_to_sample_')
+    plt.show()
 
 
 if __name__ == '__main__':
-    test_meta_graph()
-    test_batch()
-    test_filter_node()
-    test_filter_edge()
-    test_draw()
-    test_add_key_edge()
+    test_add_kv_()
+    test_add_targets_()
+    test_add_lid_()
+    test_add_gid_()
+    test_add_edge_()
+    test_add_edges_()
+    test_add_edges_for_seq_()
+    test_add_edges_for_seq_by_key_()
+    test_to_simple_()

@@ -6,9 +6,7 @@ import pandas as pd
 from .meta_value import MetaNumber, MetaString
 from ..graph import RawGraph
 from ..meta_struct import MetaStruct
-from ..globals import EPSILON, COMPONENT_ID
-from ..preserves import NUMBER
-from ..preserves import NULL, TRUE, FALSE, KEY, VALUE
+from ..globals import EPSILON
 from ..stats import ECDF
 from ..utils import tqdm
 

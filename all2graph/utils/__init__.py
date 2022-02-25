@@ -3,5 +3,4 @@ from .mp_utils import MpMapFuncWrapper
 from .metrics import ks_score, Metric
 from .time_utils import Timer
 from .tqdm_utils import tqdm
-from .tokenizer import Tokenizer, JiebaTokenizer, default_tokenizer, null_tokenizer
 from .utils import json_round

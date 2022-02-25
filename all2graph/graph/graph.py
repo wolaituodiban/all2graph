@@ -6,7 +6,6 @@ import torch
 
 from .raw import RawGraph
 from ..globals import EPSILON, EDGE
-from ..preserves import KEY, VALUE, NUMBER, META
 
 
 class Graph:

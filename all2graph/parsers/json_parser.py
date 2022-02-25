@@ -7,10 +7,10 @@ import pandas as pd
 
 
 from jsonpromax import JsonPathTree
-from ..parsers import DataParser
-from ..graph import RawGraph, sequence_edge
-from ..utils import tqdm, Tokenizer
-from ..preserves import ID
+from all2graph.parsers import DataParser
+from all2graph.graph import RawGraph, sequence_edge
+from all2graph.utils import tqdm
+from all2graph.preserves import ID
 
 
 class JsonParser(DataParser):
@@ -22,20 +22,15 @@ class JsonParser(DataParser):
             time_format=None,
             # 图生成参数
             dict_dst_degree=1,
+            dict_inner_edge=False,
             list_dst_degree=1,
             list_inner_degree=1,
             r_list_inner_degree=0,
-            local_id_keys: Set[str] = None,
-            global_id_keys: Set[str] = None,
             self_loop=True,
-            dict_bidirection=False,
-            list_bidirection=False,
+            bidirection=False,
             global_sequence=False,
             # 预处理
             processor=None,
-            tokenizer: Tokenizer = None,
-            error=True,
-            warning=True,
             **kwargs
     ):
         """
@@ -45,40 +40,33 @@ class JsonParser(DataParser):
             time_col:
             time_format:
             dict_dst_degree: 自然数，插入dict时跳连前置节点的度数
+            dict_inner_edge: 字典内是否有边
             list_dst_degree: 自然数，插入list时跳连前置节点的度数
             list_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
             r_list_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
             local_id_keys:
             global_id_keys:
             self_loop:
-            dict_bidirection: 所有dict的元素都添加双向边
-            list_bidirection: 所有list的元素都添加双向边
+            bidirection: 双向边
             global_sequence: 是否生成网格
             processor: callable
                     def processor(json_obj, now=None, tokenizer=None, **kwargs):
                         new_json_obj = ...
                         return new_json_obj
-            processors: JsonPathTree的参数,
-            tokenizer: 默认使用None
             error: 如果遇到错误，会报错
             warning: 如果遇到错误，会报警
             **kwargs:
         """
         super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, **kwargs)
         self.dict_dst_degree = dict_dst_degree
+        self.dict_inner_edge = dict_inner_edge
         self.list_dst_degree = list_dst_degree
         self.list_inner_degree = list_inner_degree
         self.r_list_inner_degree = r_list_inner_degree
-        self.local_id_keys = local_id_keys
-        self.global_id_keys = global_id_keys
         self.self_loop = self_loop
-        self.dict_bidirection = dict_bidirection
-        self.list_bidirection = list_bidirection
+        self.bidirection = bidirection
         self.global_sequence = global_sequence
         self.processor = processor
-        self.tokenizer = tokenizer
-        self.error = error
-        self.warning = warning
 
     def insert_dict(
             self,
@@ -90,28 +78,13 @@ class JsonParser(DataParser):
             global_index_mapper: Dict[str, int],
     ):
         for k, v in value.items():
-            if self.local_id_keys is not None and k in self.local_id_keys:
-                if v in local_index_mapper:
-                    node_id = local_index_mapper[v]
-                else:
-                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop, symbol=ID)
-                    local_index_mapper[v] = node_id
-                graph.insert_edges(dsts=[dsts[-1]], srcs=[node_id], bidirection=True)
-            elif self.global_id_keys is not None and k in self.global_id_keys:
-                if v in global_index_mapper:
-                    node_id = global_index_mapper[v]
-                else:
-                    node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop, symbol=ID)
-                    global_index_mapper[v] = node_id
-                graph.insert_edges(dsts=[dsts[-1]], srcs=[node_id], bidirection=True)
-            else:
-                node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
-                new_dsts = dsts[-self.dict_dst_degree:]
-                new_srcs = [node_id] * len(new_dsts)
-                graph.insert_edges(dsts=new_dsts, srcs=new_srcs, bidirection=self.dict_bidirection)
-                self.insert_component(
-                    graph=graph, component_id=component_id, key=k, value=v, dsts=dsts + [node_id],
-                    local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
+            node_id = graph.insert_node(component_id, k, v, self_loop=self.self_loop)
+            new_dsts = dsts[-self.dict_dst_degree:]
+            new_srcs = [node_id] * len(new_dsts)
+            graph.insert_edges(dsts=new_dsts, srcs=new_srcs, bidirection=self.bidirection)
+            self.insert_component(
+                graph=graph, component_id=component_id, key=k, value=v, dsts=dsts + [node_id],
+                local_index_mapper=local_index_mapper, global_index_mapper=global_index_mapper)
 
     def insert_array(
             self,

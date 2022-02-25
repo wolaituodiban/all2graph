@@ -1,362 +1,425 @@
-from itertools import permutations
-from typing import Dict, List, Union, Tuple, Iterable, Set
+from typing import List, Union, Tuple
 
 import numpy as np
 import pandas as pd
 
-from ..preserves import KEY, VALUE, TARGET, READOUT, META
 from ..meta_struct import MetaStruct
-from ..utils import Tokenizer, tqdm
-
-
-def sequence_edge(node_ids: List[int], degree: int, r_degree: int) -> Tuple[List[int], List[int]]:
-    new_dsts = []
-    new_srcs = []
-    for i, node_id in enumerate(node_ids):
-        # 正向
-        end = i + degree + 1 if degree >= 0 else len(node_ids)
-        new_dsts += node_ids[i + 1:end]
-        # 反向
-        start = max(0, i - r_degree) if r_degree >= 0 else 0
-        new_dsts += node_ids[start:i]
-        # 补全
-        new_srcs += [node_id] * (len(new_dsts) - len(new_srcs))
-    return new_dsts, new_srcs
+from ..utils import tqdm
+from ..globals import *
 
 
 class RawGraph(MetaStruct):
-    def __init__(self, component_id=None, key=None, value=None, src=None, dst=None, symbol=None, initialized=True,
-                 **kwargs):
-        super().__init__(initialized=initialized, **kwargs)
-        self.component_id: List[int] = list(component_id or [])
-        self.key: List[str] = list(key or [])
-        self.value: List[Union[Dict, List, str, int, float, None]] = list(value or [])
-        self.src: List[int] = list(src or [])
-        self.dst: List[int] = list(dst or [])
-        self.symbol: List[str] = list(symbol or [])
+    """
+    异构图
+    有三种类型的点：
+        key：代表entity或者target的类型，拥有一个属性
+            value：表示key本身的值
+        value：代表实体，拥用两个属性
+            sample id：表示样本编号
+            value：表示entity本身的值
+        target：代表目标
+    有五种类型的边：
+        key2key：多对多
+        key2value：一对一
+        key2target：一对一
+        value2value：多对多
+        value2target：一对多
+    有一个graph level的属性：
+        readout：记录所有是readout的value的id，所有与target相连的value都是readout，但是readout不一定与target相连
+                 每一个sample的readout必须是唯一的
+    """
+    def __init__(self, **kwargs):
+        super().__init__(initialized=True, **kwargs)
+        self.keys = []
+        self.sids = []  # sample id
+        self.values = []
+        self.edges = {
+            KEY2KEY: [[], []],
+            KEY2VALUE: [[], []],
+            KEY2TARGET: [[], []],
+            VALUE2VALUE: [[], []],
+            VALUE2TARGET: [[], []]
+        }
+        self.__sid2rid = {}  # sample id和readout id的映射关系
 
-        assert len(self.component_id) == len(self.key) == len(self.value) == len(self.symbol)
-        assert len(self.src) == len(self.dst)
+        # key的id的索引，用于加快key图的自动创建机制
+        self.__ori_kids = {}
+
+        # 记录作为要被当作id的value的id
+        self.__lids = {}  # {sid: {value: vid}}
+        self.__gids = {}  # {value: vid}
+
+    def _assert(self):
+        assert len(self.sids) == len(self.values) == len(self.key2value[0]) == len(self.key2value[1]), (
+                len(self.sids), len(self.values), len(self.key2value[0]), len(self.key2value[1])
+        )
+        assert len(self.key2target[0]) == len(self.key2target[1]) \
+               == len(self.value2target[0]) == len(self.value2target[1])
+
+    @property
+    def num_samples(self):
+        return len(set(self.sids))
+
+    @property
+    def key2key(self):
+        return self.edges[KEY2KEY]
+
+    @property
+    def key2value(self):
+        return self.edges[KEY2VALUE]
+
+    @property
+    def key2target(self):
+        return self.edges[KEY2TARGET]
+
+    @property
+    def value2value(self):
+        return self.edges[VALUE2VALUE]
+
+    @property
+    def value2target(self):
+        return self.edges[VALUE2TARGET]
 
     def __eq__(self, other):
         return super().__eq__(other) \
-               and self.component_id == other.component_id \
-               and self.key == other.key \
-               and self.value == other.value \
-               and self.src == other.src \
-               and self.dst == other.dst \
-               and self.symbol == other.symbol
+               and self.keys == other.keys \
+               and self.sids == self.sids \
+               and self.values == other.values \
+               and self.key2key == other.key2key \
+               and self.key2value == other.key2value \
+               and self.key2target == other.key2target \
+               and self.value2value == other.value2value \
+               and self.value2target == other.value2target \
+               and self.__sid2rid == other.__sid2rid \
+               and self.__ori_kids == other.__ori_kids \
+               and self.__lids == other.__lids \
+               and self.__gids == other.__gids
 
-    @property
-    def num_nodes(self):
-        return len(self.key)
-
-    @property
-    def num_edges(self):
-        return len(self.src)
-
-    @property
-    def num_components(self):
-        return np.unique(self.component_id).shape[0]
-
-    @property
-    def num_keys(self):
-        return np.unique(self.key).shape[0]
-
-    @property
-    def num_types(self):
-        return np.unique(self.symbol).shape[0]
-
-    def copy(self):
-        return RawGraph(component_id=list(self.component_id), key=list(self.key), value=list(self.value),
-                 src=list(self.src), dst=list(self.dst), symbol=list(self.symbol))
-
-    def insert_edges(self, srcs: List[int], dsts: List[int], bidirection=False):
-        if bidirection:
-            self.src += srcs + dsts
-            self.dst += dsts + srcs
+    def num_nodes(self, ntype=None):
+        if ntype == KEY:
+            return len(self.keys)
+        elif ntype == VALUE:
+            return len(self.sids)
+        elif ntype == TARGET:
+            return len(self.key2target[0])
+        elif ntype is None:
+            return self.num_nodes(KEY) + self.num_nodes(VALUE) + self.num_nodes(TARGET)
         else:
-            self.src += srcs
-            self.dst += dsts
+            raise ValueError('unknown ntype "{}", must be one of {}'.format(ntype, [KEY, VALUE, TARGET]))
 
-    def insert_node(
-            self,
-            component_id: int,
-            key: str,
-            value: Union[dict, list, str, int, float, bool, None],
-            self_loop: bool,
-            symbol=VALUE
-    ) -> int:
+    def num_edges(self, etype=None):
+        if etype is None:
+            return sum(map(self.num_edges, self.edges))
+        elif etype in self.edges:
+            return len(self.edges[etype][0])
+        else:
+            raise ValueError('unknown etype "{}", must be one of {}'.format(etype, self.edges.keys()))
+
+    def get_keys(self, nids, ntype):
+        if ntype == KEY:
+            return [self.keys[i] for i in nids]
+        elif ntype == VALUE:
+            entity2key = {v: u for u, v in zip(*self.key2value)}
+            return [self.keys[entity2key[i]] for i in nids]
+        elif ntype == TARGET:
+            target2key = {v: u for u, v in zip(*self.key2target)}
+            return [self.keys[target2key[i]] for i in nids]
+        else:
+            raise ValueError('unknown ntype "{}", must be one of {}'.format(ntype, [KEY, VALUE, TARGET]))
+
+    def get_values(self, nids):
+        return [self.values[i] for i in nids]
+
+    def get_sids(self, nids):
+        return [self.sids[i] for i in nids]
+
+    def _add_edge_(self, u, v, etype, bidirectional=False):
+        self.edges[etype][0].append(u)
+        self.edges[etype][1].append(v)
+        if bidirectional:
+            self.edges[etype][0].append(v)
+            self.edges[etype][1].append(u)
+
+    def _add_edges_(self, u: List[int], v: List[int], etype, bidirectional=False):
+        if bidirectional:
+            u, v = u + v, v + u
+        self.edges[etype][0] += u
+        self.edges[etype][1] += v
+
+    # todo 考虑一些操作是否在Graph处做比较快
+    def _add_edges_for_seq_(self, nids: List[int], etype, degree: int = -1, r_degree: int = -1):
+        """
+        为一些列点之间添加边
+        Args:
+            nids: 点坐标
+            etype: 边类型
+            degree: 正向度数，-1表示全部，0表示无
+            r_degree: 反向度数，-1表示全部，0表示无
+
+        Returns:
+
+        """
+        for i, nid in enumerate(nids):
+            # 正向
+            end = i + degree + 1 if degree >= 0 else len(nids)
+            self.edges[etype][1] += nids[i + 1:end]
+            # 反向
+            start = max(0, i - r_degree) if r_degree >= 0 else 0
+            self.edges[etype][1] += nids[start:i]
+            # 补全
+            self.edges[etype][0] += [nid] * (len(self.edges[etype][1]) - len(self.edges[etype][0]))
+
+    def add_edge_(self, *args, **kwargs):
+        self._add_edge_(*args, etype=VALUE2VALUE, **kwargs)
+
+    def add_edges_(self, *args, **kwargs):
+        self._add_edges_(*args, etype=VALUE2VALUE, **kwargs)
+
+    def add_edges_for_seq_(self, *args, **kwargs):
+        self._add_edges_for_seq_(*args, etype=VALUE2VALUE, **kwargs)
+
+    def add_edges_for_seq_by_key_(self, key, **kwargs):
+        """
+        为某一个key的所有value点组成点序列增加边
+        Args:
+            key:
+            **kwargs: add_edges_for_seq的参数
+
+        Returns:
+
+        """
+        kid = self.__ori_kids[key]
+        vids = [v for u, v in zip(*self.edges[KEY2VALUE]) if u == kid]
+        self._add_edges_for_seq_(vids, VALUE2VALUE, **kwargs)
+
+    def __add_k_(self, key) -> int:
+        """
+        # key图的自动创建机制
+        # 每当一个key-value pair被插入时，首先检查是否已有相同的key存在，
+        # 如果没有否则则插入一个新点key的节点
+        # 另外如果key是一个tuple，那么tuple中的每个元素都会单独插入一个点，并且插入边使这些点之间完全联通
+        Args:
+            key:
+
+        Returns:
+            key的坐标
+        """
+        if key not in self.__ori_kids:
+            self.__ori_kids[key] = self.num_nodes(KEY)
+            self.keys.append(key)
+            if isinstance(key, tuple):
+                self.keys += list(key)
+                self._add_edges_for_seq_(list(range(self.__ori_kids[key], len(self.keys))), KEY2KEY)
+        return self.__ori_kids[key]
+
+    def __add_v_(self, sid, value) -> int:
+        """
+        # 自动添加readout机制
+        # 每一个sid的第一个点会被作为readout
+        Args:
+            sid:
+            value:
+
+        Returns:
+
+        """
+        if isinstance(value, dict):
+            value = {}
+        elif isinstance(value, list):
+            value = []
+
+        vid = len(self.values)
+        if sid not in self.__sid2rid:
+            self.__sid2rid[sid] = vid
+        self.sids.append(sid)
+        self.values.append(value)
+        return vid
+
+    def __add_lv_(self, sid, value) -> Tuple[int, bool]:
+        """
+        加入local id，自动判断是否存在
+        Args:
+            sid:
+            value:
+
+        Returns:
+            vid: 坐标
+            flag: 是否新增
         """
 
-        :param.py component_id:
-        :param.py key:
-        :param.py value:
-        :param.py self_loop:
-        :param.py symbol:
-        :return:
+        if sid not in self.__lids:
+            self.__lids[sid] = {}
+        lids = self.__lids[sid]
+        flag = False
+        if value not in lids:
+            lids[value] = self.__add_v_(sid, value)
+            flag = True
+        return lids[value], flag
+
+    def __add_gv_(self, value) -> Tuple[int, bool]:
         """
-        node_id = len(self.key)
-        self.component_id.append(component_id)
-        self.key.append(key)
-        self.value.append(value)
-        self.symbol.append(symbol)
+        加入global id，自动判断是否存在
+        Args:
+            value:
+
+        Returns:
+            vid: 坐标
+            flag: 是否新增
+        """
+        flag = False
+        if value not in self.__gids:
+            self.__gids[value] = self.__add_v_(None, value)
+            flag = True
+        return self.__gids[value], flag
+
+    def add_kv_(self, sid: int, key: Union[str, Tuple], value, self_loop: bool) -> int:
+        """返回新增的entity的id"""
+        kid = self.__add_k_(key)
+        vid = self.__add_v_(sid, value)
+        self._add_edge_(kid, vid, KEY2VALUE)
         if self_loop:
-            self.src.append(node_id)
-            self.dst.append(node_id)
-        return node_id
+            self._add_edge_(vid, vid, VALUE2VALUE)
+        return vid
 
-    def insert_readout(
-            self,
-            component_id: int,
-            value: Union[dict, list, str, int, float, bool, None],
-            self_loop: bool
-    ) -> int:
-        return self.insert_node(
-            component_id=component_id, key=READOUT, value=value, self_loop=self_loop, symbol=READOUT)
+    def add_targets_(self, keys: List[Union[str, Tuple]]):
+        for kid in map(self.__add_k_, keys):
+            tids = list(range(self.num_nodes(TARGET), len(self.__sid2rid)))
+            self._add_edges_([kid] * len(tids), tids, KEY2TARGET)
+            self._add_edges_(list(self.__sid2rid), tids, VALUE2TARGET)
 
-    def add_targets(self, targets, inplace=False):
-        if inplace:
-            new_graph = self
+    def add_lid_(self, sid: int, key: Union[str, Tuple[str]], value: str, self_loop: bool) -> int:
+        """如果id已存在，则不会对图产生任何修改"""
+        kid = self.__add_k_(key)
+        vid, flag = self.__add_lv_(sid, value)
+        if flag:
+            self._add_edge_(kid, vid, KEY2VALUE)
+            if self_loop:
+                self._add_edge_(vid, vid, VALUE2VALUE)
+        return vid
+
+    def add_gid_(self, key: Union[str, Tuple[str]], value: str, self_loop: bool) -> int:
+        """如果id已存在，则不会对图产生任何修改"""
+        kid = self.__add_k_(key)
+        vid, flag = self.__add_gv_(value)
+        if flag:
+            self._add_edge_(kid, vid, KEY2VALUE)
+            if self_loop:
+                self._add_edge_(vid, vid, VALUE2VALUE)
+        return vid
+
+    def to_simple_(self, etype=None):
+        """转换成没有平行边的简单图"""
+        if etype is None:
+            list(map(self.to_simple_, self.edges))
+        elif etype in self.edges:
+            us, vs = [], []
+            for u, v in set(zip(*self.edges[etype])):
+                us.append(u)
+                vs.append(v)
+            self.edges[etype] = [us, vs]
         else:
-            new_graph = self.copy()
-        for i, _type in enumerate(new_graph.symbol):
-            if _type == READOUT:
-                for target in targets:
-                    target_id = new_graph.insert_node(
-                        new_graph.component_id[i], target, value=TARGET, self_loop=False, symbol=TARGET)
-                    new_graph.insert_edges([i], [target_id])
-        return new_graph
+            raise ValueError('unknown etype "{}", must be one of {}'.format(etype, self.edges.keys()))
 
-    @property
-    def edge_key(self):
-        return [(self.key[src], self.key[dst]) for src, dst in zip(self.src, self.dst)]
+    def to_df(self, exclude_keys=None, include_keys=None):
+        sids, uids, vids = [], [], []
+        utypes, u_keys, u_values = [], [], []
+        vtypes, v_keys, v_values = [], [], []
 
-    def _meta_node_info(self) -> Tuple[
-        List[int], List[str], Dict[Tuple[int, str], int], List[int]
-    ]:
-        meta_node_id: List[int] = []
-        meta_node_id_mapper: Dict[Tuple[int, str], int] = {}
-        meta_component_id: List[int] = []
-        meta_value: List[str] = []
-        for i, key in zip(self.component_id, self.key):
-            if (i, key) not in meta_node_id_mapper:
-                meta_node_id_mapper[(i, key)] = len(meta_node_id_mapper)
-                meta_component_id.append(i)
-                meta_value.append(key)
-            meta_node_id.append(meta_node_id_mapper[(i, key)])
-        return meta_component_id, meta_value, meta_node_id_mapper, meta_node_id
+        # key graph
+        u, v = self.edges[KEY2KEY]
+        sids += [None] * len(u)
+        uids += u
+        vids += v
+        utypes += [KEY] * len(u)
+        vtypes += [KEY] * len(v)
+        u_keys += [KEY] * len(u)
+        v_keys += [KEY] * len(v)
+        u_values += self.get_keys(u, KEY)
+        v_values += self.get_keys(v, KEY)
 
-    def _meta_edge_info(self, meta_node_id_mapper: Dict[Tuple[int, str], int]) -> Tuple[
-        List[int], List[int], List[int]
-    ]:
-        meta_edge_id: List[int] = []
-        meta_edge_id_mapper: Dict[Tuple[int, str, str], int] = {}
-        meta_src: List[int] = []
-        meta_dst: List[int] = []
-        for src, dst in zip(self.src, self.dst):
-            src_cpn_id, dst_cpn_id = self.component_id[src], self.component_id[dst]
-            src_name, dst_name = self.key[src], self.key[dst]
-            if (src_cpn_id, src_name, dst_name) not in meta_edge_id_mapper:
-                meta_edge_id_mapper[(src_cpn_id, src_name, dst_name)] = len(meta_edge_id_mapper)
-                meta_src.append(meta_node_id_mapper[(src_cpn_id, src_name)])
-                meta_dst.append(meta_node_id_mapper[(dst_cpn_id, dst_name)])
-            meta_edge_id.append(meta_edge_id_mapper[(src_cpn_id, src_name, dst_name)])
-        return meta_src, meta_dst, meta_edge_id
+        # value graph
+        u, v = self.edges[VALUE2VALUE]
+        sids += self.get_sids(u)
+        uids += u
+        vids += v
+        utypes += [VALUE] * len(u)
+        vtypes += [VALUE] * len(v)
+        u_keys += self.get_keys(u, VALUE)
+        v_keys += self.get_keys(v, VALUE)
+        u_values += self.get_values(u)
+        v_values += self.get_values(v)
 
-    def meta_graph(self, tokenizer: Tokenizer = None):
-        """元图是以图的所有唯一的key为value组成的图，元图的key和元图的value是相同的"""
-        meta_component_id, meta_value, meta_node_id_mapper, meta_node_id = self._meta_node_info()
-        meta_src, meta_dst, meta_edge_id = self._meta_edge_info(meta_node_id_mapper)
-        meta_type = [KEY] * len(meta_component_id)
-        if tokenizer is not None:
-            for i in range(len(meta_value)):
-                segmented_key = tokenizer.lcut(meta_value[i])
-                if len(segmented_key) > 1:
-                    all_ids = [i] + list(range(len(meta_value), len(meta_value) + len(segmented_key)))
-                    for src, dst in permutations(all_ids, 2):
-                        meta_src.append(src)
-                        meta_dst.append(dst)
-                    meta_value += segmented_key
-                    meta_component_id += [meta_component_id[i]] * len(segmented_key)
-                    meta_type += [META] * len(segmented_key)
-        meta_graph = RawGraph(
-            component_id=meta_component_id, key=meta_value, value=meta_value, src=meta_src, dst=meta_dst,
-            symbol=meta_type)
-        return meta_graph, meta_node_id, meta_edge_id
+        # key2value
+        u, v = self.edges[KEY2VALUE]
+        sids += self.get_sids(v)
+        uids += u
+        vids += v
+        utypes += [KEY] * len(u)
+        vtypes += [VALUE] * len(v)
+        u_keys += [KEY] * len(u)
+        v_keys += self.get_keys(v, VALUE)
+        u_values += self.get_keys(u, KEY)
+        v_values += self.get_values(v)
 
-    def to_df(self, *attrs):
-        import pandas as pd
-        node_df = pd.DataFrame({attr: getattr(self, attr) for attr in attrs})
-        edge_df = pd.DataFrame({'src': self.src, 'dst': self.dst})
-        for col, series in node_df.iteritems():
-            edge_df['src_{}'.format(col)] = series[edge_df.src].values
-        for col, series in node_df.iteritems():
-            edge_df['dst_{}'.format(col)] = series[edge_df.dst].values
-        return edge_df
+        # key2target
+        u, v = self.edges[KEY2TARGET]
+        sids += [None] * len(u)
+        uids += u
+        vids += v
+        utypes += [KEY] * len(u)
+        vtypes += [TARGET] * len(v)
+        u_keys += [KEY] * len(u)
+        v_keys += self.get_keys(v, TARGET)
+        u_values += self.get_keys(u, KEY)
+        v_values += [None] * len(v)
 
-    def drop_duplicated_edges(self):
-        df = self.to_df().drop_duplicates()
-        self.src = df.src.tolist()
-        self.dst = df.dst.tolist()
+        # value2target
+        u, v = self.edges[VALUE2TARGET]
+        sids += [None] * len(u)
+        uids += u
+        vids += v
+        utypes += [VALUE] * len(u)
+        vtypes += [TARGET] * len(v)
+        u_keys += self.get_keys(v, VALUE)
+        v_keys += self.get_keys(v, TARGET)
+        u_values += self.get_values(u)
+        v_values += [None] * len(v)
 
-    @classmethod
-    def batch(cls, graphs: Iterable):
-        new_graph = cls()
-        for graph in graphs:
-            num_components = new_graph.num_components
-            num_nodes = new_graph.num_nodes
-            new_graph.component_id += [i + num_components for i in graph.component_id]
-            new_graph.key += graph.key
-            new_graph.value += graph.value
-            new_graph.src += [i + num_nodes for i in graph.src]
-            new_graph.dst += [i + num_nodes for i in graph.dst]
-            new_graph.symbol += graph.symbol
-        return new_graph
+        df = pd.DataFrame({SID: sids, 'u': uids,  'utype': utypes, 'u_key': u_keys, 'u_value': u_values,
+                           'vtype': vtypes, 'v': vids, 'v_key': v_keys,  'v_value': v_values})
+        if exclude_keys is not None:
+            df['exclude_mask'] = False
+            df['exclude_mask'] += (df.utype == KEY) & (df.u_value.isin(exclude_keys))
+            df['exclude_mask'] += (df.vtype == KEY) & (df.v_value.isin(exclude_keys))
+            df['exclude_mask'] += (df.utype != KEY) & (df.u_key.isin(exclude_keys))
+            df['exclude_mask'] += (df.vtype != KEY) & (df.v_key.isin(exclude_keys))
+            df = df.drop(index=df['exclude_mask'])
+            df = df.drop(columns='exclude_mask')
+        if include_keys is not None:
+            df['include_mask'] = False
+            df['include_mask'] += (df.utype == KEY) & (df.u_value.isin(include_keys))
+            df['include_mask'] += (df.vtype == KEY) & (df.v_value.isin(include_keys))
+            df['include_mask'] += (df.utype != KEY) & (df.u_key.isin(include_keys))
+            df['include_mask'] += (df.vtype != KEY) & (df.v_key.isin(include_keys))
+            df = df.drop(index=df['include_mask'])
+            df = df.drop(columns='include_mask')
+        return df
 
-    def extra_repr(self) -> str:
-        return 'num_nodes={}, num_edges={}, num_components={}, num_keys={}, num_types={}'.format(
-            self.num_nodes, self.num_edges, self.num_components, self.num_keys, self.num_types
-        )
-
-    def to_json(self, drop_nested_value=True) -> dict:
-        output = super().to_json()
-        output['component_id'] = self.component_id
-        output['key'] = self.key
-        if drop_nested_value:
-            output['value'] = [None if isinstance(x, (dict, list)) else x for x in self.value]
-        else:
-            output['value'] = self.value
-        output['src'] = self.src
-        output['dst'] = self.dst
-        output['symbol'] = self.symbol
-        return output
-
-    @classmethod
-    def from_json(cls, obj: dict):
-        return super().from_json(obj)
-
-    @classmethod
-    def from_data(cls, **kwargs):
-        raise NotImplementedError
-
-    @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
-        raise NotImplementedError
-
-    def add_mask(self, p, inplace=False):
-        """
-        对value添加mask，用于预训练
-        返回的RawGraph是原来的浅拷贝
-        会修改mask对应位置的symbol为TARGET
-        Args:
-            p: mask的概率
-            inplace: 如果是，按么在原来的图上做修改
-        Returns:
-            raw_graph: mask了一部分value的RawGraph
-            masked_value: 被mask掉的value
-        """
-        if inplace:
-            new_graph = self
-        else:
-            new_graph = self.copy()
-        mask_value = []
-        for i in range(self.num_nodes):
-            if np.random.rand() < p:
-                new_graph.symbol[i] = TARGET
-                new_graph.value[i] = None
-                mask_value.append(self.value[i])
-        return new_graph, mask_value
-
-    def filter_node(self, keys: Union[dict, Set[str]]):
-        """
-        return sub graph with given node keys
-        Args:
-            keys: set of str
-
-        Returns:
-            raw_graph: new RawGraph
-            dropped_keys: set of dropped keys
-        """
-        dropped_keys = set()
-        selected_nodes = []
-        for i, k in enumerate(self.key):
-            if k in keys:
-                selected_nodes.append(i)
-            else:
-                dropped_keys.add(k)
-
-        if len(dropped_keys) == 0:
-            return self, dropped_keys
-
-        component_id = [self.component_id[i] for i in selected_nodes]
-        key = [self.key[i] for i in selected_nodes]
-        value = [self.value[i] for i in selected_nodes]
-        symbol = [self.symbol[i] for i in selected_nodes]
-
-        id_mapper = {old: new for new, old in enumerate(selected_nodes)}
-        src = []
-        dst = []
-        for s, d in zip(self.src, self.dst):
-            if s in id_mapper and d in id_mapper:
-                src.append(id_mapper[s])
-                dst.append(id_mapper[d])
-
-        new_graph = RawGraph(component_id=component_id, key=key, value=value, symbol=symbol, src=src, dst=dst)
-        return new_graph, dropped_keys
-
-    def filter_edge(self, keys: Set[Tuple[str, str]]):
-        """
-        return sub graph with given edge keys
-        Args:
-            keys:
-
-        Returns:
-            new_graph: sub graph
-            dropped_keys: set of dropped keys
-        """
-        dropped_keys: Set[Tuple[str, str]] = set()
-        src = []
-        dst = []
-        for s, d in zip(self.src, self.dst):
-            k = (self.key[s], self.key[d])
-            if k in keys:
-                src.append(s)
-                dst.append(d)
-            else:
-                dropped_keys.add(k)
-        if len(dropped_keys) == 0:
-            return self, dropped_keys
-        else:
-            new_graph = RawGraph(
-                component_id=self.component_id, key=self.key, value=self.value, symbol=self.symbol, src=src, dst=dst)
-            return new_graph, dropped_keys
-
-    def to_networkx(self, disable=True, exclude_keys=None, include_keys=None):
-        import networkx as nx
-
-        nx_graph = nx.MultiDiGraph()
-        for i, (cid, key, value, symbol) in tqdm(
-                enumerate(zip(self.component_id, self.key, self.value, self.symbol)), disable=disable, desc='add nodes'
-        ):
-            if exclude_keys is not None and key in exclude_keys:
-                continue
-            if include_keys is None or key in include_keys:
-                nx_graph.add_node(i, component_id=cid, key=key, value=value, symbol=symbol)
-        for src, dst in tqdm(zip(self.src, self.dst), disable=disable, desc='add edges'):
-            src_key = self.key[src]
-            dst_key = self.key[dst]
-            if exclude_keys is not None and (src_key in exclude_keys or dst_key in exclude_keys):
-                continue
-            if include_keys is None or (src_key in include_keys and dst_key in include_keys):
-                nx_graph.add_edge(src, dst, key=(src_key, dst_key))
-
-        return nx_graph
+    def to_networkx(self, exclude_keys=None, include_keys=None, disable=True):
+        from networkx import MultiDiGraph
+        graph = MultiDiGraph()
+        df = self.to_df(exclude_keys=exclude_keys, include_keys=include_keys)
+        for _, row in tqdm(df.iterrows(), disable=disable):
+            u = row.utype + str(row.u)
+            v = row.vtype + str(row.v)
+            graph.add_edge(u, v)
+            graph.add_node(u, **{SID: row.sid, KEY: row.u_key, VALUE: row.u_value})
+            graph.add_node(v, **{SID: row.sid, KEY: row.v_key, VALUE: row.v_value})
+        return graph
 
     def draw(
             self, include_keys=None, exclude_keys=None, disable=True, pos='planar', scale=1, center=None, dim=2,
-            node_size=32, arrowsize=8, norm=None, cmap='nipy_spectral', with_labels=False, ax=None,
-            **kwargs
+            norm=None, cmap='rainbow', ax=None, labels=None, with_labels=True, **kwargs
     ):
         """
 
@@ -368,12 +431,11 @@ class RawGraph(MetaStruct):
             scale: 详情间network.planar_layout
             center: 详情间network.planar_layout
             dim: 详情间network.planar_layout
-            node_size: 点的大小
-            arrowsize: 箭头大小
             norm: 详情间network.draw
             cmap: 详情间network.draw
-            with_labels: 详情间network.draw
             ax: matplotlib Axes object
+            labels: 详情间network.draw
+            with_labels: 详情间network.draw
             **kwargs: 详情间network.draw
 
         Returns:
@@ -392,24 +454,23 @@ class RawGraph(MetaStruct):
             fig = None
 
         # 转成networkx
-        nx_graph = self.to_networkx(include_keys=include_keys, exclude_keys=exclude_keys, disable=disable)
-        labels = {node: attr['key'] for node, attr in nx_graph.nodes.items()}
-        if pos == 'planar':
-            pos = planar_layout(nx_graph, scale=scale, center=center, dim=dim)
+        graph = self.to_networkx(include_keys=include_keys, exclude_keys=exclude_keys, disable=disable)
 
+        # 位置
+        if pos == 'planar':
+            pos = planar_layout(graph, scale=scale, center=center, dim=dim)
         # 设置颜色
-        node_color = pd.factorize(list(labels.values()))[0]
+        keys = [attr[KEY] for node, attr in graph.nodes.items()]
+        node_color = pd.factorize(keys)[0]
         node_color = ScalarMappable(norm=norm, cmap=cmap).to_rgba(node_color)
 
-        # 画
-        draw(
-            nx_graph, pos=pos, ax=ax, node_size=node_size, arrowsize=arrowsize, node_color=np.array(node_color),
-            labels=labels, with_labels=with_labels, **kwargs
-        )
+        if labels is None:
+            labels = {node: attr[VALUE] for node, attr in graph.nodes.items()}
+        draw(graph, pos=pos, ax=ax, node_color=np.array(node_color), labels=labels, with_labels=with_labels, **kwargs)
 
         # 加标注
         patches = {}
-        for i, key in tqdm(enumerate(labels.values()), disable=disable, desc='add legends'):
+        for i, key in tqdm(enumerate(keys), disable=disable, desc='add legends'):
             if key in patches:
                 continue
             patches[key] = mpatches.Patch(color=node_color[i], label=key)
@@ -417,29 +478,23 @@ class RawGraph(MetaStruct):
 
         return fig, ax
 
-    def add_key_edge(self, degree, r_degree, inplace=False):
-        """
-        在key相同当点之间增加边
-        Args:
-            degree: 正向的度数
-            r_degree: 反向的度数
-            inplace: 如果False，那么不会改变原来的图，并且返回一个修改了的副本
+    def extra_repr(self) -> str:
+        return 'num_nodes={},\nnum_edges={}'.format(
+            json.dumps({ntype: self.num_nodes(ntype) for ntype in [KEY, VALUE, TARGET]}, indent=1),
+            json.dumps({str(etype): self.num_edges(etype) for etype in self.edges}, indent=1)
+        )
 
-        Returns:
+    def to_json(self, drop_nested_value=True) -> dict:
+        raise NotImplementedError
 
-        """
-        if inplace:
-            graph = self
-        else:
-            graph = self.copy()
+    @classmethod
+    def from_json(cls, obj: dict):
+        return super().from_json(obj)
 
-        new_dsts = []
-        new_srcs = []
-        df = pd.DataFrame({'componet_id': self.component_id, 'key': self.key, 'value': self.value})
-        df = df[df.value.apply(lambda x: not isinstance(x, dict) and not isinstance(x, list))]
-        for _, group in df.groupby(['componet_id', 'key']):
-            new_dsts2, new_srcs2 = sequence_edge(group.index.tolist(), degree=degree, r_degree=r_degree)
-            new_dsts += new_dsts2
-            new_srcs += new_srcs2
-        graph.insert_edges(dsts=new_dsts, srcs=new_srcs)
-        return graph
+    @classmethod
+    def from_data(cls, **kwargs):
+        raise NotImplementedError
+
+    @classmethod
+    def reduce(cls, structs, weights=None, **kwargs):
+        raise NotImplementedError

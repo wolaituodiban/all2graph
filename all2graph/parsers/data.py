@@ -1,3 +1,4 @@
+from abc import abstractmethod
 from typing import Tuple, List
 import numpy as np
 import pandas as pd
@@ -20,6 +21,7 @@ class DataParser(MetaStruct):
             for k in target_cols if k in df
         }
 
+    @abstractmethod
     def parse(self, data, disable: bool = True) -> (RawGraph, dict, List[dict]):
         raise NotImplementedError
 
