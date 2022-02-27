@@ -15,7 +15,7 @@ class Discrete(Distribution):
     def __eq__(self, other):
         if super().__eq__(other) and len(self.prob) == len(other.prob) == len(set(self.prob).union(other.prob)):
             for k in self.prob:
-                if abs(self.prob[k] - other.prob[k]) > EPSILON:
+                if not np.isclose(self.prob[k], other.prob[k]):
                     return False
             return True
         else:

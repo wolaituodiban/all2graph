@@ -70,7 +70,7 @@ class Graph:
             return False
         if (self.meta_value != other.meta_value).any():
             if debug:
-                print('meta_value not equal')
+                print('value_info not equal')
             return False
         if (self.meta_key != other.meta_key).any():
             if debug:

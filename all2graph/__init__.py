@@ -29,7 +29,7 @@ else:
 from . import graph
 from .parsers import *
 from .factory import Factory
-from .meta import MetaInfo, MetaValue, MetaNumber, MetaString
+from .info import *
 from .stats import ECDF, Discrete, Distribution
 from .utils import *
 from .globals import *

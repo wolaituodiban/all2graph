@@ -11,7 +11,7 @@ from torch.nn.functional import linear
 from .encoder import Encoder
 from .utils import num_parameters, Module
 from ..graph import Graph
-from ..meta import MetaNumber
+from ..info import NumberInfo
 from ..parsers import RawGraphParser
 
 
@@ -361,7 +361,7 @@ class EncoderMetaLearnerMocker(Module):
         if load_meta_number:
             for name, meta_number in other.raw_graph_parser.meta_numbers.items():
                 if name in self.raw_graph_parser.meta_numbers:
-                    self.raw_graph_parser.meta_numbers[name] = MetaNumber.from_json(meta_number.to_json())
+                    self.raw_graph_parser.meta_numbers[name] = NumberInfo.from_json(meta_number.to_json())
 
         load_num = 0
         self_num = num_parameters(self)

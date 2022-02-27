@@ -36,14 +36,14 @@ def test_parse():
 
 def test_eq():
     parser1 = ag.RawGraphParser(
-        meta_numbers={'a': ag.MetaNumber.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
+        meta_numbers={'a': ag.NumberInfo.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
         strings=['a', 'b', 'c'],
         keys=['a', 'b', 'c'],
         edge_type={('a', 'b'), ('a', 'a')},
         targets=['a', 'b']
     )
     parser2 = ag.RawGraphParser(
-        meta_numbers={'a': ag.MetaNumber.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
+        meta_numbers={'a': ag.NumberInfo.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
         strings=['b', 'a', 'c'],
         keys=['a', 'c', 'b'],
         edge_type={('a', 'a'), ('a', 'b')},
@@ -53,7 +53,7 @@ def test_eq():
 
     # meta_numbers
     parser2 = ag.RawGraphParser(
-        meta_numbers={'a': ag.MetaNumber.from_data(2, [0, 0, 1, 1], [0.5, 0.2, 0.3, -0.1])},
+        meta_numbers={'a': ag.NumberInfo.from_data(2, [0, 0, 1, 1], [0.5, 0.2, 0.3, -0.1])},
         strings=['a', 'b', 'c'],
         keys=['a', 'b', 'c'],
         edge_type={('a', 'b'), ('a', 'a')},
@@ -63,7 +63,7 @@ def test_eq():
 
     # strings
     parser2 = ag.RawGraphParser(
-        meta_numbers={'a': ag.MetaNumber.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
+        meta_numbers={'a': ag.NumberInfo.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
         strings=['a', 'b', 'cc'],
         keys=['a', 'b', 'c'],
         edge_type={('a', 'b'), ('a', 'a')},
@@ -73,7 +73,7 @@ def test_eq():
 
     # keys
     parser2 = ag.RawGraphParser(
-        meta_numbers={'a': ag.MetaNumber.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
+        meta_numbers={'a': ag.NumberInfo.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
         strings=['a', 'b', 'c'],
         keys=['a', 'b', 'c', 'd'],
         edge_type={('a', 'b'), ('a', 'a')},
@@ -83,7 +83,7 @@ def test_eq():
 
     # edge_type
     parser2 = ag.RawGraphParser(
-        meta_numbers={'a': ag.MetaNumber.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
+        meta_numbers={'a': ag.NumberInfo.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
         strings=['a', 'b', 'c'],
         keys=['a', 'b', 'c'],
         edge_type={('b', 'a'), ('a', 'a')},
@@ -93,7 +93,7 @@ def test_eq():
 
     # targets
     parser2 = ag.RawGraphParser(
-        meta_numbers={'a': ag.MetaNumber.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
+        meta_numbers={'a': ag.NumberInfo.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
         strings=['a', 'b', 'c'],
         keys=['a', 'b', 'c'],
         edge_type={('a', 'b'), ('a', 'a')},
@@ -104,7 +104,7 @@ def test_eq():
 
 def test_reduce():
     parser1 = ag.RawGraphParser(
-        meta_numbers={'a': ag.MetaNumber.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
+        meta_numbers={'a': ag.NumberInfo.from_data(2, [0, 0, 1, 1, 1], [0.5, 0.2, 0.3, 0.2, -0.1])},
         strings=['a', 'b', 'c'],
         keys=['a', 'b', 'c'],
         edge_type={('a', 'b'), ('a', 'a')},
@@ -113,8 +113,8 @@ def test_reduce():
 
     parser2 = ag.RawGraphParser(
         meta_numbers={
-            'a': ag.MetaNumber.from_data(3, [0, 0, 0, 1, 1, 2], [0.5, 0.2, 0.3, 0.2, -0.1, 0]),
-            'b': ag.MetaNumber.from_data(2, [0, 1, 1], [0, 2, -3])
+            'a': ag.NumberInfo.from_data(3, [0, 0, 0, 1, 1, 2], [0.5, 0.2, 0.3, 0.2, -0.1, 0]),
+            'b': ag.NumberInfo.from_data(2, [0, 1, 1], [0, 2, -3])
         },
         strings=['a', 'b', 'd'],
         keys=['a', 'b'],
@@ -124,11 +124,11 @@ def test_reduce():
 
     parser3 = ag.RawGraphParser(
         meta_numbers={
-            'a': ag.MetaNumber.from_data(
+            'a': ag.NumberInfo.from_data(
                 5,
                 [0, 0, 1, 1, 1] + [2, 2, 2, 3, 3, 4],
                 [0.5, 0.2, 0.3, 0.2, -0.1] + [0.5, 0.2, 0.3, 0.2, -0.1, 0]),
-            'b': ag.MetaNumber.from_data(2, [0, 1, 1], [0, 2, -3])
+            'b': ag.NumberInfo.from_data(2, [0, 1, 1], [0, 2, -3])
         },
         strings=['a', 'b', 'c'] + ['a', 'b', 'd'],
         keys=['a', 'b', 'c'] + ['a', 'b'],

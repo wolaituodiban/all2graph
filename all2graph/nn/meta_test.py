@@ -9,7 +9,7 @@ from all2graph.nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
 
 def test_learner():
     graph = ag.graph.RawGraph(
-        component_id=[0, 0, 0, 0], key=['readout', 'meta haha', 'a', 'a'], value=['a', 'b', 1, 2],
+        component_id=[0, 0, 0, 0], key=['readout', 'info haha', 'a', 'a'], value=['a', 'b', 1, 2],
         symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
 
     meta_info = MetaInfo.from_data(graph)
@@ -42,7 +42,7 @@ def test_learner():
 
 def test_mock():
     graph = ag.graph.RawGraph(
-        component_id=[0, 0, 0, 0], key=['readout', 'meta haha', 'a', 'a'], value=['a', 'b', 1, 2],
+        component_id=[0, 0, 0, 0], key=['readout', 'info haha', 'a', 'a'], value=['a', 'b', 1, 2],
         symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
 
     meta_info = MetaInfo.from_data(graph)
@@ -160,7 +160,7 @@ def test_error_key():
 
 def test_lite():
     graph = ag.graph.RawGraph(
-        component_id=[0, 0, 0, 0], key=['readout', 'meta haha', 'a', 'a'], value=['a', 'b', 1, 2],
+        component_id=[0, 0, 0, 0], key=['readout', 'info haha', 'a', 'a'], value=['a', 'b', 1, 2],
         symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
 
     meta_info = MetaInfo.from_data(graph)

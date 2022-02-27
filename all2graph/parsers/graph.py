@@ -6,13 +6,13 @@ import pandas as pd
 
 
 from ..graph import RawGraph
-from ..meta import MetaInfo, MetaNumber
+from ..info import MetaInfo, NumberInfo
 from ..meta_struct import MetaStruct
 
 
 class RawGraphParser(MetaStruct):
     def __init__(
-            self, meta_numbers: Dict[str, MetaNumber], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
+            self, meta_numbers: Dict[str, NumberInfo], strings: list, keys: List[str], edge_type: Set[Tuple[str, str]],
             targets: List[str] = None, filter_key=True, scale_method=None,
             scale_kwargs=None, inplace=False, mask_prob=0
     ):
@@ -36,7 +36,7 @@ class RawGraphParser(MetaStruct):
         if tokenizer is None:
             tokenizer = default_tokenizer()
         super().__init__(initialized=True)
-        self.meta_numbers = {k: MetaNumber.from_json(v.to_json()) for k, v in meta_numbers.items()}
+        self.meta_numbers = {k: NumberInfo.from_json(v.to_json()) for k, v in meta_numbers.items()}
         self.tokenizer = tokenizer
         self.targets = sorted(list(targets or []))
         self.key_mapper = {k: i for i, k in enumerate(sorted(set(keys + self.targets)))}
@@ -236,7 +236,7 @@ class RawGraphParser(MetaStruct):
         for parser in parsers:
             for k, v in parser.meta_numbers.items():
                 if k in meta_numbers:
-                    meta_numbers[k] = MetaNumber.reduce([meta_numbers[k], v], weights=weights, num_bins=num_bins)
+                    meta_numbers[k] = NumberInfo.reduce([meta_numbers[k], v], weights=weights, num_bins=num_bins)
                 else:
                     meta_numbers[k] = v
             strings += list(parser.string_mapper)
@@ -288,7 +288,7 @@ class RawGraphParser(MetaStruct):
             strings = sorted(strings, key=lambda x: x[1])
             strings = [k[0] for k in strings[:top_k]]
 
-        meta_numbers = {key: ecdf for key, ecdf in meta_info.meta_numbers.items() if ecdf.value_ecdf.mean_var[1] > 0}
+        meta_numbers = {key: ecdf for key, ecdf in meta_info.meta_numbers.items() if ecdf.value.mean_var[1] > 0}
 
         all_keys = list(meta_info.meta_name)
         return cls(keys=all_keys, meta_numbers=meta_numbers, strings=strings, edge_type=meta_info.edge_type, **kwargs)

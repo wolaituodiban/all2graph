@@ -3,8 +3,8 @@ from typing import Dict, Set, Tuple
 import numpy as np
 import pandas as pd
 
-from .meta_value import MetaNumber, MetaString
-from ..graph import RawGraph
+from .value_info import NumberInfo, StringInfo
+# from ..graph import RawGraph
 from ..meta_struct import MetaStruct
 from ..globals import EPSILON
 from ..stats import ECDF
@@ -14,9 +14,9 @@ from ..utils import tqdm
 class MetaInfo(MetaStruct):
     def __init__(
             self,
-            meta_string: MetaString,
-            meta_numbers: Dict[str, MetaNumber],
-            meta_name: MetaString,
+            meta_string: StringInfo,
+            meta_numbers: Dict[str, NumberInfo],
+            meta_name: StringInfo,
             edge_type: Set[Tuple[str, str]],
             **kwargs
     ):
@@ -76,9 +76,9 @@ class MetaInfo(MetaStruct):
     @classmethod
     def from_json(cls, obj: dict):
         obj = dict(obj)
-        obj['meta_string'] = MetaString.from_json(obj['meta_string'])
-        obj['meta_numbers'] = {k: MetaNumber.from_json(v) for k, v in obj['meta_numbers'].items()}
-        obj['meta_name'] = MetaString.from_json(obj['meta_name'])
+        obj['meta_string'] = StringInfo.from_json(obj['meta_string'])
+        obj['meta_numbers'] = {k: NumberInfo.from_json(v) for k, v in obj['meta_numbers'].items()}
+        obj['meta_name'] = StringInfo.from_json(obj['meta_name'])
         return super().from_json(obj)
 
     @classmethod
@@ -109,7 +109,7 @@ class MetaInfo(MetaStruct):
         # # # # # 生成meta_name # # # # #
         meta_name = MetaString.from_data(
             num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[KEY],
-            disable=disable, postfix='constructing meta name', num_bins=num_bins
+            disable=disable, postfix='constructing info name', num_bins=num_bins
         )
 
         # # # # # 生成meta_numbers # # # # #
@@ -119,10 +119,10 @@ class MetaInfo(MetaStruct):
         number_df = node_df[np.isfinite(node_df[NUMBER])]
 
         number_groups = number_df.groupby(KEY, sort=False)
-        number_groups = tqdm(number_groups, disable=disable, postfix='constructing meta numbers')
+        number_groups = tqdm(number_groups, disable=disable, postfix='constructing info numbers')
         meta_numbers = {}
         for name, number_df in number_groups:
-            meta_numbers[name] = MetaNumber.from_data(
+            meta_numbers[name] = NumberInfo.from_data(
                 num_samples=num_samples, sample_ids=number_df[COMPONENT_ID], values=number_df[NUMBER], num_bins=num_bins
             )
 
@@ -165,29 +165,29 @@ class MetaInfo(MetaStruct):
                     meta_numbers[k].append(v)
                     meta_num_w[k].append(w)
 
-        progress = tqdm(meta_numbers.items(), disable=disable, postfix='reducing meta numbers')
+        progress = tqdm(meta_numbers.items(), disable=disable, postfix='reducing info numbers')
         meta_numbers = {
-            k: MetaNumber.reduce(v, weights=meta_num_w[k], num_bins=num_bins) for k, v in progress
+            k: NumberInfo.reduce(v, weights=meta_num_w[k], num_bins=num_bins) for k, v in progress
         }
 
         # 分布补0
-        progress = tqdm(meta_numbers, disable=disable, postfix='reducing meta numbers phase 2')
+        progress = tqdm(meta_numbers, disable=disable, postfix='reducing info numbers phase 2')
         for k in progress:
             w_sum = sum(meta_num_w[k])
-            if w_sum < 1 - EPSILON:
-                meta_numbers[k].count_ecdf = ECDF.reduce(
-                    [meta_numbers[k].count_ecdf, ECDF([0], [1], initialized=True)],
+            if not np.isclose(w_sum, 1):
+                meta_numbers[k].count = ECDF.reduce(
+                    [meta_numbers[k].count, ECDF([0], [1], initialized=True)],
                     weights=[w_sum, 1-w_sum], num_bins=num_bins
                 )
         # # # # # 合并meta_string # # # # #
-        meta_string = MetaString.reduce(
+        meta_string = StringInfo.reduce(
             [struct.meta_string for struct in structs], weights=weights, disable=disable, processes=processes,
             num_bins=num_bins
         )
         # # # # # 合并meta_name # # # # #
-        meta_name = MetaString.reduce(
+        meta_name = StringInfo.reduce(
             [struct.meta_name for struct in structs], weights=weights, disable=disable,
-            postfix='reducing meta name', processes=processes, num_bins=num_bins
+            postfix='reducing info name', processes=processes, num_bins=num_bins
         )
         # # # # # 合并edge_type # # # # #
         edge_type = set()

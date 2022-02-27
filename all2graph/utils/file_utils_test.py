@@ -12,7 +12,7 @@ def test_iter_files():
             print(path)
 
     def test_list():
-        for path in ag.iter_files(['../meta', ['../json'], './file_utils.py']):
+        for path in ag.iter_files(['../info', ['../json'], './file_utils.py']):
             print(path)
 
     def test_error():

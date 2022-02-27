@@ -6,7 +6,7 @@ import pandas as pd
 
 
 from ..graph import RawGraph
-from ..meta import MetaInfo
+from ..info import MetaInfo
 from ..parsers import DataParser, RawGraphParser
 from ..utils import tqdm
 from ..utils.file_utils import dataframe_chunk_iter, split_csv

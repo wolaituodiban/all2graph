@@ -6,7 +6,7 @@ import numpy as np
 import pandas as pd
 
 import all2graph as ag
-from all2graph import MetaString
+from all2graph import StringInfo
 from all2graph.json import JsonParser
 from all2graph.json import json_diff
 
@@ -21,7 +21,7 @@ def test_from_data():
         ],
         columns=['id', 'value']
     )
-    cat = MetaString.from_data(df['id'].unique().shape[0], df['id'], df['value'])
+    cat = StringInfo.from_data(df['id'].unique().shape[0], df['id'], df['value'])
     print(cat)
     assert cat.term_count_ecdf['a'].mean_var == (0.5, 0.25), '{}:{}'.format(
         cat.term_count_ecdf['a'].to_json(), cat.term_count_ecdf['a'].mean_var)
@@ -39,7 +39,7 @@ def test_not_eq():
         ],
         columns=['id', 'value']
     )
-    cat1 = MetaString.from_data(df1['id'].unique().shape[0], df1['id'], df1['value'])
+    cat1 = StringInfo.from_data(df1['id'].unique().shape[0], df1['id'], df1['value'])
     print(cat1)
 
     df2 = pd.DataFrame(
@@ -51,7 +51,7 @@ def test_not_eq():
         ],
         columns=['id', 'value']
     )
-    cat2 = MetaString.from_data(df2['id'].unique().shape[0], df2['id'], df2['value'])
+    cat2 = StringInfo.from_data(df2['id'].unique().shape[0], df2['id'], df2['value'])
     print(cat2)
     assert cat1 != cat2
 
@@ -65,8 +65,8 @@ def test_merge():
         value = np.random.choice(['a', 'b', 'c'], 10, replace=True)
 
         df = pd.DataFrame({'index': index, 'value': value})
-        cat = MetaString.from_data(df.shape[0], df['index'], df['value'])
-        cat2 = MetaString.from_json(json.loads(json.dumps(cat.to_json())))
+        cat = StringInfo.from_data(df.shape[0], df['index'], df['value'])
+        cat2 = StringInfo.from_json(json.loads(json.dumps(cat.to_json())))
         assert cat == cat2, '\n{}\n{}'.format(
             cat.to_json(), cat2.to_json()
         )
@@ -76,8 +76,8 @@ def test_merge():
         weights.append(df.shape[0])
 
     df = pd.concat(dfs)
-    cat1 = MetaString.from_data(df.shape[0], df['index'], df['value'])
-    cat2 = MetaString.reduce(cats, weights=weights)
+    cat1 = StringInfo.from_data(df.shape[0], df['index'], df['value'])
+    cat2 = StringInfo.reduce(cats, weights=weights)
     print(cat1)
     print(cat2)
     assert cat1.term_count_ecdf == cat2.term_count_ecdf, json_diff(
@@ -123,7 +123,7 @@ def speed():
 
     merge_start_time = time.time()
     meta_strings = [
-        MetaString.from_data(
+        StringInfo.from_data(
             num_samples=num_samples, sample_ids=group.component_id, values=group.value, num_bins=20
         )
         for group in ag.tqdm(groups)
@@ -131,7 +131,7 @@ def speed():
     merge_time = time.time() - merge_start_time
 
     reduce_start_time = time.time()
-    meta_string = MetaString.reduce(meta_strings, num_bins=20, disable=False, processes=None)
+    meta_string = StringInfo.reduce(meta_strings, num_bins=20, disable=False, processes=None)
     reduce_time = time.time() - reduce_start_time
 
     print(reduce_time, merge_time)

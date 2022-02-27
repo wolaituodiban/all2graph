@@ -88,9 +88,9 @@ class ECDF(Distribution):
         if super().__eq__(other) \
                 and self.quantiles.shape[0] == other.quantiles.shape[0] \
                 and self.probs.shape[0] == other.probs.shape[0]:
-            return np.abs(self.quantiles - other.quantiles).max() <= EPSILON \
-                   and np.abs(self.probs - other.probs).max() <= EPSILON
+            return np.allclose(self.quantiles, other.quantiles) and np.allclose(self.probs, other.probs)
         else:
+
             return False
 
     @property
@@ -175,7 +175,6 @@ class ECDF(Distribution):
         return super().reduce(structs, weights=weights, quantiles=quantiles, probs=probs, num_bins=num_bins)
 
     def extra_repr(self) -> str:
-        p = np.arange(0, 1, 0.1)[1:]
+        p = np.arange(0, 1, 0.2)[1:]
         q = self.get_quantiles(p)
-        s = ', '.join('{:.3}({:.3})'.format(x, y) for x, y in zip(q, p))
-        return 'quantiles=[{}]'.format(s)
+        return ', '.join('{:.3}({:.3})'.format(x, y) for x, y in zip(q, p))
