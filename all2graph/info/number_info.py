@@ -1,7 +1,7 @@
 import numpy as np
 
-from ...meta_struct import MetaStruct
-from ...stats import ECDF
+from all2graph.meta_struct import MetaStruct
+from all2graph.stats import ECDF
 
 
 class NumberInfo(MetaStruct):
@@ -36,18 +36,35 @@ class NumberInfo(MetaStruct):
 
     @classmethod
     def from_data(cls, counts, values, num_bins=None):
+        """
+
+        Args:
+            counts: 每个样本中出现的次数
+            values: 每个数据的数值
+            num_bins:
+
+        Returns:
+
+        """
         count = ECDF.from_data(counts, num_bins=num_bins)
         value = ECDF.from_data(values, num_bins=num_bins)
         return super().from_data(count=count, value=value)
 
     @classmethod
     def reduce(cls, structs, weights=None, num_bins=None):
+        if weights is None:
+            weights = np.full(len(structs), 1 / len(structs))
+        else:
+            weights = np.array(weights) / sum(weights)
         count = ECDF.reduce([struct.count for struct in structs], weights=weights, num_bins=num_bins)
         # info data的weight可以从freq中推出
-        value = ECDF.reduce(
-            [struct.value for struct in structs],
-            weights=[w * struct.count.mean for w, struct in zip(weights, structs)],
-            num_bins=num_bins)
+        new_weights = []
+        values = []
+        for struct, weight in zip(structs, weights):
+            if struct.value.num_bins > 0:
+                values.append(struct.value)
+                new_weights.append(weight * struct.count.mean)
+        value = ECDF.reduce(values, weights=new_weights, num_bins=num_bins)
         return super().reduce(structs, count=count, value=value, weights=weights)
 
     def extra_repr(self) -> str:

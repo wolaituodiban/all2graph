@@ -1,49 +1,48 @@
-import os
-import pandas as pd
-from all2graph import MetaInfo, tqdm, Timer
-from all2graph.json import JsonParser
+import numpy as np
+import all2graph as ag
 
 
-def speed():
-    path = os.path.dirname(__file__)
-    path = os.path.dirname(path)
-    path = os.path.dirname(path)
-    csv_path = os.path.join(path, 'test_data', 'MensShoePrices.csv')
-    nrows = 1000
+def test_from_data():
+    sample_ids = [0, 0, 1]
+    keys = ['a', ('b', 'c'), 'c']
+    values = ['d', '0.2', None]
+    graph_info = ag.GraphInfo.from_data(sample_ids=sample_ids, keys=keys, values=values)
+    print(graph_info)
 
-    parser = JsonParser(
-        'json', flatten_dict=True, local_id_keys={'name'}, segment_value=True
-    )
 
-    with Timer('一遍过') as timer:
-        df = pd.read_csv(csv_path, nrows=1000)
-        graph, global_index_mapper, local_index_mappers = parser.parse(df, disable=False)
-        index_ids = list(global_index_mapper.values())
-        for mapper in local_index_mappers:
-            index_ids += list(mapper.values())
-        meta_graph = MetaInfo.from_data(graph, index_nodes=index_ids, num_bins=None, disable=False)
-        used_time1 = timer.diff()
-    print(meta_graph.meta_name.keys())
+def test_reduce():
+    num_nodes = 5
 
-    with Timer('分片读取') as timer:
-        meta_graphs = []
-        chunks = list(pd.read_csv(csv_path, chunksize=nrows//10, nrows=nrows))
-        for chunk in tqdm(chunks):
-            graph, global_index_mapper, local_index_mappers = parser.parse(chunk)
-            index_ids = list(global_index_mapper.values())
-            for mapper in local_index_mappers:
-                index_ids += list(mapper.values())
-            meta_graphs.append(MetaInfo.from_data(graph, index_nodes=index_ids, num_bins=None))
-        used_time2 = timer.diff()
+    sample_ids = []
+    keys = []
+    values = []
+    graph_infos = []
+    for i in range(10):
+        sample_id = [i] * num_nodes
+        key = np.random.choice(all_keys, size=num_nodes)
+        value = np.random.choice(all_values, size=num_nodes)
+        graph_info = ag.GraphInfo.from_data(sample_ids=sample_id, keys=key, values=value)
 
-    with Timer('reduce') as timer:
-        meta_graph2 = MetaInfo.reduce(meta_graphs, num_bins=None, disable=False)
-        used_time3 = timer.diff()
-    print(meta_graph2)
-    print(meta_graph2.meta_name.keys())
-    assert used_time3 < used_time1 and used_time3 < used_time2
-    assert meta_graph == meta_graph2
+        sample_ids.append(sample_id)
+        keys.append(key)
+        values.append(value)
+        graph_infos.append(graph_info)
+
+    sample_ids = np.concatenate(sample_ids)
+    keys = np.concatenate(keys)
+    values = np.concatenate(values)
+
+    graph_info1 = ag.GraphInfo.reduce(graph_infos)
+    graph_info2 = ag.GraphInfo.from_data(sample_ids=sample_ids, keys=keys, values=values)
+
+    assert graph_info1.__eq__(graph_info2, debug=True)
+    print(graph_info1.dictionary)
+    print(graph_info1.values)
 
 
 if __name__ == '__main__':
-    speed()
+    all_values = np.array([1, 2, 3, '1.2', 'abb', 'feisl', None], dtype=object)
+    all_keys = np.array(['fbh', ('as', 'awe', 'f'), 'awef', 'fepoij', 'asdfj', 'aef'], dtype=object)
+
+    test_from_data()
+    test_reduce()

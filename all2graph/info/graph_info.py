@@ -1,205 +1,156 @@
-from typing import Dict, Set, Tuple
+from typing import Dict, List
 
 import numpy as np
 import pandas as pd
 
-from .value_info import NumberInfo, StringInfo
-# from ..graph import RawGraph
-from ..meta_struct import MetaStruct
-from ..globals import EPSILON
+from .number_info import NumberInfo
+from .token_info import TokenInfo
+from .meta_info import MetaInfo
 from ..stats import ECDF
 from ..utils import tqdm
 
 
-class MetaInfo(MetaStruct):
-    def __init__(
-            self,
-            meta_string: StringInfo,
-            meta_numbers: Dict[str, NumberInfo],
-            meta_name: StringInfo,
-            edge_type: Set[Tuple[str, str]],
-            **kwargs
-    ):
+class GraphInfo(MetaInfo):
+    def __init__(self, number_infos: Dict[str, NumberInfo], token_infos: Dict[str, TokenInfo],
+                 key_counts: Dict[str, ECDF], **kwargs):
         super().__init__(**kwargs)
-        self.meta_string = meta_string
-        self.meta_numbers = meta_numbers
-        self.meta_name = meta_name
-        self.edge_type = edge_type
-
-    @property
-    def num_strings(self):
-        return len(self.meta_string)
-
-    @property
-    def num_numbers(self):
-        return len(self.meta_numbers)
-
-    @property
-    def num_keys(self):
-        return len(self.meta_name)
-
-    @property
-    def num_etypes(self):
-        return len(self.edge_type)
+        self.number_infos = number_infos
+        self.token_infos = token_infos
+        self.key_counts = key_counts
 
     def __eq__(self, other, debug=False):
         if not super().__eq__(other):
             if debug:
                 print('super not equal')
             return False
-        if self.meta_numbers != other.meta_numbers:
+        if self.number_infos != other.number_infos:
             if debug:
-                print('meta_numebrs not equal')
+                print('number_infos not equal')
             return False
-        if self.meta_name != other.meta_name:
+        if self.token_infos != other.token_infos:
             if debug:
-                print('meta_name not equal')
+                print('token_infos not equal')
             return False
-        if self.meta_string != other.meta_string:
+        if self.key_counts != other.key_counts:
             if debug:
-                print('meta_string not equal')
-            return False
-        if self.edge_type != other.edge_type:
-            if debug:
-                print('edge_type not equal')
+                print('key_counts not equal')
             return False
         return True
 
+    @property
+    def dictionary(self) -> List[str]:
+        dictionary = list(self.token_infos)
+        for key in self.key_counts:
+            if isinstance(key, str):
+                dictionary.append(key)
+            elif isinstance(key, tuple):
+                dictionary += list(key)
+        return dictionary
+
+    @property
+    def values(self) -> Dict[str, ECDF]:
+        return {key: info.value for key, info in self.number_infos.items()}
+
+    @property
+    def num_keys(self):
+        return len(self.key_counts)
+
+    @property
+    def num_tokens(self):
+        return len(self.token_infos)
+
+    @property
+    def num_numbers(self):
+        return len(self.number_infos)
+
+    @property
+    def doc_freq(self) -> Dict[str, float]:
+        return {token: info.doc_freq for token, info in self.token_infos.items()}
+
+    @property
+    def tf_idf(self) -> Dict[str, ECDF]:
+        return {token: info.tf_idf for token, info in self.token_infos.items()}
+
     def to_json(self) -> dict:
         output = super().to_json()
-        output['meta_string'] = self.meta_string.to_json()
-        output['meta_numbers'] = {k: v.to_json() for k, v in self.meta_numbers.items()}
-        output['meta_name'] = self.meta_name.to_json()
-        output['edge_type'] = self.edge_type
+        output['number_infos'] = {k: v.to_json() for k, v in self.number_infos.items()}
+        output['token_infos'] = {k: v.to_json() for k, v in self.token_infos.items()}
         return output
 
     @classmethod
-    def from_json(cls, obj: dict):
+    def from_json(cls, obj):
         obj = dict(obj)
-        obj['meta_string'] = StringInfo.from_json(obj['meta_string'])
-        obj['meta_numbers'] = {k: NumberInfo.from_json(v) for k, v in obj['meta_numbers'].items()}
-        obj['meta_name'] = StringInfo.from_json(obj['meta_name'])
+        obj['number_infos'] = {k: NumberInfo.from_json(v) for k, v in obj['number_infos'].items()}
+        obj['token_infos'] = {k: TokenInfo.from_json(v) for k, v in obj['token_infos'].items()}
+        obj['key_count'] = {k: ECDF.from_json(v) for k, v in obj['key_count'].items()}
         return super().from_json(obj)
 
     @classmethod
-    def from_data(cls, graph: RawGraph, index_nodes=None, disable=True, num_bins=None):
-        """
+    def from_data(cls, sample_ids, keys, values, num_bins=None, disable=True):
+        data_df = pd.DataFrame({'sid': sample_ids, 'key': keys, 'token': values})
+        # 分离数值型数据和字符串数据
+        data_df['number'] = pd.to_numeric(data_df['token'], errors='coerce')
+        data_df.loc[pd.notna(data_df['number']), 'token'] = None
+        data_df['key_copy'] = data_df['key']
+        data_df['number_copy'] = data_df['number']
+        data_df['token_copy'] = data_df['token']
 
-        Args:
-            graph: 输入，需要是RawGraph
-            index_nodes: index node的坐标，用于排除index
-            disable: 禁用进度条
-            num_bins: 统计各种分布时的分箱数量
+        # 统计计数
+        count_df = pd.DataFrame({'count': data_df['sid'].value_counts()})
+        temp_df = data_df.pivot_table(values='token', index='sid', columns='token_copy', aggfunc='count')
+        count_df[[('token', x) for x in temp_df]] = temp_df
+        temp_df = data_df.pivot_table(values=['number', 'key'], index='sid', columns='key_copy', aggfunc='count')
+        count_df[temp_df.columns] = temp_df
+        count_df = count_df.loc[:, count_df.sum() > 0]
+        count_df = count_df.fillna(0)
+        del temp_df
 
-        Returns:
-
-        """
-        node_df = pd.DataFrame(
-            {
-                COMPONENT_ID: graph.component_id,
-                KEY: graph.key,
-                VALUE: graph.value,
-            }
-        )
-        node_df[COMPONENT_ID] = node_df[COMPONENT_ID].abs()
-        num_samples = node_df[COMPONENT_ID].unique().shape[0]
-
-        edge_type = set(graph.edge_key)
-
-        # # # # # 生成meta_name # # # # #
-        meta_name = MetaString.from_data(
-            num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[KEY],
-            disable=disable, postfix='constructing info name', num_bins=num_bins
-        )
-
-        # # # # # 生成meta_numbers # # # # #
-        if index_nodes is not None:
-            node_df = node_df.drop(index_nodes)
-        node_df[NUMBER] = pd.to_numeric(node_df[VALUE], errors='coerce')
-        number_df = node_df[np.isfinite(node_df[NUMBER])]
-
-        number_groups = number_df.groupby(KEY, sort=False)
-        number_groups = tqdm(number_groups, disable=disable, postfix='constructing info numbers')
-        meta_numbers = {}
-        for name, number_df in number_groups:
-            meta_numbers[name] = NumberInfo.from_data(
-                num_samples=num_samples, sample_ids=number_df[COMPONENT_ID], values=number_df[NUMBER], num_bins=num_bins
-            )
-
-        # # # # # 生成meta_string # # # # #
-        node_df = node_df[pd.isna(node_df[NUMBER]) & node_df[VALUE].apply(lambda x: not isinstance(x, (dict, list)))]
-
-        def bool_to_str(x):
-            if isinstance(x, bool):
-                return TRUE if x else FALSE
-            else:
-                return x
-
-        node_df[VALUE] = node_df[VALUE].apply(bool_to_str)
-        node_df[VALUE] = node_df[VALUE].fillna(NULL)
-
-        meta_string = MetaString.from_data(
-            num_samples=num_samples, sample_ids=node_df[COMPONENT_ID], values=node_df[VALUE],
-            disable=disable, num_bins=num_bins
-        )
-
-        return super().from_data(meta_string=meta_string, meta_numbers=meta_numbers, meta_name=meta_name,
-                                 edge_type=edge_type)
+        token_infos = {}
+        number_infos = {}
+        key_counts = {}
+        for col, series in tqdm(count_df.iteritems(), disable=disable, postfix='constructing {}'.format(cls.__name__)):
+            if not isinstance(col, tuple):
+                continue
+            if col[0] == 'token':
+                token_infos[col[1]] = TokenInfo.from_data(counts=series, num_nodes=count_df['count'], num_bins=num_bins)
+            elif col[0] == 'number':
+                number_infos[col[1]] = NumberInfo.from_data(counts=series, values=data_df.loc[data_df['key'] == col[1], 'number'])
+            elif col[0] == 'key':
+                key_counts[col[1]] = ECDF.from_data(series, num_bins=num_bins)
+        return super().from_data(token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
 
     @classmethod
-    def reduce(cls, structs, weights=None, disable=True, num_bins=None, processes=None):
+    def reduce(cls, structs, weights=None, num_bins=None, processes=0, chunksize=None, disable=True):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
             weights = np.array(weights) / sum(weights)
 
-        # # # # # 合并meta_numbers # # # # #
-        meta_numbers = {}
-        meta_num_w = {}
-        for w, struct in zip(weights, structs):
-            for k, v in struct.meta_numbers.items():
-                if k not in meta_numbers:
-                    meta_numbers[k] = [v]
-                    meta_num_w[k] = [w]
-                else:
-                    meta_numbers[k].append(v)
-                    meta_num_w[k].append(w)
+        # 对齐
+        number_infos = pd.DataFrame([struct.number_infos for struct in structs])
+        token_infos = pd.DataFrame([struct.token_infos for struct in structs])
+        key_counts = pd.DataFrame([struct.key_counts for struct in structs])
 
-        progress = tqdm(meta_numbers.items(), disable=disable, postfix='reducing info numbers')
-        meta_numbers = {
-            k: NumberInfo.reduce(v, weights=meta_num_w[k], num_bins=num_bins) for k, v in progress
+        # 填空值
+        number_infos = number_infos.fillna(NumberInfo.from_data([0], []))
+        token_infos = token_infos.fillna(TokenInfo.from_data(np.zeros(1), np.ones(1)))
+        key_counts = key_counts.fillna(ECDF.from_data([0]))
+
+        # reduce
+        number_infos = {
+            key: NumberInfo.reduce(series, weights=weights, num_bins=num_bins)
+            for key, series in tqdm(number_infos.iteritems(), disable=disable, postfix='reduce number info')
         }
-
-        # 分布补0
-        progress = tqdm(meta_numbers, disable=disable, postfix='reducing info numbers phase 2')
-        for k in progress:
-            w_sum = sum(meta_num_w[k])
-            if not np.isclose(w_sum, 1):
-                meta_numbers[k].count = ECDF.reduce(
-                    [meta_numbers[k].count, ECDF([0], [1], initialized=True)],
-                    weights=[w_sum, 1-w_sum], num_bins=num_bins
-                )
-        # # # # # 合并meta_string # # # # #
-        meta_string = StringInfo.reduce(
-            [struct.meta_string for struct in structs], weights=weights, disable=disable, processes=processes,
-            num_bins=num_bins
-        )
-        # # # # # 合并meta_name # # # # #
-        meta_name = StringInfo.reduce(
-            [struct.meta_name for struct in structs], weights=weights, disable=disable,
-            postfix='reducing info name', processes=processes, num_bins=num_bins
-        )
-        # # # # # 合并edge_type # # # # #
-        edge_type = set()
-        for struct in structs:
-            edge_type = edge_type.union(struct.edge_type)
-
-        return super().reduce(
-            structs, weights=weights, meta_numbers=meta_numbers, meta_string=meta_string, meta_name=meta_name,
-            edge_type=edge_type,
-        )
+        token_infos = {
+            token: TokenInfo.reduce(series, weights=weights, num_bins=num_bins)
+            for token, series in tqdm(token_infos.iteritems(), disable=disable, postfix='reduce token info')
+        }
+        key_counts = {
+            key: ECDF.reduce(series, weights=weights, num_bins=num_bins)
+            for key, series in tqdm(key_counts.iteritems(), disable=disable, postfix='reduce key count')
+        }
+        return super().reduce(structs, weights=weights,
+                              token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
 
     def extra_repr(self) -> str:
-        return 'num_strings={}, num_numbers={}, num_keys={}, num_etypes={}'.format(
-            self.meta_string, self.num_numbers, self.num_keys, self.num_etypes
-        )
+        return 'num_keys={}, num_tokens={}, num_numbers={}'.format(self.num_keys, self.num_tokens, self.num_numbers)

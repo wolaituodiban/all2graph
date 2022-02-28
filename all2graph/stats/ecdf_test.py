@@ -172,9 +172,9 @@ def speed():
 
 
 if __name__ == '__main__':
-    # test_one_sample()
-    # test_not_eq()
-    # test_ecdf()
-    # test_compress()
+    test_one_sample()
+    test_not_eq()
+    test_ecdf()
+    test_compress()
     test_minmax_scale()
-    # speed()
+    speed()

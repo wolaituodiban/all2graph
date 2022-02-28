@@ -54,7 +54,7 @@ class ECDF(Distribution):
         :return: 累积概率对应的分位数
         """
         if self.num_bins == 1:
-            return np.full_like(p, self.probs[0])
+            return np.full_like(p, self.quantiles[0])
         else:
             return interpolate.interp1d(
                 self.probs, self.quantiles, bounds_error=bounds_error,
@@ -155,7 +155,8 @@ class ECDF(Distribution):
         counts = pd.value_counts(array, sort=False)
         counts = counts.sort_index(ascending=True)
         counts_cumsum = counts.cumsum()
-        counts_cumsum /= counts_cumsum.iloc[-1]
+        if counts_cumsum.shape[0] > 0:
+            counts_cumsum /= counts_cumsum.iloc[-1]
         return super().from_data(quantiles=counts_cumsum.index, probs=counts_cumsum.values, num_bins=num_bins)
 
     @classmethod
@@ -171,10 +172,11 @@ class ECDF(Distribution):
 
         probs = [w * struct.get_probs(quantiles, kind='previous') for w, struct in zip(weights, structs)]
         probs = np.sum(probs, axis=0)
-
         return super().reduce(structs, weights=weights, quantiles=quantiles, probs=probs, num_bins=num_bins)
 
     def extra_repr(self) -> str:
-        p = np.arange(0, 1, 0.2)[1:]
+        if self.num_bins == 0:
+            return str(np.nan)
+        p = np.arange(0, 1, 0.25)[1:]
         q = self.get_quantiles(p)
         return ', '.join('{:.3}({:.3})'.format(x, y) for x, y in zip(q, p))
