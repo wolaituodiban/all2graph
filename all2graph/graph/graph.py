@@ -27,6 +27,18 @@ class Graph(MetaStruct):
     def __repr__(self):
         return self.graph.__repr__()
 
+    @property
+    def key_token(self):
+        return self.graph.ndata[KEY][TOKEN]
+
+    @property
+    def value_token(self):
+        return self.graph.ndata[VALUE][TOKEN]
+
+    @property
+    def number(self):
+        return graph.ndata[VALUE][NUMBER]
+
     @classmethod
     def from_json(cls, obj: dict):
         raise NotImplementedError

@@ -1,3 +1,4 @@
+from abc import abstractproperty
 import copy
 import os
 import sys
@@ -93,45 +94,22 @@ def num_parameters(module: torch.nn.Module):
 
 
 class Module(torch.nn.Module):
-    def __init__(self, raw_graph_parser: GraphParser):
+    def __init__(self):
         super().__init__()
-        self.version = __version__
-        self.raw_graph_parser = raw_graph_parser
-        self._loss = None
-        self._optimizer = None
 
-    @property
+    @abstractproperty
     def device(self):
         raise NotImplementedError
 
-    def forward(self, inputs) -> Tuple[Graph, torch.Tensor]:
-        if isinstance(inputs, RawGraph):
-            inputs = self.raw_graph_parser.parse(inputs)
-        graph = inputs.to(self.device, non_blocking=True)
-        target_mask = graph.target_mask(self.raw_graph_parser.target_symbol)
-        return graph, target_mask
+    @property
+    def num_parameters(self):
+        return num_parameters(self)
 
     def predict_dataloader(self, loader: DataLoader, postfix=None):
-        if not hasattr(loader, 'dataset') or not isinstance(loader.dataset, Dataset):
-            print('recieved a not all2graph.Dataset, function check can not be done')
-        elif isinstance(loader.dataset, Dataset) and loader.dataset.raw_graph_parser != self.raw_graph_parser:
-            print('raw_graph_parser are not the same, which may cause undefined behavior')
         return predict_dataloader(self, loader, postfix)
 
-    def fit(self, loader: DataLoader, **kwargs):
-        if not isinstance(loader.dataset, Dataset):
-            print('recieved a not all2graph.Dataset, function check can not be done')
-        elif hasattr(loader, 'dataset')\
-                and isinstance(loader.dataset, Dataset)\
-                and loader.dataset.raw_graph_parser != self.raw_graph_parser:
-            print('raw_graph_parser are not the same, which may cause undefined behavior')
-        raise NotImplementedError
 
-    def set_filter_key(self, x):
-        self.raw_graph_parser.set_filter_key(x)
-
-
-class Predictor(torch.nn.Module):
+class Predictor(Module):
     def __init__(self, data_parser: Union[DataParser, Dict[str, DataParser]], module: Module):
         super().__init__()
         self.version = __version__
