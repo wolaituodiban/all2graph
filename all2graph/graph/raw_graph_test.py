@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 
 
 def test_add_kv_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     graph.add_kv_(0, 'a', 'b', True)
     graph.add_kv_(0, 'a', [1, 2, 3, 4], True)
     graph.add_kv_(0, ('a', 'b'), 'b', False)
@@ -15,7 +15,7 @@ def test_add_kv_():
 
 
 def test_add_targets_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     graph.add_kv_(0, 'a', 'b', True)
     graph.add_kv_(1, 'a', [1, 2, 3, 4], True)
     graph.add_kv_(0, ('a', 'b'), 'b', False)
@@ -29,7 +29,7 @@ def test_add_targets_():
 
 
 def test_add_lid_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     graph.add_lid_(0, 'a', 'b', True)
     graph.add_lid_(0, 'a', 'b', False)
     graph.add_lid_(1, 'a', 'b', True)
@@ -40,7 +40,7 @@ def test_add_lid_():
 
 
 def test_add_gid_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     graph.add_gid_('a', 'b', True)
     graph.add_gid_('a', 'b', False)
     graph._assert()
@@ -50,7 +50,7 @@ def test_add_gid_():
 
 
 def test_add_edge_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     graph.add_kv_(0, 'a', 'c', False)
     graph.add_kv_(0, 'a', 'b', True)
     graph.add_edge_(0, 1, bidirectional=True)
@@ -61,7 +61,7 @@ def test_add_edge_():
 
 
 def test_add_edges_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     graph.add_kv_(0, 'a', 'c', False)
     graph.add_kv_(0, 'a', 'b', True)
     graph.add_kv_(0, 'a', 'd', True)
@@ -73,7 +73,7 @@ def test_add_edges_():
 
 
 def test_add_edges_for_seq_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     for i in range(7):
         graph.add_kv_(0, ('a', 'b', 'c'), i, False)
     graph.add_edges_for_seq_([0, 1, 2])
@@ -85,7 +85,7 @@ def test_add_edges_for_seq_():
 
 
 def test_add_edges_for_seq_by_key_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     for i in range(3):
         graph.add_kv_(0, 'a', i, False)
     for i in range(4):
@@ -99,7 +99,7 @@ def test_add_edges_for_seq_by_key_():
 
 
 def test_to_simple_():
-    graph = ag.graph.RawGraph()
+    graph = ag.graph_parser.RawGraph()
     graph.add_kv_(0, 'a', 'b', False)
     graph.add_kv_(0, 'a', 'c', False)
     graph.add_edges_([0, 0], [1, 1])
@@ -112,13 +112,30 @@ def test_to_simple_():
     plt.show()
 
 
+def test_mete_info():
+    graph = ag.graph_parser.RawGraph()
+    graph.add_kv_(0, 'a', 'b', True)
+    graph.add_kv_(0, 'a', 3, True)
+    graph.add_kv_(0, ('a', 'b'), 'b', False)
+    graph.add_kv_(0, ('a', 'b'), 'c', True)
+    graph.add_kv_(0, 'a', 'b', True)
+    graph.add_kv_(1, 'a', '0.23', True)
+    graph.add_kv_(0, ('a', 'b'), 'b', False)
+    graph.add_kv_(1, ('a', 'b'), 'c', True)
+    graph.add_kv_(2, ('a', 'b'), 'c', True)
+    meta_info = graph.meta_info()
+    print(meta_info.dictionary)
+    print(meta_info.numbers)
+
+
 if __name__ == '__main__':
-    test_add_kv_()
-    test_add_targets_()
-    test_add_lid_()
-    test_add_gid_()
-    test_add_edge_()
-    test_add_edges_()
-    test_add_edges_for_seq_()
-    test_add_edges_for_seq_by_key_()
-    test_to_simple_()
+    # test_add_kv_()
+    # test_add_targets_()
+    # test_add_lid_()
+    # test_add_gid_()
+    # test_add_edge_()
+    # test_add_edges_()
+    # test_add_edges_for_seq_()
+    # test_add_edges_for_seq_by_key_()
+    # test_to_simple_()
+    test_mete_info()

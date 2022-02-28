@@ -12,7 +12,7 @@ from .encoder import Encoder
 from .utils import num_parameters, Module
 from ..graph import Graph
 from ..info import NumberInfo
-from ..parsers import RawGraphParser
+from ..parsers import GraphParser
 
 
 class BaseMetaLearner(torch.nn.Module):
@@ -69,7 +69,7 @@ def reverse_dict(d: dict):
 
 class EncoderMetaLearner(Module):
     def __init__(
-            self, raw_graph_parser: RawGraphParser, encoder: Encoder, num_latent, dropout=0.1,
+            self, raw_graph_parser: GraphParser, encoder: Encoder, num_latent, dropout=0.1,
             norm=True):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings
         super().__init__(raw_graph_parser=raw_graph_parser)
@@ -273,7 +273,7 @@ class EncoderMetaLearner(Module):
 
 
 class EncoderMetaLearnerMocker(Module):
-    def __init__(self, raw_graph_parser: RawGraphParser, encoder: Encoder):
+    def __init__(self, raw_graph_parser: GraphParser, encoder: Encoder):
         assert raw_graph_parser.num_strings == encoder.value_embedding.num_embeddings, 'parser与encoder不对应'
         super().__init__(raw_graph_parser=raw_graph_parser)
         for name, shape in encoder.parameter_shapes.items():

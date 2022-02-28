@@ -1,14 +1,14 @@
-from typing import List, Dict
-from abc import abstractproperty
+from typing import Dict
+from abc import abstractproperty, abstractmethod
 from ..meta_struct import MetaStruct
 from ..stats import ECDF
 
 
 class MetaInfo(MetaStruct):
-    @abstractproperty
-    def dictionary(self) -> List[str]:
+    @abstractmethod
+    def dictionary(self, **kwargs) -> Dict[str, int]:
         raise NotImplementedError
 
     @abstractproperty
-    def values(self) -> Dict[str, ECDF]:
+    def numbers(self) -> Dict[str, ECDF]:
         raise NotImplementedError

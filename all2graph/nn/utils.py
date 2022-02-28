@@ -9,7 +9,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from ..data import Dataset, default_collate
-from ..parsers import RawGraphParser, ParserWrapper
+from ..parsers import GraphParser, ParserWrapper
 from ..graph import Graph, RawGraph
 from ..parsers import DataParser
 from ..utils import tqdm
@@ -93,7 +93,7 @@ def num_parameters(module: torch.nn.Module):
 
 
 class Module(torch.nn.Module):
-    def __init__(self, raw_graph_parser: RawGraphParser):
+    def __init__(self, raw_graph_parser: GraphParser):
         super().__init__()
         self.version = __version__
         self.raw_graph_parser = raw_graph_parser

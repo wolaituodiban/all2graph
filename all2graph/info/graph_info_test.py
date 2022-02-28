@@ -37,7 +37,7 @@ def test_reduce():
 
     assert graph_info1.__eq__(graph_info2, debug=True)
     print(graph_info1.dictionary)
-    print(graph_info1.values)
+    print(graph_info1.numbers)
 
 
 if __name__ == '__main__':

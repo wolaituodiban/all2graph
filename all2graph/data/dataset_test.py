@@ -35,7 +35,7 @@ def test_csvdataset_v2():
     df = pd.DataFrame({'uid': data, 'data': data})
 
     meta_df = ag.split_csv(df, 'temp', chunksize=1000, meta_cols=['uid'], concat_chip=False)
-    dataset = ag.data.CSVDatasetV2(
+    dataset = ag.data_parser.CSVDatasetV2(
         meta_df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']), index_col=0)
     data_loader = dataset.build_dataloader(
         num_workers=3, prefetch_factor=1, shuffle=True, batch_size=16)
@@ -57,7 +57,7 @@ def test_dfdataset():
     data = np.arange(9999)
     df = pd.DataFrame({'uid': data, 'data': data})
 
-    dataset = ag.data.DFDataset(
+    dataset = ag.data_parser.DFDataset(
         df=df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']))
     data_loader = dataset.build_dataloader(
         num_workers=3, prefetch_factor=1, shuffle=True, batch_size=16)

@@ -81,7 +81,7 @@ def test_produce_dataloader():
         with ag.Timer('csv'):
             dataloader = factory.produce_dataloader(
                 meta_df=meta_df, csv_configs=configs, num_workers=1)
-            assert isinstance(dataloader.dataset, ag.data.CSVDatasetV2), dataloader.dataset
+            assert isinstance(dataloader.dataset, ag.data_parser.CSVDatasetV2), dataloader.dataset
             for _ in ag.tqdm(dataloader):
                 pass
             shutil.rmtree(save_path)
@@ -89,14 +89,14 @@ def test_produce_dataloader():
         with ag.Timer('df'):
             dataloader = factory.produce_dataloader(
                 df=pd.read_csv(csv_path, **configs), num_workers=1)
-            assert isinstance(dataloader.dataset, ag.data.DFDataset), dataloader.dataset
+            assert isinstance(dataloader.dataset, ag.data_parser.DFDataset), dataloader.dataset
             for _ in ag.tqdm(dataloader):
                 pass
 
         meta_df = factory.save(csv_path, save_path, processes=cpu_count, chunksize=10)
         with ag.Timer('graph'):
             dataloader = factory.produce_dataloader(meta_df=meta_df, num_workers=1, graph=True)
-            assert isinstance(dataloader.dataset, ag.data.GraphDataset), dataloader.dataset
+            assert isinstance(dataloader.dataset, ag.data_parser.GraphDataset), dataloader.dataset
             for _ in ag.tqdm(dataloader):
                 pass
     finally:

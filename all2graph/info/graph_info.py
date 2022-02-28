@@ -37,18 +37,39 @@ class GraphInfo(MetaInfo):
             return False
         return True
 
-    @property
-    def dictionary(self) -> List[str]:
-        dictionary = list(self.token_infos)
+    def dictionary(self, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',) -> Dict[str, int]:
+        dictionary = [k for k, df in self.doc_freq.items() if min_df <= df <= max_df]
+        if top_k is not None:
+            if top_method == 'max_tfidf':
+                dictionary = [(k, v.max) for k, v in self.tf_idf.items() if k in dictionary]
+            elif top_method == 'mean_tfidf':
+                dictionary = [(k, v.mean) for k, v in self.tf_idf.items() if k in dictionary]
+            elif top_method == 'max_tf':
+                dictionary = [(k, v.max) for k, v in self.tf_idf.items() if k in dictionary]
+            elif top_method == 'mean_tf':
+                dictionary = [(k, v.mean) for k, v in self.tf_idf.items() if k in dictionary]
+            elif top_method == 'max_tc':
+                dictionary = [(k, v.max) for k, v in self.tf_idf.items() if k in dictionary]
+            elif top_method == 'mean_tc':
+                dictionary = [(k, v.mean) for k, v in self.tf_idf.items() if k in dictionary]
+            else:
+                raise ValueError(
+                    "top_method只能是('max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc')其中之一"
+                )
+            dictionary = sorted(dictionary, key=lambda x: x[1])
+            dictionary = [k[0] for k in dictionary[:top_k]]
+
         for key in self.key_counts:
             if isinstance(key, str):
                 dictionary.append(key)
             elif isinstance(key, tuple):
                 dictionary += list(key)
-        return dictionary
+
+        dictionary = set(dictionary)
+        return {k: i for i, k in enumerate(dictionary)}
 
     @property
-    def values(self) -> Dict[str, ECDF]:
+    def numbers(self) -> Dict[str, ECDF]:
         return {key: info.value for key, info in self.number_infos.items()}
 
     @property
@@ -114,7 +135,8 @@ class GraphInfo(MetaInfo):
             if col[0] == 'token':
                 token_infos[col[1]] = TokenInfo.from_data(counts=series, num_nodes=count_df['count'], num_bins=num_bins)
             elif col[0] == 'number':
-                number_infos[col[1]] = NumberInfo.from_data(counts=series, values=data_df.loc[data_df['key'] == col[1], 'number'])
+                number_infos[col[1]] = NumberInfo.from_data(
+                    counts=series, values=data_df.loc[data_df['key'] == col[1], 'number'])
             elif col[0] == 'key':
                 key_counts[col[1]] = ECDF.from_data(series, num_bins=num_bins)
         return super().from_data(token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)

@@ -8,7 +8,7 @@ from all2graph.nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
 
 
 def test_learner():
-    graph = ag.graph.RawGraph(
+    graph = ag.graph_parser.RawGraph(
         component_id=[0, 0, 0, 0], key=['readout', 'info haha', 'a', 'a'], value=['a', 'b', 1, 2],
         symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
 
@@ -41,7 +41,7 @@ def test_learner():
 
 
 def test_mock():
-    graph = ag.graph.RawGraph(
+    graph = ag.graph_parser.RawGraph(
         component_id=[0, 0, 0, 0], key=['readout', 'info haha', 'a', 'a'], value=['a', 'b', 1, 2],
         symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
 
@@ -82,13 +82,13 @@ def test_mock_load_pretrained():
     # 如果代码正确，那么使用m1和m2计算s1的输出结果应该相同
 
     # 1、构造两个测试样本s1和s2
-    s1 = ag.graph.RawGraph(
+    s1 = ag.graph_parser.RawGraph(
         component_id=[0, 0, 0, 0, 0], key=['readout', 'k2', 'k2', 'k4', 'k4'], value=['v1', 'v2', 'v5', 0.5, 0.4],
         src=[1], dst=[0], symbol=['readout', 'value', 'value', 'value', 'value'])
-    s2 = ag.graph.RawGraph(
+    s2 = ag.graph_parser.RawGraph(
         component_id=[0, 0, 0, 0, 0], key=['readout', 'k2', 'k3', 'k4', 'k4'], value=['v3', 'v4', 'v1', -0.5, 0.3],
         src=[1], dst=[0], symbol=['readout', 'value', 'value', 'value', 'value'])
-    s3 = ag.graph.RawGraph.batch([s2, s1])
+    s3 = ag.graph_parser.RawGraph.batch([s2, s1])
 
     # 2、根据s1构造解析器p1和模型m1
     i1 = ag.MetaInfo.from_data(s1)
@@ -159,7 +159,7 @@ def test_error_key():
 
 
 def test_lite():
-    graph = ag.graph.RawGraph(
+    graph = ag.graph_parser.RawGraph(
         component_id=[0, 0, 0, 0], key=['readout', 'info haha', 'a', 'a'], value=['a', 'b', 1, 2],
         symbol=['readout', 'value', 'value', 'value'], src=[0, 1, 1, 2, 3], dst=[0, 0, 1, 0, 0])
 

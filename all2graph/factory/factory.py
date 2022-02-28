@@ -7,7 +7,7 @@ import pandas as pd
 
 from ..graph import RawGraph
 from ..info import MetaInfo
-from ..parsers import DataParser, RawGraphParser
+from ..parsers import DataParser, GraphParser
 from ..utils import tqdm
 from ..utils.file_utils import dataframe_chunk_iter, split_csv
 from ..meta_struct import MetaStruct
@@ -52,13 +52,13 @@ class Factory(MetaStruct):
             unexp_args = _verify_kwargs(MetaInfo.from_data, RawGraph(), kwargs=meta_info_config)
             assert len(unexp_args) == 0, 'meta_info_config got unexpected keyword argument {}'.format(unexp_args)
         if raw_graph_parser_config is not None:
-            unexp_args = _verify_kwargs(RawGraphParser.from_data, None, kwargs=raw_graph_parser_config)
+            unexp_args = _verify_kwargs(GraphParser.from_data, None, kwargs=raw_graph_parser_config)
             assert len(unexp_args) == 0, 'raw_graph_parser_config got unexpected keyword argument {}'.format(unexp_args)
 
         self.data_parser = data_parser
         self.meta_info_config = meta_info_config or {}
         self.raw_graph_parser_config = raw_graph_parser_config or {}
-        self.raw_graph_parser: Union[RawGraphParser, None] = None
+        self.raw_graph_parser: Union[GraphParser, None] = None
         self.save_path = None  # 多进程的cache
 
     @property
@@ -101,7 +101,7 @@ class Factory(MetaStruct):
         meta_info = MetaInfo.reduce(
             meta_infos, weights=weights, disable=disable, processes=processes, **self.meta_info_config
         )
-        self.raw_graph_parser = RawGraphParser.from_data(meta_info, **self.raw_graph_parser_config)
+        self.raw_graph_parser = GraphParser.from_data(meta_info, **self.raw_graph_parser_config)
         return meta_info
 
     def produce_graph_and_label(self, chunk: pd.DataFrame):

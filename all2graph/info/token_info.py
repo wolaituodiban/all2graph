@@ -1,8 +1,8 @@
 import numpy as np
 
-from all2graph.globals import EPSILON
-from all2graph.meta_struct import MetaStruct
-from all2graph.stats import ECDF
+from ..globals import EPSILON
+from ..meta_struct import MetaStruct
+from ..stats import ECDF
 
 
 class TokenInfo(MetaStruct):

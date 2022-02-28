@@ -3,14 +3,14 @@ from typing import Tuple, List, Dict, Union
 
 import pandas as pd
 
-from .data import DataParser
-from .graph import RawGraphParser
+from .data_parser import DataParser
+from .graph_parser import GraphParser
 from ..utils import dataframe_chunk_iter, tqdm
 
 
 class ParserWrapper:
     def __init__(
-            self, data_parser: Union[DataParser, Dict[str, DataParser]], raw_graph_parser: RawGraphParser,
+            self, data_parser: Union[DataParser, Dict[str, DataParser]], raw_graph_parser: GraphParser,
             temp_file=False):
         if isinstance(data_parser, DataParser):
             self.data_parsers = {'output': data_parser}

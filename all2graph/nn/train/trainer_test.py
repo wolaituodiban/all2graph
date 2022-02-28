@@ -11,7 +11,7 @@ if 'darwin' in sys.platform.lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-class TestDataset(ag.data.Dataset):
+class TestDataset(ag.data_parser.Dataset):
     def __init__(self, x, y, key):
         super().__init__(
             data_parser=ag.DataParser(None, None, None), raw_graph_parser=ag.RawGraphParser({}, [], [], set()))

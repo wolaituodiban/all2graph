@@ -5,7 +5,7 @@ from typing import List
 
 import pandas as pd
 
-from .data import DataParser
+from .data_parser import DataParser
 from ..graph import RawGraph
 from ..utils import tqdm
 from ..globals import READOUT

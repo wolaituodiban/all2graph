@@ -6,6 +6,8 @@ VALUE = 'value'
 TARGET = 'target'
 EDGE = 'edge'
 READOUT = 'readout'
+TOKEN = 'token'
+NUMBER = 'number'
 
 KEY2KEY = (KEY, EDGE, KEY)
 KEY2VALUE = (KEY, EDGE, VALUE)

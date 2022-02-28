@@ -7,11 +7,11 @@ from torch.utils.data import Dataset as _Dataset, DataLoader
 from .sampler import PartitionSampler
 from .utils import default_collate
 from ..graph import Graph
-from ..parsers import DataParser, RawGraphParser
+from ..parsers import DataParser, GraphParser
 
 
 class Dataset(_Dataset):
-    def __init__(self, data_parser: DataParser, raw_graph_parser: RawGraphParser, **kwargs):
+    def __init__(self, data_parser: DataParser, raw_graph_parser: GraphParser, **kwargs):
         self.data_parser = data_parser
         self.raw_graph_parser = raw_graph_parser
         self.kwargs = kwargs
@@ -41,7 +41,7 @@ class Dataset(_Dataset):
 
 class CSVDatasetV2(Dataset):
     def __init__(
-            self, src: pd.DataFrame, data_parser: DataParser, raw_graph_parser: RawGraphParser, **kwargs):
+            self, src: pd.DataFrame, data_parser: DataParser, raw_graph_parser: GraphParser, **kwargs):
         """
 
         Args:
@@ -107,7 +107,7 @@ class CSVDatasetV2(Dataset):
 
 
 class DFDataset(Dataset):
-    def __init__(self, df: pd.DataFrame, data_parser: DataParser, raw_graph_parser: RawGraphParser, **kwargs):
+    def __init__(self, df: pd.DataFrame, data_parser: DataParser, raw_graph_parser: GraphParser, **kwargs):
         super().__init__(data_parser=data_parser, raw_graph_parser=raw_graph_parser, **kwargs)
         self._df = df
 

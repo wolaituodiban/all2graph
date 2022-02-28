@@ -3,6 +3,7 @@ from typing import List, Union, Tuple
 import numpy as np
 import pandas as pd
 
+from ..info import MetaInfo, GraphInfo
 from ..meta_struct import MetaStruct
 from ..utils import tqdm
 from ..globals import *
@@ -82,6 +83,14 @@ class RawGraph(MetaStruct):
     def value2target(self):
         return self.edges[VALUE2TARGET]
 
+    @property
+    def formated_values(self):
+        return [None if isinstance(v, (list, dict)) else v for v in self.values]
+
+    @property
+    def num_values(self):
+        return self.num_nodes(VALUE)
+
     def __eq__(self, other):
         return super().__eq__(other) \
                and self.keys == other.keys \
@@ -117,12 +126,12 @@ class RawGraph(MetaStruct):
         else:
             raise ValueError('unknown etype "{}", must be one of {}'.format(etype, self.edges.keys()))
 
-    def get_keys(self, nids, ntype):
+    def get_keys(self, nids, ntype=VALUE):
         if ntype == KEY:
             return [self.keys[i] for i in nids]
         elif ntype == VALUE:
-            entity2key = {v: u for u, v in zip(*self.key2value)}
-            return [self.keys[entity2key[i]] for i in nids]
+            value2key = {v: u for u, v in zip(*self.key2value)}
+            return [self.keys[value2key[i]] for i in nids]
         elif ntype == TARGET:
             target2key = {v: u for u, v in zip(*self.key2target)}
             return [self.keys[target2key[i]] for i in nids]
@@ -488,10 +497,18 @@ class RawGraph(MetaStruct):
 
         return fig, ax
 
+    def meta_info(self, **kwargs) -> MetaInfo:
+        return GraphInfo.from_data(
+            sample_ids=self.sids,
+            keys=self.get_keys(range(self.num_nodes(VALUE))),
+            values=self.formated_values,
+            **kwargs
+        )
+
     def extra_repr(self) -> str:
         return 'num_nodes={},\nnum_edges={}'.format(
-            json.dumps({ntype: self.num_nodes(ntype) for ntype in [KEY, VALUE, TARGET]}, indent=1),
-            json.dumps({str(etype): self.num_edges(etype) for etype in self.edges}, indent=1)
+            {ntype: self.num_nodes(ntype) for ntype in [KEY, VALUE, TARGET]},
+            {etype: self.num_edges(etype) for etype in self.edges}
         )
 
     def to_json(self, drop_nested_value=True) -> dict:
