@@ -1,75 +1,67 @@
 import os
-import shutil
-
-import all2graph as ag
-import numpy as np
-import pandas as pd
-import torch
-
-
 import platform
+import shutil
+import json
+
+import pandas as pd
+import all2graph as ag
+
 if 'darwin' in platform.system().lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-class ParserMocker1:
-    def parse(self, df, **kwargs):
-        return df.values,
-
-    def gen_targets(self, df, targets):
-        return torch.tensor(df[targets].values)
-
-
-class ParserMocker2:
-    def __init__(self, targets):
-        self.targets = targets
-
-    def parse(self, x):
-        return torch.tensor(x)
-
-
-def test_csvdataset_v2():
+def test_csvdataset():
     if os.path.exists('temp'):
         shutil.rmtree('temp')
-    data = np.arange(9999)
-    df = pd.DataFrame({'uid': data, 'data': data})
 
-    meta_df = ag.split_csv(df, 'temp', chunksize=1000, meta_cols=['uid'], concat_chip=False)
-    dataset = ag.data_parser.CSVDatasetV2(
-        meta_df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']), index_col=0)
-    data_loader = dataset.build_dataloader(
-        num_workers=3, prefetch_factor=1, shuffle=True, batch_size=16)
-    #
-    # for i in data_loader.sampler:
-    #     print(i, dataset._get_partition_num(i))
+    meta_df = ag.split_csv(df, 'temp', chunksize=100, drop_cols=['json'])
+    dataset = ag.data.CSVDataset(meta_df, data_parser=json_parser, graph_parser=graph_parser)
+    data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
 
-    x, y = [], []
+    num_samples = 0
+    x, y = None, None
     for batch in ag.tqdm(data_loader):
-        x.append(batch[0])
-        y.append(batch[1])
-    x = torch.cat(x)
-    y = torch.cat(y)
-
+        x, y = batch
+        num_samples += x.graph.num_nodes('m3_ovd_30')
+    print(x, y)
+    assert num_samples == 1000
     shutil.rmtree('temp')
+    os.remove('temp_meta.csv')
 
 
 def test_dfdataset():
-    data = np.arange(9999)
-    df = pd.DataFrame({'uid': data, 'data': data})
+    dataset = ag.data.DFDataset(df, data_parser=json_parser, graph_parser=graph_parser)
+    data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
 
-    dataset = ag.data_parser.DFDataset(
-        df=df, data_parser=ParserMocker1(), raw_graph_parser=ParserMocker2(['data']))
-    data_loader = dataset.build_dataloader(
-        num_workers=3, prefetch_factor=1, shuffle=True, batch_size=16)
-
-    x, y = [], []
+    num_samples = 0
+    x, y = None, None
     for batch in ag.tqdm(data_loader):
-        x.append(batch[0])
-        y.append(batch[1])
-    x = torch.cat(x)
-    y = torch.cat(y)
+        x, y = batch
+        num_samples += x.graph.num_nodes('m3_ovd_30')
+    print(x, y)
+    assert num_samples == 1000
 
 
 if __name__ == '__main__':
-    test_csvdataset_v2()
+    data = [
+        {
+            'ord_no': 'CH202007281033864',
+            'bsy_typ': 'CASH',
+        },
+        {
+            'ord_no': 'CH202007281033864',
+            'stg_no': '1',
+        },
+    ] * 100
+    df = pd.DataFrame({'json': [json.dumps(data)], 'crt_dte': '2020-10-09'})
+    df = pd.concat([df] * 1000)
+    json_parser = ag.JsonParser(
+        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys=['ord_no'])
+    raw_graph = json_parser(df, disable=False)
+    print(raw_graph)
+    print(raw_graph.num_samples)
+    meta_info = raw_graph.meta_info()
+    graph_parser = ag.GraphParser.from_data(meta_info)
+
+    test_csvdataset()
     test_dfdataset()

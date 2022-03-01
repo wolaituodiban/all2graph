@@ -122,8 +122,9 @@ class JsonParser(DataParser):
 
     def __call__(self, df: pd.DataFrame, disable: bool = True) -> RawGraph:
         graph = RawGraph()
-        for sid, row in tqdm(df.iterrows(), disable=disable, postfix='parsing json'):
-            obj = self.process_json(row[self.json_col], now=row[self.time_col])
+        cols = [self.json_col, self.time_col]
+        for sid, row in tqdm(enumerate(df[cols].itertuples()), disable=disable, postfix='parsing json'):
+            obj = self.process_json(row[1], now=row[2])
             self.add_obj(graph, sid=sid, obj=obj)
         graph.add_readouts_(self.targets, self_loop=self.self_loop)
         if self.global_seq:

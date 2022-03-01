@@ -195,14 +195,14 @@ class Factory(MetaStruct):
                 from ..data import GraphDataset
                 dataset = GraphDataset(src=meta_df)
             else:
-                from ..data import CSVDatasetV2
-                dataset = CSVDatasetV2(
-                    src=meta_df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser,
+                from ..data import CSVDataset
+                dataset = CSVDataset(
+                    src=meta_df, data_parser=self.data_parser, graph_parser=self.raw_graph_parser,
                     **(csv_configs or {}))
         else:
             from ..data import DFDataset
             dataset = DFDataset(
-                df=df, data_parser=self.data_parser, raw_graph_parser=self.raw_graph_parser
+                df=df, data_parser=self.data_parser, graph_parser=self.raw_graph_parser
             )
         return dataset.build_dataloader(num_workers=num_workers, shuffle=shuffle, batch_size=batch_size, **kwargs)
 
@@ -227,7 +227,7 @@ class Factory(MetaStruct):
 
     def __eq__(self, other):
         return super().__eq__(other) \
-               and self.raw_graph_parser == other.raw_graph_parser and self.data_parser == other.raw_graph_parser
+               and self.raw_graph_parser == other.graph_parser and self.data_parser == other.graph_parser
 
     @classmethod
     def from_data(cls, **kwargs):

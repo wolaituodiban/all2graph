@@ -33,7 +33,7 @@ def test_partition_sampler():
     for ind in indices:
         in_indices += ind
 
-    sampler = ag.data_parser.PartitionSampler(indices=indices, num_workers=num_workers, shuffle=True, batch_size=2)
+    sampler = ag.data.PartitionSampler(indices=indices, num_workers=num_workers, shuffle=True, batch_size=2)
     dataset = TestDataset(lines)
     data_loader = DataLoader(dataset, num_workers=num_workers, batch_sampler=sampler)
 

@@ -26,11 +26,8 @@ class Framework(Module):
 
     def forward(self, graph: Graph) -> Dict[str, torch.Tensor]:
         graph = graph.to(self.device, non_blocking=True)
-        print(graph.key_token)
         key_emb = self.token_emb(graph.key_token)
-        print(key_emb)
         key_feats = self.key_body(graph.key_graph, in_feats=key_emb)
-        print(key_feats)
         token_emb = self.token_emb(graph.value_token)
         num_emb = self.number_emb(graph.number)
         value_feats = self.bottle_neck(graph, key_feats=key_feats, token_emb=token_emb, num_emb=num_emb)

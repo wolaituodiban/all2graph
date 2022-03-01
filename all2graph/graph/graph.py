@@ -69,6 +69,13 @@ class Graph(MetaStruct):
     def to_json(self) -> dict:
         raise NotImplementedError
 
+    @classmethod
+    def load(cls, path, **kwargs):
+        raise NotImplementedError
+
+    def save(self, path, **kwargs):
+        raise NotImplementedError
+
     def to(self, *args, **kwargs):
         self.graph = self.graph.to(*args, **kwargs)
         return self

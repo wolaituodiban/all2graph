@@ -4,7 +4,7 @@ from typing import Dict
 import torch
 from torch.utils.data import Dataset as _Dataset, DataLoader
 from ..utils import detach, default_collate
-from ...data import Dataset
+from ...data import ParserDataset
 from ...parsers import DataParser, GraphParser
 
 
@@ -58,14 +58,14 @@ class History:
     @property
     def data_parser(self) -> DataParser:
         dataset = self.dataset
-        if isinstance(dataset, Dataset):
+        if isinstance(dataset, ParserDataset):
             return dataset.data_parser
 
     @property
     def raw_graph_parser(self) -> GraphParser:
         dataset = self.dataset
-        if isinstance(dataset, Dataset):
-            return dataset.raw_graph_parser
+        if isinstance(dataset, ParserDataset):
+            return dataset.graph_parser
 
     @property
     def num_epochs(self):
