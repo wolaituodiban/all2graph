@@ -125,7 +125,7 @@ class JsonParser(DataParser):
         for sid, row in tqdm(df.iterrows(), disable=disable, postfix='parsing json'):
             obj = self.process_json(row[self.json_col], now=row[self.time_col])
             self.add_obj(graph, sid=sid, obj=obj)
-        graph.add_readouts_(self.targets)
+        graph.add_readouts_(self.targets, self_loop=self.self_loop)
         if self.global_seq:
             graph.add_edges_for_seq_by_key_(degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
         graph.to_simple_()

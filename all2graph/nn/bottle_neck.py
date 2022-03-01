@@ -27,13 +27,13 @@ class BottleNeck(Module):
                 layer.reset_parameters()
 
     def forward(
-            self, graph: Graph, key_emb: torch.Tensor, value_token_emb: torch.Tensor, num_emb: torch.Tensor
+            self, graph: Graph, key_feats: torch.Tensor, token_emb: torch.Tensor, num_emb: torch.Tensor
     ) -> torch.Tensor:
-        key_emb = graph.push_feats(key_emb, KEY, VALUE)
+        key_feats = graph.push_feats(key_feats, KEY, VALUE)
 
         mask = torch.bitwise_not(torch.isnan(num_emb).any(-1))
-        value_emb = value_token_emb.masked_fill(mask.unsqueeze(-1), 0)
+        value_emb = token_emb.masked_fill(mask.unsqueeze(-1), 0)
         value_emb[mask] += num_emb[mask]
 
-        kv_emb = torch.cat([key_emb, value_emb], dim=-1)
+        kv_emb = torch.cat([key_feats, value_emb], dim=-1)
         return self.layers(kv_emb)

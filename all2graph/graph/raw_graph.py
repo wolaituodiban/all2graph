@@ -96,6 +96,10 @@ class RawGraph(MetaStruct):
             ntypes.append(vtype)
         return set(ntypes)
 
+    @property
+    def readout_types(self):
+        return {ntype for ntype in self.ntypes if ntype != KEY and ntype != VALUE}
+
     def __eq__(self, other):
         return super().__eq__(other) \
                and self.keys == other.keys \
@@ -129,8 +133,8 @@ class RawGraph(MetaStruct):
         if ntype == KEY:
             return [self.keys[i] for i in nids]
         elif ntype in self.ntypes:
-            target2key = {v: u for u, v in zip(*self.edges[KEY, EDGE, ntype])}
-            return [self.keys[target2key[i]] for i in nids]
+            ntype2key = {v: u for u, v in zip(*self.edges[KEY, EDGE, ntype])}
+            return [self.keys[ntype2key[i]] for i in nids]
         else:
             raise ValueError('unknown ntype "{}", must be one of {}'.format(ntype, self.ntypes))
 
@@ -220,16 +224,16 @@ class RawGraph(MetaStruct):
         """
         if key not in self.__ori_kids:
             kid = self.num_nodes(KEY)
-            kids = [kid]
             self.__ori_kids[key] = kid
             self.keys.append(key)
+            if self_loop:
+                self._add_edge_(kid, kid, KEY2KEY)
             if isinstance(key, tuple):
                 self.keys += list(key)
-                sub_kids = list(range(self.__ori_kids[key], len(self.keys)))
-                kids += sub_kids
-                self._add_edges_for_seq_(sub_kids, KEY2KEY)
-            if self_loop:
-                self._add_edges_(kids, kids, KEY2KEY)
+                kids = list(range(self.__ori_kids[key], len(self.keys)))
+                self._add_edges_for_seq_(kids, KEY2KEY)
+                if self_loop:
+                    self._add_edges_(kids, kids, KEY2KEY)
         return self.__ori_kids[key]
 
     def __add_v_(self, sid, value, self_loop) -> int:
@@ -301,10 +305,10 @@ class RawGraph(MetaStruct):
         self._add_edge_(kid, vid, KEY2VALUE)
         return vid
 
-    def add_readouts_(self, ntypes: List[Union[str, Tuple]]):
+    def add_readouts_(self, ntypes: List[Union[str, Tuple]], self_loop):
         assert self.ntypes.isdisjoint(ntypes), '{} already exists'.format(self.ntypes.intersection(ntypes))
         for key in ntypes:
-            kid = self.__add_k_(key, self_loop=False)
+            kid = self.__add_k_(key, self_loop=self_loop)
             tids = list(range(len(self.__roots)))
             self._add_edges_([kid] * len(tids), tids, (KEY, EDGE, key))
             self._add_edges_(self.__roots, tids, (VALUE, EDGE, key))
@@ -507,12 +511,15 @@ class RawGraph(MetaStruct):
         return fig, ax
 
     def meta_info(self, **kwargs) -> MetaInfo:
-        return GraphInfo.from_data(
-            sample_ids=self.sids,
-            keys=self.get_keys(range(self.num_nodes(VALUE))),
-            values=self.formated_values,
-            **kwargs
-        )
+        sample_ids = self.sids
+        keys = self.get_keys(range(self.num_nodes(VALUE)))
+        values = self.formated_values
+        for ntype in self.readout_types:
+            nids = list(range(self.num_samples))
+            sample_ids = sample_ids + nids  # 因为+=会修改原始数据，所以不能用
+            keys += self.get_keys(nids, ntype=ntype)
+            values += [None] * self.num_samples
+        return GraphInfo.from_data(sample_ids=sample_ids, keys=keys, values=values, **kwargs)
 
     def extra_repr(self) -> str:
         return 'num_nodes={},\nnum_edges={}'.format(
