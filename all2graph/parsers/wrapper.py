@@ -45,7 +45,7 @@ class ParserWrapper:
         local_index_mapperss = {}
         for name, parser in self.data_parsers.items():
             raw_graph, global_index_mapper, local_index_mappers = parser.parse(df, disable=disable)
-            graph = self.raw_graph_parser.parse(raw_graph)
+            graph = self.raw_graph_parser.__call__(raw_graph)
             if self.temp_file:
                 filename = str(time.time())
                 filename = '+'.join([filename, str(id(filename))])+'.all2graph.graph'

@@ -28,7 +28,7 @@ def test_analyse():
 
     with ag.Timer('原生模式') as timer:
         df = pd.read_csv(csv_path, nrows=1000)
-        graph, global_index_mapper, local_index_mappers = json_parser.parse(df, disable=False)
+        graph, global_index_mapper, local_index_mappers = json_parser.__call__(df, disable=False)
         index_ids = list(global_index_mapper.values())
         for mapper in local_index_mappers:
             index_ids += list(mapper.values())

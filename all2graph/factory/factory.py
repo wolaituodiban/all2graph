@@ -69,7 +69,7 @@ class Factory(MetaStruct):
             return self.raw_graph_parser.targets
 
     def _produce_raw_graph(self, chunk):
-        return self.data_parser.parse(chunk, disable=True)
+        return self.data_parser.__call__(chunk, disable=True)
 
     def _analyse(self, chunk: pd.DataFrame) -> Tuple[MetaInfo, int]:
         graph, global_index_mapper, local_index_mappers = self._produce_raw_graph(chunk)
@@ -106,7 +106,7 @@ class Factory(MetaStruct):
 
     def produce_graph_and_label(self, chunk: pd.DataFrame):
         graph, *_ = self._produce_raw_graph(chunk)
-        x = self.raw_graph_parser.parse(graph)
+        x = self.raw_graph_parser.__call__(graph)
         labels = self.data_parser.gen_targets(chunk, target_cols=self.targets)
         return x, labels
 
@@ -124,7 +124,7 @@ class Factory(MetaStruct):
         """
         df, dst, meta_col, drop_col = x
         path = '.'.join([dst, 'all2graph.graph'])
-        raw_graph, *_ = self.data_parser.parse(df, disable=True)
+        raw_graph, *_ = self.data_parser.__call__(df, disable=True)
         graph, labels = self.produce_graph_and_label(df)
         graph.save(path, labels=labels)
 

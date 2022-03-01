@@ -1,18 +1,18 @@
-from abc import abstractproperty
 import copy
 import os
 import sys
-from typing import Dict, Union, Tuple
+from abc import abstractproperty, abstractmethod
+from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from ..data import Dataset, default_collate
-from ..parsers import GraphParser, ParserWrapper
-from ..graph import Graph, RawGraph
+from ..data import default_collate
+from ..graph import Graph
 from ..parsers import DataParser
+from ..parsers import ParserWrapper
 from ..utils import tqdm
 from ..version import __version__
 
@@ -105,8 +105,17 @@ class Module(torch.nn.Module):
     def num_parameters(self):
         return num_parameters(self)
 
+    @abstractmethod
+    def reset_parameters(self):
+        for module in self.children():
+            if hasattr(module, 'reset_parameters'):
+                module.reset_parameters()
+
     def predict_dataloader(self, loader: DataLoader, postfix=None):
         return predict_dataloader(self, loader, postfix)
+
+    def extra_repr(self) -> str:
+        return 'num_parameters={}'.format(self.num_parameters)
 
 
 class Predictor(Module):

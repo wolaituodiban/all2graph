@@ -27,8 +27,8 @@ class Dataset(_Dataset):
 
     def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
         df = pd.concat(batches)
-        graph = self.data_parser.parse(df, disable=True)[0]
-        graph = self.raw_graph_parser.parse(graph)
+        graph = self.data_parser.__call__(df, disable=True)[0]
+        graph = self.raw_graph_parser.__call__(graph)
         label = self.data_parser.gen_targets(df, self.raw_graph_parser.targets)
         return graph, label
 

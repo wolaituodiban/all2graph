@@ -64,7 +64,7 @@ class GraphParser(MetaStruct):
                 raise KeyError('unknown scale_method {}'.format(self.scale_method))
         return df['number'].values
 
-    def parse(self, graph: RawGraph):
+    def __call__(self, graph: RawGraph):
         """
 
         :param graph:

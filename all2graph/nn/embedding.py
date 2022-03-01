@@ -1,71 +1,42 @@
-from typing import Dict
+import math
 import torch
-from .utils import _get_activation
+from .utils import _get_activation, Module
 
 
-class NodeEmbedding(torch.nn.Module):
-    def __init__(self, embedding_dim, num_weight: bool, key_bias: bool, activation=None):
-        super().__init__()
-        self.num_weight = num_weight
-        if self.num_weight:
-            self.num_norm = torch.nn.BatchNorm1d(embedding_dim)
+class NumEmb(Module):
+    """
+    参考torch.nn.Embedding文档，将数值型特征也变成相同的形状。
+    实际上就是将输入的张量扩展一个为1的维度之后，加上一个没有常数项的全连接层
+    """
+    def __init__(self, emb_dim, bias=True, activation='relu'):
+        super(NumEmb, self).__init__()
+        self.weight = torch.nn.Parameter(torch.empty(emb_dim))
+        if bias:
+            self.bias = torch.nn.Parameter(torch.zeros(emb_dim))
         else:
-            self.num_norm = torch.nn.BatchNorm1d(1)
-        self.key_bias = key_bias
+            self.bias = None
         self.activation = _get_activation(activation)
-
-    @property
-    def node_parameter_names(self):
-        return self.parameter_names_1d
-
-    @property
-    def parameter_names_1d(self):
-        output = []
-        if self.num_weight:
-            output.append(self.NUMBER_WEIGHT)
-        if self.key_bias:
-            output.append(self.KEY_BIAS)
-        return output
-
-    @property
-    def parameter_names(self):
-        return self.parameter_names_1d
+        self.reset_parameters()
 
     @property
     def device(self):
-        return self.embedding.weight.device
-
-    def forward(self, feat: torch.Tensor, number: torch.Tensor, parameters: Dict[str, torch.Tensor]) -> torch.Tensor:
-        """
-
-        Args:
-            feat: tensor(num_nodes, dim)
-            number: tensor(num_nodes, )
-            parameters: dict of tensor(num_nodes, out_dim)
-
-        Returns:
-            (num_nodes, dim)
-        """
-        output = feat
-        mask = torch.isnan(number)
-        mask = torch.bitwise_not(mask)
-        output = torch.masked_fill(output, mask.view(-1, 1), 0)
-        number = number[mask].view(-1, 1)
-        if self.num_weight and number.shape[0] > 0:
-            num_weight = parameters[self.NUMBER_WEIGHT][mask]
-            number = number * num_weight.view(num_weight.shape[0], -1)
-            if self.activation is not None:
-                number = self.activation(number)
-        output[mask] += self.num_norm(number)
-        if self.key_bias:
-            key_bias = parameters[self.KEY_BIAS]
-            output += key_bias.view(output.shape)
-        return output
+        return self.weight.device
 
     def reset_parameters(self):
-        for module in self.children():
-            if hasattr(module, 'reset_parameters'):
-                module.reset_parameters()
+        bound = 1 / math.sqrt(self.weight.shape[0])
+        torch.nn.init.uniform_(self.weight, -bound, bound)
+        if self.bias is not None:
+            torch.nn.init.zeros_(self.bias)
 
-    def extra_repr(self) -> str:
-        return 'num_weight={}, key_bias={}'.format(self.num_weight, self.key_bias)
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
+        output = inputs.unsqueeze(-1) * self.weight
+        if self.bias is not None:
+            output = output + self.bias
+        if self.activation:
+            output = self.activation(output)
+        return output
+
+    def extra_repr(self):
+        return 'emb_dim={}, bias={}'.format(
+            self.weight.shape[0], self.bias is not None
+        )

@@ -1,8 +1,10 @@
 from typing import Dict, List
 import torch
 
+from .utils import Module
 
-class DictLoss(torch.nn.Module):
+
+class DictLoss(Module):
     def __init__(self, torch_loss: torch.nn.Module, weights: Dict[str, float] = None):
         """
         封装输入类型为dict的loss
@@ -13,6 +15,10 @@ class DictLoss(torch.nn.Module):
         super(DictLoss, self).__init__()
         self.torch_loss = torch_loss
         self.weights = weights or {}
+
+    @property
+    def device(self):
+        raise NotImplementedError
 
     def forward(self, inputs: Dict[str, torch.Tensor], target: Dict[str, torch.Tensor]):
         if len(target) == 0:
@@ -34,7 +40,7 @@ class DictLoss(torch.nn.Module):
         return loss / weight_sum
 
 
-class ListLoss(torch.nn.Module):
+class ListLoss(Module):
     def __init__(self, torch_loss: torch.nn.Module, weights: List[float] = None):
         """
         封装输入类型为list的loss
@@ -45,6 +51,10 @@ class ListLoss(torch.nn.Module):
         super(ListLoss, self).__init__()
         self.torch_loss = torch_loss
         self.weights = weights
+
+    @property
+    def device(self):
+        raise NotImplementedError
 
     def forward(self, inputs: List[torch.Tensor], target: List[torch.Tensor]):
         loss = 0

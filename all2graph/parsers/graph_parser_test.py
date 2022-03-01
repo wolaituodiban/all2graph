@@ -12,10 +12,11 @@ def test_parse():
     raw_graph.add_kv_(0, ('a', 'b'), 'b', False)
     raw_graph.add_kv_(1, ('a', 'b'), 'c', True)
     raw_graph.add_kv_(2, ('a', 'b'), 'c', True)
+    raw_graph.add_readouts_(['a', 'haha'])
     print(raw_graph)
     meta_info = raw_graph.meta_info()
     graph_parser = ag.GraphParser.from_data(meta_info)
-    graph = graph_parser.parse(raw_graph)
+    graph = graph_parser(raw_graph)
     print(graph)
 
 

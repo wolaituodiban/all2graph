@@ -22,7 +22,7 @@ df = pd.DataFrame(
 
 def test_targets():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', targets=['t7', 't1'])
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -32,7 +32,7 @@ def test_targets():
 
 def test_d_degree():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', d_degree=2)
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -42,7 +42,7 @@ def test_d_degree():
 
 def test_d_inner_edge():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', d_inner_edge=True)
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -52,7 +52,7 @@ def test_d_inner_edge():
 
 def test_l_degree():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', l_degree=0)
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -62,7 +62,7 @@ def test_l_degree():
 
 def test_l_inner_degree():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', l_inner_degree=0)
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -72,7 +72,7 @@ def test_l_inner_degree():
 
 def test_r_l_inner_degree():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', r_l_inner_degree=-1)
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -82,7 +82,7 @@ def test_r_l_inner_degree():
 
 def test_self_loop():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', self_loop=True)
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -92,7 +92,7 @@ def test_self_loop():
 
 def test_bidirectional():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', bidirectional=True)
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -102,7 +102,7 @@ def test_bidirectional():
 
 def test_global_seq():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', global_seq=True)
-    graph = json_parser.parse(df)
+    graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -112,7 +112,7 @@ def test_global_seq():
 
 def test_lid_keys():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', lid_keys=['ord_no'])
-    graph = json_parser.parse(pd.concat([df] * 2))
+    graph = json_parser(pd.concat([df] * 2))
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)
@@ -122,7 +122,7 @@ def test_lid_keys():
 
 def test_gid_keys():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', gid_keys=['ord_no'])
-    graph = json_parser.parse(pd.concat([df] * 2))
+    graph = json_parser(pd.concat([df] * 2))
     graph._assert()
     fig, ax = plt.subplots(figsize=(20, 8))
     graph.draw(key=True, ax=ax)

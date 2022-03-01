@@ -8,7 +8,7 @@ import pandas as pd
 from .data_parser import DataParser
 from ..graph import RawGraph
 from ..utils import tqdm
-from ..globals import READOUT
+from ..globals import ROOT
 
 
 class JsonParser(DataParser):
@@ -101,7 +101,7 @@ class JsonParser(DataParser):
         if self.l_inner_degree != 0 or self.r_l_inner_degree != 0:
             graph.add_edges_for_seq_(nids, degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
 
-    def add_obj(self, graph, sid, obj, key=READOUT, vids=None):
+    def add_obj(self, graph, sid, obj, key=ROOT, vids=None):
         vids = vids or [graph.add_kv_(sid, key, obj, self.self_loop)]
         if isinstance(obj, dict):
             self._add_dict(graph, sid=sid, obj=obj, vids=vids)
@@ -120,12 +120,12 @@ class JsonParser(DataParser):
             obj = self.processor(obj, now=now)
         return obj
 
-    def parse(self, df: pd.DataFrame, disable: bool = True) -> RawGraph:
+    def __call__(self, df: pd.DataFrame, disable: bool = True) -> RawGraph:
         graph = RawGraph()
         for sid, row in tqdm(df.iterrows(), disable=disable, postfix='parsing json'):
             obj = self.process_json(row[self.json_col], now=row[self.time_col])
             self.add_obj(graph, sid=sid, obj=obj)
-        graph.add_targets_(self.targets)
+        graph.add_readouts_(self.targets)
         if self.global_seq:
             graph.add_edges_for_seq_by_key_(degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
         graph.to_simple_()

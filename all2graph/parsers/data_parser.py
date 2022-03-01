@@ -25,7 +25,7 @@ class DataParser(MetaStruct):
             return {}
 
     @abstractmethod
-    def parse(self, data, disable: bool = True) -> RawGraph:
+    def __call__(self, data, disable: bool = True) -> RawGraph:
         raise NotImplementedError
 
     def __eq__(self, other):
@@ -56,6 +56,6 @@ class DataAugmenter(DataParser):
         else:
             self.weights = np.array(weights) / np.sum(weights)
 
-    def parse(self, data, disable: bool = True, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
+    def __call__(self, data, disable: bool = True, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
         parser = np.random.choice(self.parsers, p=self.weights)
-        return parser.parse(data, disable=disable, **kwargs)
+        return parser.__call__(data, disable=disable, **kwargs)
