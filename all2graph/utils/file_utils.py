@@ -70,7 +70,7 @@ def iter_files(inputs, error=True, warning=True):
         print('path {} dose not exists'.format(inputs), file=sys.stderr)
 
 
-def dataframe_chunk_iter(inputs, chunksize, error=True, warning=True, concat_chip=True, recurse=True, **kwargs):
+def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recurse=True, **kwargs):
     """
 
     Args:
@@ -139,7 +139,7 @@ def split_csv(
         raise ValueError('{} already exists'.format(dst))
     os.mkdir(dst)
     chunk_iter = enumerate(
-        dataframe_chunk_iter(src, chunksize=chunksize, error=error, warning=warning, concat_chip=concat_chip, **kwargs))
+        iter_csv(src, chunksize=chunksize, error=error, warning=warning, concat_chip=concat_chip, **kwargs))
     for i, chunk in tqdm(chunk_iter, disable=disable, postfix='spliting csv'):
         if zip:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'zip'))

@@ -14,7 +14,7 @@ class DataParser(MetaStruct):
         self.time_format = time_format
         self.targets = targets or []
 
-    def gen_targets(self, df: pd.DataFrame):
+    def get_targets(self, df: pd.DataFrame):
         if self.targets:
             import torch
             return {
@@ -25,7 +25,7 @@ class DataParser(MetaStruct):
             return {}
 
     @abstractmethod
-    def __call__(self, data, disable: bool = True) -> RawGraph:
+    def __call__(self, data: pd.DataFrame, disable: bool = True) -> RawGraph:
         raise NotImplementedError
 
     def __eq__(self, other):

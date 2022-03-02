@@ -1,4 +1,4 @@
-from .file_utils import dataframe_chunk_iter, split_csv, iter_files, timestamp_convertor
+from .file_utils import iter_csv, split_csv, iter_files, timestamp_convertor
 from .mp_utils import MpMapFuncWrapper
 from .metrics import ks_score, Metric
 from .time_utils import Timer

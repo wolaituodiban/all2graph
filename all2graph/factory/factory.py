@@ -9,7 +9,7 @@ from ..graph import RawGraph
 from ..info import MetaInfo
 from ..parsers import DataParser, GraphParser
 from ..utils import tqdm
-from ..utils.file_utils import dataframe_chunk_iter, split_csv
+from ..utils.file_utils import iter_csv, split_csv
 from ..meta_struct import MetaStruct
 
 
@@ -28,14 +28,14 @@ def _verify_kwargs(func, *args, kwargs):
 class Factory(MetaStruct):
     """Factory"""
     def __init__(
-            self, data_parser: DataParser, meta_info_config: dict = None, raw_graph_parser_config: dict = None):
+            self, data_parser: DataParser, meta_info_config: dict = None, graph_parser: dict = None):
         """
 
         Args:
             data_parser:
             meta_info_config:
                 num_bins: 统计各种分布时的分箱数量
-            raw_graph_parser_config:
+            graph_parser:
                 min_df: 字符串最小文档频率
                 max_df: 字符串最大文档频率
                 top_k: 选择前k个字符串
@@ -51,22 +51,15 @@ class Factory(MetaStruct):
         if meta_info_config is not None:
             unexp_args = _verify_kwargs(MetaInfo.from_data, RawGraph(), kwargs=meta_info_config)
             assert len(unexp_args) == 0, 'meta_info_config got unexpected keyword argument {}'.format(unexp_args)
-        if raw_graph_parser_config is not None:
-            unexp_args = _verify_kwargs(GraphParser.from_data, None, kwargs=raw_graph_parser_config)
+        if graph_parser is not None:
+            unexp_args = _verify_kwargs(GraphParser.from_data, None, kwargs=graph_parser)
             assert len(unexp_args) == 0, 'raw_graph_parser_config got unexpected keyword argument {}'.format(unexp_args)
 
         self.data_parser = data_parser
         self.meta_info_config = meta_info_config or {}
-        self.raw_graph_parser_config = raw_graph_parser_config or {}
-        self.raw_graph_parser: Union[GraphParser, None] = None
+        self.graph_parser_config = graph_parser or {}
+        self.graph_parser: Union[GraphParser, None] = None
         self.save_path = None  # 多进程的cache
-
-    @property
-    def targets(self):
-        if self.raw_graph_parser is None:
-            return []
-        else:
-            return self.raw_graph_parser.targets
 
     def _produce_raw_graph(self, chunk):
         return self.data_parser.__call__(chunk, disable=True)
@@ -81,7 +74,7 @@ class Factory(MetaStruct):
 
     def analyse(self, data: Union[pd.DataFrame, Iterable[pd.DataFrame]], chunksize=64, disable=False,
                 postfix='reading csv', processes=None, **kwargs) -> MetaInfo:
-        data = dataframe_chunk_iter(data, chunksize=chunksize, **kwargs)
+        data = iter_csv(data, chunksize=chunksize, **kwargs)
         meta_infos: List[MetaInfo] = []
         weights = []
         if processes == 0:
@@ -101,13 +94,13 @@ class Factory(MetaStruct):
         meta_info = MetaInfo.reduce(
             meta_infos, weights=weights, disable=disable, processes=processes, **self.meta_info_config
         )
-        self.raw_graph_parser = GraphParser.from_data(meta_info, **self.raw_graph_parser_config)
+        self.graph_parser = GraphParser.from_data(meta_info, **self.graph_parser_config)
         return meta_info
 
     def produce_graph_and_label(self, chunk: pd.DataFrame):
         graph, *_ = self._produce_raw_graph(chunk)
-        x = self.raw_graph_parser.__call__(graph)
-        labels = self.data_parser.gen_targets(chunk, target_cols=self.targets)
+        x = self.graph_parser.__call__(graph)
+        labels = self.data_parser.get_targets(chunk, target_cols=self.targets)
         return x, labels
 
     def _save(self, x: Tuple[pd.DataFrame, str, Union[None, list], Union[None, list]]) -> pd.DataFrame:
@@ -162,7 +155,7 @@ class Factory(MetaStruct):
         if postfix is None:
             postfix = 'saving graph'
         os.mkdir(dst)
-        generator = dataframe_chunk_iter(src, chunksize=chunksize, **kwargs)
+        generator = iter_csv(src, chunksize=chunksize, **kwargs)
         generator = ((df, os.path.join(dst, str(i)), meta_cols, drop_cols) for i, df in enumerate(generator))
         if processes == 0:
             meta_df = pd.concat(tqdm(map(self._save, generator), disable=disable, postfix=postfix))
@@ -197,12 +190,12 @@ class Factory(MetaStruct):
             else:
                 from ..data import CSVDataset
                 dataset = CSVDataset(
-                    src=meta_df, data_parser=self.data_parser, graph_parser=self.raw_graph_parser,
+                    src=meta_df, data_parser=self.data_parser, graph_parser=self.graph_parser,
                     **(csv_configs or {}))
         else:
             from ..data import DFDataset
             dataset = DFDataset(
-                df=df, data_parser=self.data_parser, graph_parser=self.raw_graph_parser
+                df=df, data_parser=self.data_parser, graph_parser=self.graph_parser
             )
         return dataset.build_dataloader(num_workers=num_workers, shuffle=shuffle, batch_size=batch_size, **kwargs)
 
@@ -211,23 +204,23 @@ class Factory(MetaStruct):
             mock=True):
         from ..nn import Encoder, EncoderMetaLearner, EncoderMetaLearnerMocker
         encoder = Encoder(
-            num_embeddings=self.raw_graph_parser.num_strings, d_model=d_model, nhead=nhead,
+            num_embeddings=self.graph_parser.num_strings, d_model=d_model, nhead=nhead,
             num_layers=num_layers, **(encoder_config or {}))
         if mock:
-            model = EncoderMetaLearnerMocker(raw_graph_parser=self.raw_graph_parser, encoder=encoder)
+            model = EncoderMetaLearnerMocker(raw_graph_parser=self.graph_parser, encoder=encoder)
         else:
             model = EncoderMetaLearner(
-                raw_graph_parser=self.raw_graph_parser, encoder=encoder, **(learner_config or {}))
+                raw_graph_parser=self.graph_parser, encoder=encoder, **(learner_config or {}))
         return model
 
     def extra_repr(self) -> str:
         return 'data_parser: {}\ngraph_parser: {}'.format(
-            self.data_parser, self.raw_graph_parser
+            self.data_parser, self.graph_parser
         )
 
     def __eq__(self, other):
         return super().__eq__(other) \
-               and self.raw_graph_parser == other.graph_parser and self.data_parser == other.graph_parser
+               and self.graph_parser == other.graph_parser_config and self.data_parser == other.graph_parser_config
 
     @classmethod
     def from_data(cls, **kwargs):
@@ -245,4 +238,4 @@ class Factory(MetaStruct):
         raise NotImplementedError
 
     def set_filter_key(self, x):
-        self.raw_graph_parser.set_filter_key(x)
+        self.graph_parser.set_filter_key(x)

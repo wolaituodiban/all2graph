@@ -8,7 +8,7 @@ from torch.utils.data import Dataset as _Dataset, DataLoader
 from .sampler import PartitionSampler
 from .utils import default_collate
 from ..graph import Graph
-from ..parsers import DataParser, GraphParser
+from ..parsers import ParserWrapper
 
 
 class Dataset(_Dataset):
@@ -28,9 +28,8 @@ class Dataset(_Dataset):
 
 
 class ParserDataset(Dataset):
-    def __init__(self, data_parser: DataParser, graph_parser: GraphParser):
-        self.data_parser = data_parser
-        self.graph_parser = graph_parser
+    def __init__(self, parser: ParserWrapper):
+        self.parser = parser
 
     def __len__(self):
         raise NotImplementedError
@@ -40,9 +39,8 @@ class ParserDataset(Dataset):
 
     def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
         df = pd.concat(batches)
-        graph = self.data_parser(df, disable=True)
-        graph = self.graph_parser(graph)
-        label = self.data_parser.gen_targets(df)
+        graph = self.parser(df, return_df=False)
+        label = self.parser.get_targets(df)
         return graph, label
 
     def build_dataloader(self, **kwargs) -> DataLoader:
@@ -116,10 +114,9 @@ class PartitionDataset(Dataset):
 
 
 class CSVDataset(PartitionDataset, ParserDataset):
-    def __init__(self, path: pd.DataFrame, data_parser: DataParser, graph_parser: GraphParser, **kwargs):
+    def __init__(self, path: pd.DataFrame, parser: ParserWrapper, **kwargs):
         super().__init__(path)
-        self.data_parser = data_parser
-        self.graph_parser = graph_parser
+        self.parser = parser
         self.kwargs = kwargs
 
     def read_file(self, path):
@@ -127,8 +124,8 @@ class CSVDataset(PartitionDataset, ParserDataset):
 
 
 class DFDataset(ParserDataset):
-    def __init__(self, df: pd.DataFrame, data_parser: DataParser, graph_parser: GraphParser):
-        super().__init__(data_parser=data_parser, graph_parser=graph_parser)
+    def __init__(self, df: pd.DataFrame, parser: ParserWrapper,):
+        super().__init__(parser=parser)
         self._df = df
 
     def __len__(self):

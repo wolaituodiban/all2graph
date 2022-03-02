@@ -15,7 +15,7 @@ def test_csvdataset():
         shutil.rmtree('temp')
 
     meta_df = ag.split_csv(df, 'temp', chunksize=100, drop_cols=['json'])
-    dataset = ag.data.CSVDataset(meta_df, data_parser=json_parser, graph_parser=graph_parser)
+    dataset = ag.data.CSVDataset(meta_df, parser=parser_wrapper)
     data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
 
     num_samples = 0
@@ -30,7 +30,7 @@ def test_csvdataset():
 
 
 def test_dfdataset():
-    dataset = ag.data.DFDataset(df, data_parser=json_parser, graph_parser=graph_parser)
+    dataset = ag.data.DFDataset(df, parser=parser_wrapper)
     data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
 
     num_samples = 0
@@ -62,6 +62,7 @@ if __name__ == '__main__':
     print(raw_graph.num_samples)
     meta_info = raw_graph.meta_info()
     graph_parser = ag.GraphParser.from_data(meta_info)
+    parser_wrapper = ag.ParserWrapper(data_parser=json_parser, graph_parser=graph_parser)
 
     test_csvdataset()
     test_dfdataset()

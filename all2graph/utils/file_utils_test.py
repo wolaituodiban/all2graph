@@ -37,7 +37,7 @@ def test_iter_files():
 def test_dataframe_chunk_iter():
     def test_error():
         try:
-            for _ in ag.dataframe_chunk_iter('./', chunksize=64):
+            for _ in ag.iter_csv('./', chunksize=64):
                 pass
         except ValueError:
             traceback.print_exc()
@@ -45,7 +45,7 @@ def test_dataframe_chunk_iter():
         raise ValueError('test_error failed')
 
     def test_warning():
-        for _ in ag.dataframe_chunk_iter('file_utils.py', chunksize=64, error=False):
+        for _ in ag.iter_csv('file_utils.py', chunksize=64, error=False):
             pass
 
     def test_concat_chip():
@@ -60,7 +60,7 @@ def test_dataframe_chunk_iter():
             num_lines += new_df.shape[0]
         print(num_lines)
         num_lines2 = []
-        for chunk in ag.tqdm(ag.dataframe_chunk_iter(directory, chunksize=64, concat_chip=True)):
+        for chunk in ag.tqdm(ag.iter_csv(directory, chunksize=64, concat_chip=True)):
             num_lines2.append(chunk.shape[0])
 
         assert sum(num_lines2) == num_lines
@@ -76,11 +76,11 @@ def test_dataframe_chunk_iter():
         for i in ag.tqdm(range(1, 20)):
             new_df = pd.concat([df] * i)
             new_df.to_csv(os.path.join(directory, str(i)+'.csv'))
-        for _ in ag.dataframe_chunk_iter(directory, chunksize=64):
+        for _ in ag.iter_csv(directory, chunksize=64):
             pass
 
         try:
-            for _ in ag.dataframe_chunk_iter(directory, chunksize=64, recurse=False):
+            for _ in ag.iter_csv(directory, chunksize=64, recurse=False):
                 pass
         except:
             traceback.print_exc()
@@ -101,7 +101,7 @@ def test_split_csv():
         shutil.rmtree('temp')
     data = np.random.random(10000)
     df = pd.DataFrame({'uid': data, 'data': data})
-    for chunk in ag.dataframe_chunk_iter(df, chunksize=1000):
+    for chunk in ag.iter_csv(df, chunksize=1000):
         assert chunk.shape[0] == 1000
 
     meta_df = ag.split_csv(df, 'temp', chunksize=1000, meta_cols=['uid'], concat_chip=False)

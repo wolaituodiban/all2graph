@@ -296,8 +296,8 @@ class Trainer(torch.nn.Module):
             return
 
         factory = Factory(
-            data_parser=data_parser, raw_graph_parser_config=raw_graph_parser_config, meta_info_config=meta_info_config)
-        factory.raw_graph_parser = raw_graph_parser
+            data_parser=data_parser, graph_parser=raw_graph_parser_config, meta_info_config=meta_info_config)
+        factory.graph_parser = raw_graph_parser
         return factory
 
     def delete_history(self, epochs=None):
