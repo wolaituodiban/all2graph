@@ -30,6 +30,7 @@ class JsonParser(DataParser):
             global_seq=False,
             lid_keys=None,
             gid_keys=None,
+            to_simple=True,
             # 预处理
             processor=None,
             **kwargs
@@ -68,6 +69,7 @@ class JsonParser(DataParser):
         self.global_seq = global_seq
         self.lid_keys = lid_keys
         self.gid_keys = gid_keys
+        self.to_simple = to_simple
         self.processor = processor
 
     def _add_dict(self, graph: RawGraph, sid: int, obj: dict, vids: List[int]):
@@ -129,7 +131,8 @@ class JsonParser(DataParser):
         graph.add_readouts_(self.targets, self_loop=self.self_loop)
         if self.global_seq:
             graph.add_edges_for_seq_by_key_(degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
-        graph.to_simple_()
+        if self.to_simple:
+            graph.to_simple_()
         return graph
 
     def extra_repr(self) -> str:
