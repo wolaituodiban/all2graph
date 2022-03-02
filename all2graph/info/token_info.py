@@ -87,3 +87,11 @@ class TokenInfo(MetaStruct):
 
     def extra_repr(self) -> str:
         return 'count={}\nfreq={}'.format(self.count, self.freq)
+
+
+class _TokenReducer:
+    def __init__(self, **kwargs):
+        self.kwargs = kwargs
+
+    def __call__(self, tokens: TokenInfo):
+        return TokenInfo.reduce(tokens, **self.kwargs)

@@ -1,13 +1,13 @@
-from typing import Dict, List
+from typing import Dict
 
 import numpy as np
 import pandas as pd
 
-from .number_info import NumberInfo
-from .token_info import TokenInfo
+from .number_info import NumberInfo, _NumberReducer
+from .token_info import TokenInfo, _TokenReducer
 from .meta_info import MetaInfo
-from ..stats import ECDF
-from ..utils import tqdm
+from ..stats import ECDF, _ECDFReducer
+from ..utils import tqdm, mp_run
 
 
 class GraphInfo(MetaInfo):
@@ -142,7 +142,7 @@ class GraphInfo(MetaInfo):
         return super().from_data(token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
 
     @classmethod
-    def reduce(cls, structs, weights=None, num_bins=None, processes=0, chunksize=None, disable=True):
+    def reduce(cls, structs, weights=None, num_bins=None, processes=0, chunksize=1, disable=True):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -159,18 +159,34 @@ class GraphInfo(MetaInfo):
         key_counts = key_counts.fillna(ECDF.from_data([0]))
 
         # reduce
+        number_reducer = _NumberReducer(weights=weights, num_bins=num_bins)
+        token_reducer = _TokenReducer(weights=weights, num_bins=num_bins)
+        ecdf_reducer = _ECDFReducer(weights=weights, num_bins=num_bins)
+
         number_infos = {
-            key: NumberInfo.reduce(number_infos[key], weights=weights, num_bins=num_bins)
-            for key in tqdm(number_infos.columns, disable=disable, postfix='reduce number info')
+            key: info for key, info in zip(
+                number_infos,
+                mp_run(number_reducer, [s for _, s in number_infos.iteritems()], processes=processes,
+                       chunksize=chunksize, disable=disable, postfix='reduce number info')
+            )
         }
+
         token_infos = {
-            token: TokenInfo.reduce(token_infos[token], weights=weights, num_bins=num_bins)
-            for token in tqdm(token_infos.columns, disable=disable, postfix='reduce token info')
+            key: info for key, info in zip(
+                token_infos,
+                mp_run(token_reducer, [s for _, s in token_infos.iteritems()], processes=processes,
+                       chunksize=chunksize, disable=disable, postfix='reduce token info')
+            )
         }
+
         key_counts = {
-            key: ECDF.reduce(key_counts[key], weights=weights, num_bins=num_bins)
-            for key in tqdm(key_counts.columns, disable=disable, postfix='reduce key count')
+            key: info for key, info in zip(
+                key_counts,
+                mp_run(ecdf_reducer, [s for _, s in key_counts.iteritems()], processes=processes,
+                       chunksize=chunksize, disable=disable, postfix='reduce ecdf info')
+            )
         }
+
         return super().reduce(structs, weights=weights,
                               token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
 

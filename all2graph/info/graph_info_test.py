@@ -32,7 +32,7 @@ def test_reduce():
     keys = np.concatenate(keys)
     values = np.concatenate(values)
 
-    graph_info1 = ag.GraphInfo.reduce(graph_infos)
+    graph_info1 = ag.GraphInfo.reduce(graph_infos, processes=4, disable=False)
     graph_info2 = ag.GraphInfo.from_data(sample_ids=sample_ids, keys=keys, values=values)
 
     assert graph_info1.__eq__(graph_info2, debug=True)
