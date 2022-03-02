@@ -37,9 +37,7 @@ class RawGraph(MetaStruct):
         self.edges = {
             KEY2KEY: [[], []],
             KEY2VALUE: [[], []],
-            # KEY2READOUT: [[], []],
             VALUE2VALUE: [[], []],
-            # VALUE2READOUT: [[], []]
         }
         self.__roots = []  # sample id和root id的映射关系
 
@@ -68,21 +66,17 @@ class RawGraph(MetaStruct):
     def key2value(self):
         return self.edges[KEY2VALUE]
 
-    # @property
-    # def key2target(self):
-    #     return self.edges[KEY2READOUT]
-
     @property
     def value2value(self):
         return self.edges[VALUE2VALUE]
 
-    # @property
-    # def value2readout(self):
-    #     return self.edges[VALUE2READOUT]
-
     @property
     def formated_values(self):
-        return [None if isinstance(v, (list, dict)) else v for v in self.values]
+        # 排除所有ID的value
+        glids = set(self.__gids.values())
+        for lids in self.__lids.values():
+            glids = glids.union(lids.values())
+        return [None if isinstance(v, (list, dict)) or i in glids else v for i, v in enumerate(self.values)]
 
     @property
     def num_values(self):

@@ -160,16 +160,16 @@ class GraphInfo(MetaInfo):
 
         # reduce
         number_infos = {
-            key: NumberInfo.reduce(series, weights=weights, num_bins=num_bins)
-            for key, series in tqdm(number_infos.iteritems(), disable=disable, postfix='reduce number info')
+            key: NumberInfo.reduce(number_infos[key], weights=weights, num_bins=num_bins)
+            for key in tqdm(number_infos.columns, disable=disable, postfix='reduce number info')
         }
         token_infos = {
-            token: TokenInfo.reduce(series, weights=weights, num_bins=num_bins)
-            for token, series in tqdm(token_infos.iteritems(), disable=disable, postfix='reduce token info')
+            token: TokenInfo.reduce(token_infos[token], weights=weights, num_bins=num_bins)
+            for token in tqdm(token_infos.columns, disable=disable, postfix='reduce token info')
         }
         key_counts = {
-            key: ECDF.reduce(series, weights=weights, num_bins=num_bins)
-            for key, series in tqdm(key_counts.iteritems(), disable=disable, postfix='reduce key count')
+            key: ECDF.reduce(key_counts[key], weights=weights, num_bins=num_bins)
+            for key in tqdm(key_counts.columns, disable=disable, postfix='reduce key count')
         }
         return super().reduce(structs, weights=weights,
                               token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)

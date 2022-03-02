@@ -1,11 +1,15 @@
+import os
 from typing import Tuple, List, Dict, Union
 
+import torch
 import pandas as pd
 
 from .data_parser import DataParser
 from .graph_parser import GraphParser
+from ..graph import Graph
 from ..meta_struct import MetaStruct
-from ..utils import iter_csv, tqdm
+from ..utils import iter_csv, mp_run
+
 
 UnionType = Union[GraphParser, Tuple[GraphParser, List[str]]]
 
@@ -33,7 +37,7 @@ class ParserWrapper(MetaStruct):
                 parser = (parser, list(self.data_parser))
             self.graph_parser[k] = parser
 
-    def __call__(self, df: pd.DataFrame, disable=True, return_df=True):
+    def __call__(self, df: pd.DataFrame, disable=True, return_df=True) -> Union[Graph, Tuple[Graph, pd.DataFrame]]:
         raw_graph = {k: parser(df, disable=disable) for k, parser in self.data_parser.items()}
         graph = {}
         for graph_key, (graph_parser, data_keys) in self.graph_parser.items():
@@ -47,14 +51,17 @@ class ParserWrapper(MetaStruct):
         else:
             return graph
 
-    def get_targets(self, df):
-        targets = {}
+    def labels(self, df):
+        labels = {}
         for data_key, data_parser in self.data_parser.items():
-            targets.update(data_parser.get_targets(df))
-        return targets
+            labels.update(data_parser.get_targets(df))
+        return labels
 
-    def graph_generator(
-            self, src, disable=False, chunksize=64, processes=0, postfix='parsing', return_df=False, **kwargs):
+    def graph_and_labels(self, df) -> Tuple[Graph, Dict[str, torch.Tensor]]:
+        return self(df, return_df=False), self.labels(df)
+
+    def generator(
+            self, src, disable=False, chunksize=64, processes=None, postfix='parsing', return_df=False, **kwargs):
         """
         返回一个graph生成器
         Args:
@@ -64,32 +71,65 @@ class ParserWrapper(MetaStruct):
             processes: 多进程数量
             postfix: 进度条后缀
             return_df: 是否返回graph之外的东西
-            **kwargs:
+            **kwargs: pd.read_csv的额外参数
 
         Returns:
             graph:
             df
         """
-        def foo(map_fn):
-            for graph, df in tqdm(map_fn(self, data), disable=disable, postfix=postfix):
-                if return_df:
-                    yield graph, df
-                else:
-                    yield graph
-
         data = iter_csv(src, chunksize=chunksize, **kwargs)
-        if processes == 0:
-            foo(map)
-        else:
-            try:
-                from dgl.multiprocessing import Pool
-            except ImportError:
-                try:
-                    from torch.multiprocessing import Pool
-                except ImportError:
-                    from multiprocessing import Pool
-            with Pool(processes) as pool:
-                foo(pool.imap)
+        for graph, df in mp_run(self, data, processes=processes, disable=disable, postfix=postfix):
+            if return_df:
+                yield graph, df
+            else:
+                yield graph
+
+    def save(
+            self, src, dst, disable=False, chunksize=64,
+            postfix='saving graph', processes=None, sel_cols=None, drop_cols=None, **kwargs):
+        """
+        将原始数据加工后，存储成分片的文件
+        Args:
+            src: 原始数据
+            dst: 存储文件夹路径
+            disable: 是否禁用进度条
+            chunksize: 分片数据的大小
+            postfix: 进度条后缀
+            processes: 多进程数量
+            sel_cols: 需要返回的元数据列
+            drop_cols: 需要去掉的列，只在meta_col为None时生效
+            **kwargs: pd.read_csv的额外参数
+
+        Returns:
+            返回一个包含路径和元数据的DataFrame
+        """
+        # assert meta_col is None or isinstance(meta_col, list)
+        assert not os.path.exists(dst), '{} already exists'.format(dst)
+        os.mkdir(dst)
+        dfs = []
+        for i, (graph, df) in enumerate(
+                self.generator(
+                    src, disable=disable, chunksize=chunksize, postfix=postfix, processes=processes, return_df=True,
+                    **kwargs)):
+            if sel_cols is not None:
+                df = df[sel_cols]
+            if drop_cols is not None:
+                df = df.drop(columns=drop_cols)
+
+            labels = self.labels(df)
+            if isinstance(graph, dict):
+                for k, g in graph.items():
+                    path = os.path.join(dst, '{}_{}.all2graph.graph'.format(i, k))
+                    g.save(path, labels=labels)
+                    df['path_{}'.format(k)] = path
+            else:
+                path = os.path.join(dst, '{}.all2graph.graph'.format(i))
+                graph.save(path, labels=labels)
+                df['path'] = path
+            dfs.append(df)
+        path_df = pd.concat(dfs)
+        path_df.to_csv(dst + '_path.csv', index=False)
+        return pd.concat(dfs)
 
     def __eq__(self, other):
         return self.data_parser == other.data_parser and self.graph_parser == other.data_parser

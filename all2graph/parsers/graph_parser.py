@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from ..graph import RawGraph
+from ..graph import RawGraph, Graph
 from ..info import MetaInfo
 from ..meta_struct import MetaStruct
 from ..stats import ECDF
@@ -64,13 +64,12 @@ class GraphParser(MetaStruct):
                 raise KeyError('unknown scale_method {}'.format(self.scale_method))
         return df['number'].values
 
-    def __call__(self, graph: RawGraph):
+    def __call__(self, graph: RawGraph) -> Graph:
         """
 
         :param graph:
         :return:
         """
-        from all2graph.graph.graph import Graph
         edges = {k: (torch.tensor(u, dtype=torch.long), torch.tensor(v, dtype=torch.long))
                  for k, (u, v) in graph.edges.items()}
         sids = torch.tensor(graph.sids, dtype=torch.long)

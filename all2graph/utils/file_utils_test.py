@@ -104,7 +104,7 @@ def test_split_csv():
     for chunk in ag.iter_csv(df, chunksize=1000):
         assert chunk.shape[0] == 1000
 
-    meta_df = ag.split_csv(df, 'temp', chunksize=1000, meta_cols=['uid'], concat_chip=False)
+    meta_df = ag.split_csv(df, 'temp', chunksize=1000, sel_cols=['uid'], concat_chip=False)
     assert meta_df.shape[0] == df.shape[0], meta_df.shape
     assert 'uid' in meta_df
     shutil.rmtree('temp')

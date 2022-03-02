@@ -10,12 +10,12 @@ if 'darwin' in platform.system().lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-def test_csvdataset():
+def test_csv_dataset():
     if os.path.exists('temp'):
         shutil.rmtree('temp')
 
-    meta_df = ag.split_csv(df, 'temp', chunksize=100, drop_cols=['json'])
-    dataset = ag.data.CSVDataset(meta_df, parser=parser_wrapper)
+    path_df = ag.split_csv(df, 'temp', chunksize=100, drop_cols=['json'])
+    dataset = ag.data.CSVDataset(path_df, parser=parser_wrapper)
     data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
 
     num_samples = 0
@@ -26,10 +26,10 @@ def test_csvdataset():
     print(x, y)
     assert num_samples == 1000
     shutil.rmtree('temp')
-    os.remove('temp_meta.csv')
+    os.remove('temp_path.csv')
 
 
-def test_dfdataset():
+def test_df_dataset():
     dataset = ag.data.DFDataset(df, parser=parser_wrapper)
     data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
 
@@ -40,6 +40,23 @@ def test_dfdataset():
         num_samples += x.graph.num_nodes('m3_ovd_30')
     print(x, y)
     assert num_samples == 1000
+
+
+def test_graph_dataset():
+    if os.path.exists('temp'):
+        shutil.rmtree('temp')
+    path_df = parser_wrapper.save(df, 'temp')
+    dataset = ag.data.GraphDataset(path_df)
+    data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
+    num_samples = 0
+    x, y = None, None
+    for batch in ag.tqdm(data_loader):
+        x, y = batch
+        num_samples += x.graph.num_nodes('m3_ovd_30')
+    print(x, y)
+    assert num_samples == 1000
+    shutil.rmtree('temp')
+    os.remove('temp_path.csv')
 
 
 if __name__ == '__main__':
@@ -64,5 +81,6 @@ if __name__ == '__main__':
     graph_parser = ag.GraphParser.from_data(meta_info)
     parser_wrapper = ag.ParserWrapper(data_parser=json_parser, graph_parser=graph_parser)
 
-    test_csvdataset()
-    test_dfdataset()
+    test_csv_dataset()
+    test_df_dataset()
+    test_graph_dataset()

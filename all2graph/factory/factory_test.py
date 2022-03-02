@@ -50,7 +50,7 @@ def test_scale():
 
     factory = ag.Factory(
         data_parser=json_parser,
-        graph_parser=dict(scale_method='minmax')
+        graph_parser_config=dict(scale_method='minmax')
     )
     processes = os.cpu_count()
 
@@ -71,7 +71,7 @@ def test_produce_dataloader():
     cpu_count = os.cpu_count()
     try:
         json_parser = ag.json.JsonParser('json', time_col='day',  local_id_keys={'name'}, tokenizer=ag.JiebaTokenizer())
-        factory = ag.Factory(data_parser=json_parser, graph_parser=dict(filter_key=True))
+        factory = ag.Factory(data_parser=json_parser, graph_parser_config=dict(filter_key=True))
         factory.analyse(
             csv_path, chunksize=int(nrows//cpu_count), disable=True, processes=cpu_count, nrows=nrows
         )

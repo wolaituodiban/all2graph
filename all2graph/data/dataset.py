@@ -38,10 +38,7 @@ class ParserDataset(Dataset):
         raise NotImplementedError
 
     def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
-        df = pd.concat(batches)
-        graph = self.parser(df, return_df=False)
-        label = self.parser.get_targets(df)
-        return graph, label
+        return self.parser.graph_and_labels(pd.concat(batches))
 
     def build_dataloader(self, **kwargs) -> DataLoader:
         return DataLoader(self, collate_fn=self.collate_fn, **kwargs)

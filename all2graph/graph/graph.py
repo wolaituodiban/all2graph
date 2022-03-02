@@ -71,10 +71,11 @@ class Graph(MetaStruct):
 
     @classmethod
     def load(cls, path, **kwargs):
-        raise NotImplementedError
+        graphs, labels = dgl.load_graphs(path)
+        return cls(graph=graphs[0]), labels
 
     def save(self, path, **kwargs):
-        raise NotImplementedError
+        dgl.save_graphs(path, [self.graph], **kwargs)
 
     def to(self, *args, **kwargs):
         self.graph = self.graph.to(*args, **kwargs)

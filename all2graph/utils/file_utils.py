@@ -113,7 +113,7 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
 
 
 def split_csv(
-        src, dst, chunksize, disable=False, zip=True, error=True, warning=True, concat_chip=True, meta_cols=None,
+        src, dst, chunksize, disable=False, zip=True, error=True, warning=True, concat_chip=True, sel_cols=None,
         drop_cols=None, **kwargs):
     """
 
@@ -126,14 +126,14 @@ def split_csv(
         error: 发生错误时会raise ValueError
         warning: 发生错误时会打印错误信息
         concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
-        meta_cols: 需要保存到元信息dataframe的列名
+        sel_cols: 需要保存到元信息dataframe的列名
         drop_cols: 需要去掉的列，只在meta_col为None时生效
         **kwargs:
 
     Returns:
         包含文件路径等元信息的dataframe
     """
-    assert meta_cols is None or isinstance(meta_cols, list)
+    assert sel_cols is None or isinstance(sel_cols, list)
     meta_dfs = []
     if os.path.exists(dst):
         raise ValueError('{} already exists'.format(dst))
@@ -146,18 +146,18 @@ def split_csv(
         else:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'csv'))
         chunk.to_csv(to_file)
-        if meta_cols is not None:
-            meta_df = chunk[meta_cols]
-            meta_df['path'] = to_file
+        if sel_cols is not None:
+            path_df = chunk[sel_cols]
+            path_df['path'] = to_file
         elif drop_cols is not None:
-            meta_df = chunk.drop(columns=drop_cols)
-            meta_df['path'] = to_file
+            path_df = chunk.drop(columns=drop_cols)
+            path_df['path'] = to_file
         else:
-            meta_df = pd.DataFrame({'path': [to_file] * chunk.shape[0]})
-        meta_dfs.append(meta_df)
-    meta_df = pd.concat(meta_dfs)
-    meta_df.to_csv(dst+'_meta.csv', index=False)
-    return meta_df
+            path_df = pd.DataFrame({'path': [to_file] * chunk.shape[0]})
+        meta_dfs.append(path_df)
+    path_df = pd.concat(meta_dfs)
+    path_df.to_csv(dst+'_path.csv', index=False)
+    return path_df
 
 
 def timestamp_convertor(x):

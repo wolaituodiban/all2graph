@@ -1,9 +1,14 @@
 from abc import abstractmethod
-from typing import Tuple, List
+from multiprocessing import Pool
+from typing import Tuple, List, Union, Iterable
+
 import numpy as np
 import pandas as pd
+
 from ..graph import RawGraph
 from ..meta_struct import MetaStruct
+from ..info import MetaInfo
+from ..utils import tqdm, iter_csv, mp_run
 
 
 class DataParser(MetaStruct):
@@ -14,6 +19,9 @@ class DataParser(MetaStruct):
         self.time_format = time_format
         self.targets = targets or []
 
+        # cache
+        self.__configs = {}
+
     def get_targets(self, df: pd.DataFrame):
         if self.targets:
             import torch
@@ -23,6 +31,37 @@ class DataParser(MetaStruct):
             }
         else:
             return {}
+
+    def _analyse(self, df: pd.DataFrame) -> Tuple[MetaInfo, int]:
+        graph = self(df, disable=True)
+        meta_info = graph.meta_info(**self.__configs)
+        return meta_info, df.shape[0]
+
+    def analyse(self, data, chunksize=64, disable=False, postfix='reading csv', processes=None, configs=None, **kwargs):
+        """
+        返回数据的元信息
+        Args:
+            data:
+            chunksize:
+            disable:
+            postfix:
+            processes:
+            configs:
+            **kwargs:
+
+        Returns:
+
+        """
+        self.__configs = configs or {}
+
+        meta_infos: List[MetaInfo] = []
+        weights = []
+        data = iter_csv(data, chunksize=chunksize, **kwargs)
+        for meta_info, weight in mp_run(self._analyse, data, processes=processes, disable=disable, postfix=postfix):
+            meta_infos.append(meta_info)
+            weights.append(weight)
+        cls = meta_infos[0].__class__
+        return cls.reduce(meta_infos, weights=weights, disable=disable, processes=processes, **self.__configs)
 
     @abstractmethod
     def __call__(self, data: pd.DataFrame, disable: bool = True) -> RawGraph:

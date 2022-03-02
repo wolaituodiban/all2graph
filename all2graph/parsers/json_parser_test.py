@@ -1,3 +1,5 @@
+import os
+
 import pandas as pd
 import matplotlib.pyplot as plt
 import all2graph as ag
@@ -130,6 +132,13 @@ def test_gid_keys():
     plt.show()
 
 
+def test_analyse():
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', gid_keys=['ord_no'])
+    meta_info1 = json_parser.analyse(pd.concat([df] * 10000), processes=0)
+    meta_info2 = json_parser.analyse(pd.concat([df] * 10000))
+    assert meta_info1 == meta_info2
+
+
 if __name__ == '__main__':
     test_targets()
     test_d_degree()
@@ -142,3 +151,4 @@ if __name__ == '__main__':
     test_global_seq()
     test_lid_keys()
     test_gid_keys()
+    test_analyse()

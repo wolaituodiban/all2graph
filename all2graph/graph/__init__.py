@@ -1,5 +1,5 @@
 try:
     from .graph import Graph
 except ImportError:
-    pass
+    Graph = None
 from .raw_graph import RawGraph

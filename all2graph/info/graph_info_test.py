@@ -36,7 +36,7 @@ def test_reduce():
     graph_info2 = ag.GraphInfo.from_data(sample_ids=sample_ids, keys=keys, values=values)
 
     assert graph_info1.__eq__(graph_info2, debug=True)
-    print(graph_info1.dictionary)
+    print(graph_info1.dictionary())
     print(graph_info1.numbers)
 
 
