@@ -1,7 +1,6 @@
 import os
 from typing import Tuple, List, Dict, Union
 
-import torch
 import pandas as pd
 
 from .data_parser import DataParser
@@ -57,7 +56,7 @@ class ParserWrapper(MetaStruct):
             labels.update(data_parser.get_targets(df))
         return labels
 
-    def graph_and_labels(self, df) -> Tuple[Graph, Dict[str, torch.Tensor]]:
+    def graph_and_labels(self, df):
         return self(df, return_df=False), self.labels(df)
 
     def generator(

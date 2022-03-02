@@ -2,7 +2,6 @@ from typing import Dict, List
 
 import numpy as np
 import pandas as pd
-import torch
 
 from ..graph import RawGraph, Graph
 from ..info import MetaInfo
@@ -70,6 +69,7 @@ class GraphParser(MetaStruct):
         :param graph:
         :return:
         """
+        import torch
         edges = {k: (torch.tensor(u, dtype=torch.long), torch.tensor(v, dtype=torch.long))
                  for k, (u, v) in graph.edges.items()}
         sids = torch.tensor(graph.sids, dtype=torch.long)
