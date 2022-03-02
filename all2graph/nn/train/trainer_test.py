@@ -2,6 +2,7 @@ import sys
 import os
 
 import all2graph as ag
+import jsonpromax as jpm
 import torch
 from torch.utils.data import DataLoader
 from sklearn.metrics import mean_squared_error
@@ -11,7 +12,7 @@ if 'darwin' in sys.platform.lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-class TestDataset(ag.data_parser.Dataset):
+class TestDataset(ag.data.Dataset):
     def __init__(self, x, y, key):
         super().__init__(
             data_parser=ag.DataParser(None, None, None), raw_graph_parser=ag.RawGraphParser({}, [], [], set()))
@@ -26,9 +27,9 @@ class TestDataset(ag.data_parser.Dataset):
         return {self.key: self.x[item]}, {self.key: self.y[item]}
 
 
-class TestModule(ag.nn.Module):
+class TestModule(torch.nn.Module):
     def __init__(self, in_feats, out_feats, key):
-        super().__init__(raw_graph_parser=ag.RawGraphParser({}, [], [], set()))
+        super().__init__()
         self.linear1 = torch.nn.Linear(in_features=in_feats, out_features=in_feats)
         self.relu = torch.nn.ReLU()
         self.linear2 = torch.nn.Linear(in_features=in_feats, out_features=out_feats)
@@ -54,7 +55,7 @@ def test_trainer():
         module=module, loss=ag.nn.DictLoss(torch.nn.MSELoss()), data=dataloader,
         metrics={'mse': ag.Metric(mean_squared_error, label_first=True), 'a': ag.Metric(mean_squared_error, label_first=True)},
         valid_data=[dataloader, dataloader],
-        early_stop=ag.nn.EarlyStop(1, False, tol=0.01, json_path=ag.json.JsonPathTree([('$.mse', ), ('$.haha', )])),
+        early_stop=ag.nn.EarlyStop(1, False, tol=0.01, fn=jpm.JsonPathTree([('$.mse',), ('$.haha',)])),
         check_point=os.path.join(os.path.dirname(__file__), __file__),
         max_history=2,
         save_loader=True

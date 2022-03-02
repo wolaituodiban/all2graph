@@ -8,7 +8,7 @@ from ...globals import EPSILON
 
 
 class EarlyStop(CallBack):
-    def __init__(self, rounds, higher: bool, tol=EPSILON, loader_id=0, json_path: Callable = None):
+    def __init__(self, rounds, higher: bool, tol=EPSILON, loader_id=0, fn: Callable = None):
         """
 
         Args:
@@ -16,13 +16,13 @@ class EarlyStop(CallBack):
             higher (bool): metric是否越大越好
             tol (float): metric没有变好的容忍度
             loader_id: 以哪个数据集为准，None表示train loader
-            json_path: 如果metric是一个复杂结构，那么这个参数将定义处理json的方法，默认metric是个float
+            fn: 如果metric是一个复杂结构，那么这个参数将定义处理json的方法，默认metric是个float
         """
         self.rounds = rounds
         self.higher = higher
         self.tol = tol
         self.loader_id = loader_id
-        self.json_path_tree = json_path
+        self.fn = fn
 
         self._best_metric = None
         self._best_epoch = None
@@ -41,15 +41,15 @@ class EarlyStop(CallBack):
         return copy.deepcopy(self.best_epoch)
 
     def __repr__(self):
-        if self.json_path_tree:
-            json_path_tree_repr = '\n'.join('    '+x for x in str(self.json_path_tree).split('\n'))
+        if self.fn:
+            fn_expr = '\n'.join('    '+x for x in str(self.fn).split('\n'))
         else:
-            json_path_tree_repr = None
+            fn_expr = None
 
         output = '{}(\n  rounds={},\n  higher={},\n  tol={},\n  loader_id={},\n  best_epoch={},\n'.format(
             self.__class__.__name__, self.rounds, self.higher, self.tol, self.loader_id, self._best_epoch
         )
-        output += '  json_path_tree=(\n{}\n  )\n)'.format(json_path_tree_repr)
+        output += '  fn=(\n{}\n  )\n)'.format(fn_expr)
         return output
 
     def __call__(self, trainer, _, epoch: int) -> bool:
@@ -69,8 +69,8 @@ class EarlyStop(CallBack):
             history: History = trainer.valid_history[self.loader_id]
 
         metric = history.last.metric
-        if self.json_path_tree is not None:
-            metric = self.json_path_tree(deepcopy(metric))
+        if self.fn is not None:
+            metric = self.fn(deepcopy(metric))
 
         if self._best_metric is None or \
                 (metric != self._best_metric and (metric - self._best_metric) * self.sign > self.tol):
