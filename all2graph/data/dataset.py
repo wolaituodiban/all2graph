@@ -23,7 +23,7 @@ class Dataset(_Dataset):
         raise NotImplementedError
 
     @abstractmethod
-    def build_dataloader(self, num_workers: int, shuffle=False, batch_size=1, **kwargs) -> DataLoader:
+    def dataloader(self, num_workers: int, shuffle=False, batch_size=1, **kwargs) -> DataLoader:
         raise NotImplementedError
 
 
@@ -40,7 +40,7 @@ class ParserDataset(Dataset):
     def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
         return self.parser.graph_and_labels(pd.concat(batches))
 
-    def build_dataloader(self, **kwargs) -> DataLoader:
+    def dataloader(self, **kwargs) -> DataLoader:
         return DataLoader(self, collate_fn=self.collate_fn, **kwargs)
 
 
@@ -104,7 +104,7 @@ class PartitionDataset(Dataset):
             indices.append(list(range(row['lb'], row['ub'])))
         return PartitionSampler(indices=indices, num_workers=num_workers, shuffle=shuffle, batch_size=batch_size)
 
-    def build_dataloader(self, num_workers: int, shuffle=False, batch_size=1, **kwargs) -> DataLoader:
+    def dataloader(self, num_workers: int, shuffle=False, batch_size=1, **kwargs) -> DataLoader:
         sampler = self.batch_sampler(shuffle=shuffle, num_workers=num_workers, batch_size=batch_size)
         return DataLoader(
             self, collate_fn=self.collate_fn, batch_sampler=sampler, num_workers=num_workers, **kwargs)

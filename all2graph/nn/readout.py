@@ -8,9 +8,9 @@ from ..globals import VALUE, KEY
 
 
 class Readout(Module):
-    def __init__(self, num_feats):
+    def __init__(self, in_feats, out_feats=1):
         super().__init__()
-        self.linear = torch.nn.Linear(2 * num_feats, 1)
+        self.linear = torch.nn.Linear(2 * in_feats, out_feats)
 
     @property
     def device(self):
@@ -25,5 +25,5 @@ class Readout(Module):
             value_feats2 = graph.push_feats(value_feats, VALUE, ntype)
             key_feats2 = graph.push_feats(key_feats, KEY, ntype)
             readout_feats = torch.cat([value_feats2, key_feats2], dim=-1)
-            output[ntype] = self.linear(readout_feats).flatten()
+            output[ntype] = self.linear(readout_feats).squeeze(-1)
         return output

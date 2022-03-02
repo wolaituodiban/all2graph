@@ -5,7 +5,12 @@ from .feedforward import FeedForward
 from .utils import Module, _get_activation
 
 
-class GATBody(Module):
+class Body(Module):
+    def forward(self, graph: dgl.DGLHeteroGraph, in_feats: torch.Tensor) -> torch.Tensor:
+        raise NotImplementedError
+
+
+class GATBody(Body):
     def __init__(self, num_feats, num_heads, num_layers, dropout=0, activation='relu', norm_first=True, **kwargs):
         super().__init__()
         assert num_feats % num_heads == 0

@@ -182,7 +182,7 @@ class GraphInfo(MetaInfo):
             key: info for key, info in zip(
                 key_counts,
                 mp_run(ECDF.reduce, [s for _, s in key_counts.iteritems()], processes=processes,
-                       chunksize=chunksize, disable=disable, postfix='reduce ecdf info', total=key_counts.shape[1],
+                       chunksize=chunksize, disable=disable, postfix='reduce key count', total=key_counts.shape[1],
                        fn_kwargs=fn_kwargs)
             )
         }

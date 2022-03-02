@@ -30,7 +30,7 @@ def test_forward():
         bottle_neck=ag.nn.BottleNeck(d_model),
         key_body=ag.nn.GATBody(d_model, 3, 2),
         value_body=ag.nn.GATBody(d_model, 3, 2),
-        readout=ag.nn.Readout(d_model)
+        readout=ag.nn.Readout(d_model, 2)
     )
     module.reset_parameters()
     print(module)

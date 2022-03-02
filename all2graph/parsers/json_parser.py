@@ -23,7 +23,7 @@ class JsonParser(DataParser):
             d_degree=1,
             d_inner_edge=False,
             l_degree=1,
-            l_inner_degree=1,
+            l_inner_degree=0,
             r_l_inner_degree=0,
             self_loop=False,
             bidirectional=False,

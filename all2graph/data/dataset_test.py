@@ -16,7 +16,7 @@ def test_csv_dataset():
 
     path_df = ag.split_csv(df, 'temp', chunksize=100, drop_cols=['json'])
     dataset = ag.data.CSVDataset(path_df, parser=parser_wrapper)
-    data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
+    data_loader = dataset.dataloader(num_workers=2, shuffle=True, batch_size=16)
 
     num_samples = 0
     x, y = None, None
@@ -31,7 +31,7 @@ def test_csv_dataset():
 
 def test_df_dataset():
     dataset = ag.data.DFDataset(df, parser=parser_wrapper)
-    data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
+    data_loader = dataset.dataloader(num_workers=2, shuffle=True, batch_size=16)
 
     num_samples = 0
     x, y = None, None
@@ -47,7 +47,7 @@ def test_graph_dataset():
         shutil.rmtree('temp')
     path_df = parser_wrapper.save(df, 'temp')
     dataset = ag.data.GraphDataset(path_df)
-    data_loader = dataset.build_dataloader(num_workers=2, shuffle=True, batch_size=16)
+    data_loader = dataset.dataloader(num_workers=2, shuffle=True, batch_size=16)
     num_samples = 0
     x, y = None, None
     for batch in ag.tqdm(data_loader):

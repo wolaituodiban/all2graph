@@ -2,12 +2,17 @@ from typing import Dict
 
 import torch
 
+from .bottle_neck import BottleNeck
+from .body import Body
+from .embedding import NumEmb
+from .readout import Readout
 from .utils import Module
 from ..graph import Graph
 
 
 class Framework(Module):
-    def __init__(self, token_emb, number_emb, bottle_neck, key_body, value_body, readout):
+    def __init__(self, token_emb: torch.nn.Embedding, number_emb: NumEmb, bottle_neck: BottleNeck, key_body: Body,
+                 value_body: Body, readout: Readout):
         super().__init__()
         self.register_buffer('_device_tracer', torch.ones(1))
         self.token_emb = token_emb
