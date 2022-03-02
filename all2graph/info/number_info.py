@@ -109,11 +109,3 @@ class NumberInfo(MetaStruct):
 
         """
         return self.value.minmax_scale(*args, **kwargs)
-
-
-class _NumberReducer:
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-
-    def __call__(self, numbers: NumberInfo):
-        return NumberInfo.reduce(numbers, **self.kwargs)

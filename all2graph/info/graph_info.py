@@ -3,10 +3,10 @@ from typing import Dict
 import numpy as np
 import pandas as pd
 
-from .number_info import NumberInfo, _NumberReducer
-from .token_info import TokenInfo, _TokenReducer
 from .meta_info import MetaInfo
-from ..stats import ECDF, _ECDFReducer
+from .number_info import NumberInfo
+from .token_info import TokenInfo
+from ..stats import ECDF
 from ..utils import tqdm, mp_run
 
 
@@ -159,31 +159,31 @@ class GraphInfo(MetaInfo):
         key_counts = key_counts.fillna(ECDF.from_data([0]))
 
         # reduce
-        number_reducer = _NumberReducer(weights=weights, num_bins=num_bins)
-        token_reducer = _TokenReducer(weights=weights, num_bins=num_bins)
-        ecdf_reducer = _ECDFReducer(weights=weights, num_bins=num_bins)
-
+        fn_kwargs = {'weights': weights, 'num_bins': num_bins}
         number_infos = {
             key: info for key, info in zip(
                 number_infos,
-                mp_run(number_reducer, [s for _, s in number_infos.iteritems()], processes=processes,
-                       chunksize=chunksize, disable=disable, postfix='reduce number info')
+                mp_run(NumberInfo.reduce, [s for _, s in number_infos.iteritems()], processes=processes,
+                       chunksize=chunksize, disable=disable, postfix='reduce number info', total=number_infos.shape[1],
+                       fn_kwargs=fn_kwargs)
             )
         }
 
         token_infos = {
             key: info for key, info in zip(
                 token_infos,
-                mp_run(token_reducer, [s for _, s in token_infos.iteritems()], processes=processes,
-                       chunksize=chunksize, disable=disable, postfix='reduce token info')
+                mp_run(TokenInfo.reduce, [s for _, s in token_infos.iteritems()], processes=processes,
+                       chunksize=chunksize, disable=disable, postfix='reduce token info', total=token_infos.shape[1],
+                       fn_kwargs=fn_kwargs)
             )
         }
 
         key_counts = {
             key: info for key, info in zip(
                 key_counts,
-                mp_run(ecdf_reducer, [s for _, s in key_counts.iteritems()], processes=processes,
-                       chunksize=chunksize, disable=disable, postfix='reduce ecdf info')
+                mp_run(ECDF.reduce, [s for _, s in key_counts.iteritems()], processes=processes,
+                       chunksize=chunksize, disable=disable, postfix='reduce ecdf info', total=key_counts.shape[1],
+                       fn_kwargs=fn_kwargs)
             )
         }
 

@@ -180,11 +180,3 @@ class ECDF(Distribution):
         p = np.arange(0, 1, 0.25)[1:]
         q = self.get_quantiles(p)
         return ', '.join('{:.3}({:.3})'.format(x, y) for x, y in zip(q, p))
-
-
-class _ECDFReducer:
-    def __init__(self, **kwargs):
-        self.kwargs = kwargs
-
-    def __call__(self, dists: ECDF):
-        return ECDF.reduce(dists, **self.kwargs)

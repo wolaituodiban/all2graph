@@ -1,3 +1,4 @@
+from functools import partial
 from .tqdm_utils import tqdm
 try:
     from dgl.multiprocessing import Pool
@@ -8,11 +9,14 @@ except ImportError:
         from multiprocessing import Pool
 
 
-def mp_run(fn, data, processes=0, chunksize=1, disable=False, postfix=None, **kwargs):
+def mp_run(fn, data, fn_kwargs=None, processes=0, chunksize=1, disable=False, postfix=None, **kwargs):
+    if fn_kwargs is not None:
+        fn = partial(fn, **fn_kwargs)
+    data = tqdm(data, disable=disable, postfix=postfix, **kwargs)
     if processes == 0:
-        for item in tqdm(map(fn, data), disable=disable, postfix=postfix, **kwargs):
+        for item in map(fn, data):
             yield item
     else:
         with Pool(processes=processes) as pool:
-            for item in tqdm(pool.imap(fn, data, chunksize=chunksize), disable=disable, postfix=postfix, **kwargs):
+            for item in pool.imap(fn, data, chunksize=chunksize):
                 yield item
