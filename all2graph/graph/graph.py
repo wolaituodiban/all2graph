@@ -82,12 +82,12 @@ class Graph(MetaStruct):
         return self
 
     def pin_memory(self):
-        for k, v in self.graph.ndata.items():
-            for kk, vv in v.items():
-                self.graph.ndata[k][kk] = vv.pin_memory()
-        for k, v in self.graph.edata.items():
-            for kk, vv in v.items():
-                self.graph.edata[k][kk] = vv.pin_memory()
+        for ntype in self.graph.ntypes:
+            for k, v in self.graph.nodes[ntype].data.items():
+                self.graph.nodes[ntype].data[k] = v.pin_memory()
+        for etype in self.graph.canonical_etypes:
+            for k, v in self.graph.edges[etype].data.items():
+                self.graph.nodes[etype].data[k] = v.pin_memory()
         return self
 
     def component_subgraph(self, i):
