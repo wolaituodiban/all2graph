@@ -29,7 +29,7 @@ class BottleNeck(Module):
     def forward(
             self, graph: Graph, key_feats: torch.Tensor, token_emb: torch.Tensor, num_emb: torch.Tensor
     ) -> torch.Tensor:
-        key_feats = graph.push_feats(key_feats, KEY, VALUE)
+        key_feats = graph.push_key2value(key_feats)
 
         mask = torch.bitwise_not(torch.isnan(num_emb).any(-1))
         value_emb = token_emb.masked_fill(mask.unsqueeze(-1), 0)

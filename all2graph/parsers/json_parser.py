@@ -25,7 +25,7 @@ class JsonParser(DataParser):
             l_degree=1,
             l_inner_degree=0,
             r_l_inner_degree=0,
-            self_loop=False,
+            add_self_loop=False,
             bidirectional=False,
             global_seq=False,
             lid_keys=None,
@@ -47,7 +47,7 @@ class JsonParser(DataParser):
             l_degree: 自然数，插入list时跳连前置节点的度数
             l_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
             r_l_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
-            self_loop: 自关联
+            add_self_loop: 自关联
             bidirectional: 双向边
             global_seq: 是否生成网格
             lid_keys: 样本内表示id的key
@@ -59,7 +59,7 @@ class JsonParser(DataParser):
             **kwargs:
         """
         super().__init__(
-            json_col=json_col, time_col=time_col, time_format=time_format, targets=targets, self_loop=self_loop,
+            json_col=json_col, time_col=time_col, time_format=time_format, targets=targets, add_self_loop=add_self_loop,
             **kwargs)
         self.d_degree = d_degree
         self.d_inner_edge = d_inner_edge
@@ -79,14 +79,14 @@ class JsonParser(DataParser):
         for key, value in obj.items():
             if self.lid_keys and key in self.lid_keys:
                 # local id
-                nid = graph.add_lid_(sid, key, value, self.self_loop)
+                nid = graph.add_lid_(sid, key, value, self.add_self_loop)
                 graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=True)
             elif self.gid_keys and key in self.gid_keys:
                 # global id
-                nid = graph.add_gid_(key, value, self.self_loop)
+                nid = graph.add_gid_(key, value, self.add_self_loop)
                 graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=True)
             else:
-                nid = graph.add_kv_(sid, key, value, self_loop=self.self_loop)
+                nid = graph.add_kv_(sid, key, value, self_loop=self.add_self_loop)
                 graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
                 self.add_obj(graph, sid=sid, obj=value, key=key, vids=vids + [nid])
             nids.append(nid)
@@ -97,7 +97,7 @@ class JsonParser(DataParser):
         sub_vids = vids[-self.d_degree:]
         nids = []
         for value in obj:
-            nid = graph.add_kv_(sid, key, value, self_loop=self.self_loop)
+            nid = graph.add_kv_(sid, key, value, self_loop=self.add_self_loop)
             nids.append(nid)
             graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
             self.add_obj(graph, sid=sid, obj=value, key=key, vids=vids+[nid])
@@ -105,7 +105,7 @@ class JsonParser(DataParser):
             graph.add_edges_for_seq_(nids, degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
 
     def add_obj(self, graph, sid, obj, key=ROOT, vids=None):
-        vids = vids or [graph.add_kv_(sid, key, obj, self.self_loop)]
+        vids = vids or [graph.add_kv_(sid, key, obj, self.add_self_loop)]
         if isinstance(obj, dict):
             self._add_dict(graph, sid=sid, obj=obj, vids=vids)
         elif isinstance(obj, list):

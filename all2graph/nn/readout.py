@@ -22,8 +22,8 @@ class Readout(Module):
     def forward(self, graph: Graph, key_feats: torch.Tensor, value_feats: torch.Tensor) -> Dict[str, torch.Tensor]:
         output = {}
         for ntype in graph.readout_types:
-            value_feats2 = graph.push_feats(value_feats, VALUE, ntype)
-            key_feats2 = graph.push_feats(key_feats, KEY, ntype)
+            value_feats2 = graph.push_value2readout(value_feats, ntype)
+            key_feats2 = graph.push_key2readout(key_feats, ntype)
             readout_feats = torch.cat([value_feats2, key_feats2], dim=-1)
             output[ntype] = self.linear(readout_feats).squeeze(-1)
         return output

@@ -31,6 +31,7 @@ def test_targets():
     plt.title('test_d_targets')
     plt.show()
 
+
 def test_targets2():
     json_parser = ag.JsonParser(
         json_col='json', time_col='crt_dte', time_format='%y-%m-%d', targets={'a_b': ('a', 'b'), 'c_d': ('c', 'd')})
@@ -38,7 +39,7 @@ def test_targets2():
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))
     graph.draw(key=True, ax=ax)
-    plt.title('test_d_targets')
+    plt.title('test_d_targets2')
     plt.show()
 
 
@@ -93,7 +94,7 @@ def test_r_l_inner_degree():
 
 
 def test_self_loop():
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', self_loop=True)
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', add_self_loop=True)
     graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))

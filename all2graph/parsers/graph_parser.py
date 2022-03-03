@@ -11,19 +11,24 @@ from ..stats import ECDF
 
 class GraphParser(MetaStruct):
     def __init__(
-            self, dictionary: Dict[str, int], numbers: Dict[str, ECDF], scale_method=None, **scale_kwargs
+            self, dictionary: Dict[str, int], numbers: Dict[str, ECDF], self_loop=False, to_simple=False,
+            scale_method=None, **scale_kwargs
     ):
         """
 
         Args:
             dictionary: 字典
             numbers: 数值型的分布
+            self_loop: 自连接
+            to_simple: 删除平行边
             scale_method: 归一化方法
             scale_kwargs: 归一化的参数
         """
         super().__init__(initialized=True)
         self.dictionary = dictionary
         self.numbers = numbers
+        self.add_self_loop = self_loop
+        self.to_simple = to_simple
         self.scale_method = scale_method
         self.scale_kwargs = scale_kwargs
 
@@ -77,7 +82,12 @@ class GraphParser(MetaStruct):
         key_of_values = graph.get_keys(range(graph.num_values))
         value_tokens = torch.tensor(self.encode_token(key_of_values), dtype=torch.long)
         numbers = torch.tensor(self.scale(key_of_values, graph.formated_values), dtype=torch.float32)
-        return Graph.from_data(edges, sids=sids, key_tokens=key_tokens, value_tokens=value_tokens, numbers=numbers)
+        graph = Graph.from_data(edges, sids=sids, key_tokens=key_tokens, value_tokens=value_tokens, numbers=numbers)
+        if self.add_self_loop:
+            graph = graph.add_self_loop()
+        if self.to_simple:
+            graph = graph.to_simple()
+        return graph
 
     def __eq__(self, other, debug=False):
         if not super().__eq__(other):
