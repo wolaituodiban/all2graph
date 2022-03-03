@@ -132,18 +132,3 @@ class ParserWrapper(MetaStruct):
 
     def __eq__(self, other):
         return self.data_parser == other.data_parser and self.graph_parser == other.data_parser
-
-    @classmethod
-    def from_data(cls, **kwargs):
-        raise NotImplementedError
-
-    @classmethod
-    def from_json(cls, obj: dict):
-        raise NotImplementedError
-
-    def to_json(self) -> dict:
-        raise NotImplementedError
-
-    @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
-        raise NotImplementedError

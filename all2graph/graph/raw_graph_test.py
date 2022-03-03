@@ -110,7 +110,7 @@ def test_to_simple_():
     assert graph.num_edges(ag.VALUE2VALUE) == 2
     graph.to_simple_()
     assert graph.num_edges(ag.VALUE2VALUE) == 1
-    graph._assert()
+    # graph._assert()
     graph.draw(key=True)
     plt.title('test_to_sample_')
     plt.show()
@@ -128,7 +128,7 @@ def test_mete_info():
     graph.add_kv_(1, ('a', 'b'), 'c')
     graph.add_kv_(2, ('a', 'b'), 'c')
     meta_info = graph.meta_info()
-    print(meta_info.dictionary)
+    print(meta_info.dictionary())
     print(meta_info.numbers)
 
 

@@ -77,7 +77,7 @@ def test_seq_keys():
 
 def test_lid_keys():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', lid_keys={'ord_no'})
-    graph = json_parser(pd.concat([df] * 2))
+    graph = json_parser(pd.concat([df]))
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))
     graph.draw(key=True, ax=ax)
@@ -90,7 +90,7 @@ def test_gid_keys():
     graph = json_parser(pd.concat([df] * 2))
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))
-    graph.draw(key=True, ax=ax)
+    graph.draw(key=True, ax=ax, pos=None)
     plt.title('test_gid_keys')
     plt.show()
 

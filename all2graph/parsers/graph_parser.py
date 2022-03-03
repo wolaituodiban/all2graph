@@ -77,12 +77,12 @@ class GraphParser(MetaStruct):
         import torch
         edges = {k: (torch.tensor(u, dtype=torch.long), torch.tensor(v, dtype=torch.long))
                  for k, (u, v) in graph.edges.items()}
-        sids = torch.tensor(graph.sids, dtype=torch.long)
         key_tokens = torch.tensor(self.encode_token(graph.keys), dtype=torch.long)
         key_of_values = graph.get_keys(range(graph.num_values))
         value_tokens = torch.tensor(self.encode_token(key_of_values), dtype=torch.long)
         numbers = torch.tensor(self.scale(key_of_values, graph.formated_values), dtype=torch.float32)
-        graph = Graph.from_data(edges, sids=sids, key_tokens=key_tokens, value_tokens=value_tokens, numbers=numbers)
+        graph = Graph.from_data(
+            edges, num_samples=graph.num_samples, key_tokens=key_tokens, value_tokens=value_tokens, numbers=numbers)
         if self.add_self_loop:
             graph = graph.add_self_loop()
         if self.to_simple:
@@ -111,17 +111,6 @@ class GraphParser(MetaStruct):
                 print('scale_kwargs not equal')
             return False
         return True
-
-    def to_json(self) -> dict:
-        raise NotImplementedError
-
-    @classmethod
-    def from_json(cls, obj: dict):
-        raise NotImplementedError
-
-    @classmethod
-    def reduce(cls, parsers: list, tokenizer=None, weights=None, num_bins=None, **kwargs):
-        raise NotImplementedError
 
     def extra_repr(self) -> str:
         return 'num_tokens={}, num_numbers={}, scale_method={}, scale_kwargs={}'.format(

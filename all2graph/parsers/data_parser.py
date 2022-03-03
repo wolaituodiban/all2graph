@@ -85,24 +85,6 @@ class DataParser(MetaStruct):
     def __call__(self, data: pd.DataFrame, disable: bool = True) -> RawGraph:
         raise NotImplementedError
 
-    def __eq__(self, other):
-        raise NotImplementedError
-
-    def to_json(self) -> dict:
-        raise NotImplementedError
-
-    @classmethod
-    def from_json(cls, obj: dict):
-        raise NotImplementedError
-
-    @classmethod
-    def from_data(cls, **kwargs):
-        raise NotImplementedError
-
-    @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
-        raise NotImplementedError
-
     def extra_repr(self) -> str:
         s = '\n,'.join(
             '{}={}'.format(k, v) for k, v in self.__dict__.items() if not ismethod(v) and not k.startswith('_')

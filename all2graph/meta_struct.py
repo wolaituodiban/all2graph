@@ -1,5 +1,5 @@
 import sys
-from abc import ABC, abstractmethod
+from abc import ABC
 
 from .version import __version__
 
@@ -26,11 +26,9 @@ class MetaStruct(ABC):
             assert self._initialized, '不要擅自调用构造函数，请使用from_json或者from_data或者merge生成新的对象'
         super().__setattr__(key, value)
 
-    @abstractmethod
     def __eq__(self, other) -> bool:
         return type(self) == type(other)
 
-    @abstractmethod
     def to_json(self) -> dict:
         """将对象装化成可以被json序列化的对象"""
         return {
@@ -39,18 +37,15 @@ class MetaStruct(ABC):
         }
 
     @classmethod
-    @abstractmethod
     def from_json(cls, obj: dict):
         return cls(initialized=True, **obj)
 
     @classmethod
-    @abstractmethod
     def from_data(cls, **kwargs):
         """根据向量生成元节点"""
         return cls(initialized=True, **kwargs)
 
     @classmethod
-    @abstractmethod
     def reduce(cls, structs, weights=None, **kwargs):
         """
         合并多个结构，返回一个加总的结构

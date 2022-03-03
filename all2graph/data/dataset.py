@@ -141,7 +141,7 @@ class GraphDataset(PartitionDataset):
         # print(torch.utils.data.get_worker_info().id, partition_num)
         graph, label = self._get_partition(partition_num)
         i = item - self._path['lb'].iloc[partition_num]
-        graph = graph.component_subgraph(i)
+        graph = graph.sample_subgraph(i)
         label = {k: v[i] for k, v in label.items()}
         return graph, label
 

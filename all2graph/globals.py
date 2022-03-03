@@ -1,9 +1,8 @@
 EPSILON = 2e-6
 
-SID = 'sid'
+SAMPLE = 'sample'
 KEY = 'key'
 VALUE = 'value'
-# READOUT = 'readout'
 EDGE = 'edge'
 ROOT = 'root'
 TOKEN = 'token'
@@ -12,6 +11,5 @@ ITEM = 'item'
 
 KEY2KEY = (KEY, EDGE, KEY)
 KEY2VALUE = (KEY, EDGE, VALUE)
-# KEY2READOUT = (KEY, EDGE, READOUT)
 VALUE2VALUE = (VALUE, EDGE, VALUE)
-# VALUE2READOUT = (VALUE, EDGE, READOUT)
+SAMPLE2VALUE = (SAMPLE, EDGE, VALUE)

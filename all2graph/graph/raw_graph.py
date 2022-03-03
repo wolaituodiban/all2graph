@@ -32,43 +32,61 @@ class RawGraph(MetaStruct):
     def __init__(self, **kwargs):
         super().__init__(initialized=True, **kwargs)
         self.keys = []
-        self.sids = []  # sample id
         self.values = []
         self.edges = {
             KEY2KEY: [[], []],
             KEY2VALUE: [[], []],
             VALUE2VALUE: [[], []],
+            SAMPLE2VALUE: [[], []],
         }
-        self.__roots = []  # sample id和root id的映射关系
+        # 每个sample的第一个node自动被作为root
+        self.__roots: List[int] = []
 
-        # key的id的索引，用于加快key图的自动创建机制
-        self.__ori_kids = {}
+        # 用于加快__add_k_的速度
+        self.__ori_kids: Dict[Union[str, Tuple[str]], int] = {}  # {key: kid}
 
         # 记录作为要被当作id的value的id
-        self.__lids = {}  # {sid: {value: vid}}
-        self.__gids = {}  # {value: vid}
+        self.__lids: Dict[int, Dict[str, int]] = {}  # {sid: {value: vid}}
+        self.__gids: Dict[str, int] = {}  # {value: vid}
 
     def _assert(self):
-        assert len(self.sids) == len(self.values) == len(self.key2value[0]) == len(self.key2value[1]), (
-                len(self.sids), len(self.values), len(self.key2value[0]), len(self.key2value[1])
-        )
-        assert len(set(self.sids).difference([None])) == len(self.__roots)
+        # 检验sample的数量一致
+        all_sids = []
+        for etype, (u, v) in self.edges.items():
+            assert len(u) == len(v)
+            if etype[0] == SAMPLE:
+                all_sids += u
+            if etype[-1] == SAMPLE:
+                all_sids += v
+        all_sids = set(all_sids)
+        assert len(self.__roots) == len(all_sids), (self.__roots, all_sids)
+        if len(all_sids) > 0:
+            assert len(all_sids) == max(all_sids) + 1
+        # 检验key的数量一致
+        all_kids = []
+        for etype, (u, v) in self.edges.items():
+            if etype[0] == KEY:
+                all_kids += u
+            if etype[-1] == KEY:
+                all_kids += v
+        all_kids = set(all_kids)
+        assert len(self.keys) == len(all_kids) == max(all_kids) + 1
+        # 检验value的数量一致
+        all_vids = []
+        for etype, (u, v) in self.edges.items():
+            if etype[0] == VALUE:
+                all_vids += u
+            if etype[-1] == VALUE:
+                all_vids += v
+        all_vids = set(all_vids)
+        assert len(self.values) == len(all_vids) == max(all_vids) + 1
+        # 检验顺序
+        for i in range(1, len(self.values)):
+            assert self.edges[KEY2VALUE][1][i] - self.edges[KEY2VALUE][1][i - 1] == 1
 
     @property
     def num_samples(self):
         return len(self.__roots)
-
-    @property
-    def key2key(self):
-        return self.edges[KEY2KEY]
-
-    @property
-    def key2value(self):
-        return self.edges[KEY2VALUE]
-
-    @property
-    def value2value(self):
-        return self.edges[VALUE2VALUE]
 
     @property
     def formated_values(self):
@@ -92,12 +110,11 @@ class RawGraph(MetaStruct):
 
     @property
     def readout_types(self):
-        return {ntype for ntype in self.ntypes if ntype != KEY and ntype != VALUE}
+        return {ntype for ntype in self.ntypes if ntype != KEY and ntype != VALUE and ntype != SAMPLE}
 
     def __eq__(self, other):
         return super().__eq__(other) \
                and self.keys == other.keys \
-               and self.sids == self.sids \
                and self.values == other.values \
                and self.edges == other.edges \
                and self.__roots == other.__roots \
@@ -105,38 +122,40 @@ class RawGraph(MetaStruct):
                and self.__lids == other.__lids \
                and self.__gids == other.__gids
 
-    def num_nodes(self, ntype=None):
+    def num_nodes(self, ntype=VALUE):
         if ntype == KEY:
             return len(self.keys)
-        elif ntype in self.ntypes:
-            return len(self.edges[KEY, EDGE, ntype][0])
+        elif ntype == SAMPLE:
+            return self.num_samples
+        elif ntype == VALUE:
+            return len(self.values)
         elif ntype is None:
             return sum(map(self.num_nodes, self.ntypes))
         else:
-            raise ValueError('unknown ntype "{}", must be one of {}'.format(ntype, self.ntypes))
+            return len(self.edges[SAMPLE, EDGE, ntype][0])
 
-    def num_edges(self, etype=None):
+    def num_edges(self, etype=VALUE2VALUE):
         if etype is None:
             return sum(map(self.num_edges, self.edges))
-        elif etype in self.edges:
-            return len(self.edges[etype][0])
         else:
-            raise ValueError('unknown etype "{}", must be one of {}'.format(etype, self.edges.keys()))
+            return len(self.edges[etype][0])
 
     def get_keys(self, nids, ntype=VALUE):
         if ntype == KEY:
             return [self.keys[i] for i in nids]
-        elif ntype in self.ntypes:
+        else:
             ntype2key = {v: u for u, v in zip(*self.edges[KEY, EDGE, ntype])}
             return [self.keys[ntype2key[i]] for i in nids]
-        else:
-            raise ValueError('unknown ntype "{}", must be one of {}'.format(ntype, self.ntypes))
 
-    def get_values(self, nids):
+    def get_values(self, nids, ntype=VALUE):
+        if ntype != VALUE:
+            return [None] * len(nids)
         return [self.values[i] for i in nids]
 
-    def get_sids(self, nids):
-        return [self.sids[i] for i in nids]
+    def get_sids(self, nids, ntype=VALUE):
+        etype = (SAMPLE, EDGE, ntype)
+        ntype2sample = {v: u for u, v in zip(*self.edges[etype])}
+        return [ntype2sample[i] for i in nids]
 
     def add_edge_(self, u, v, etype=VALUE2VALUE, bidirectional=False):
         self.edges[etype][0].append(u)
@@ -187,41 +206,39 @@ class RawGraph(MetaStruct):
 
         """
         group = {}
+        value2sample = {v: s for s, v in zip(*self.edges[SAMPLE2VALUE])}
         for u, v in zip(*self.edges[KEY2VALUE]):
-            if u not in group:
-                group[u] = []
-            group[u].append(v)
+            k = (value2sample[v], u)
+            if k not in group:
+                group[k] = []
+            group[k].append(v)
 
-        for u, vs in group.items():
+        for (sid, u), v in group.items():
             if keys and self.keys[u] not in keys:
                 continue
-            self.add_edges_for_seq_(sorted(vs), VALUE2VALUE, **kwargs)
+            self.add_edges_for_seq_(v, **kwargs)
 
-    def __add_k_(self, sid, key) -> int:
+    def __add_k_(self, key) -> int:
         """
         # key图的自动创建机制
         # 每当一个key-value pair被插入时，首先检查是否已有相同的key存在，
         # 如果没有否则则插入一个新点key的节点
         # 另外如果key是一个tuple，那么tuple中的每个元素都会单独插入一个点，并且插入边使这些点之间完全联通
         Args:
-            sid:
             key:
 
         Returns:
             key的坐标
         """
-        if sid not in self.__ori_kids:
-            self.__ori_kids[sid] = {}
-        ori_kids = self.__ori_kids[sid]
-        if key not in ori_kids:
+        if key not in self.__ori_kids:
             kid = self.num_nodes(KEY)
-            ori_kids[key] = kid
+            self.__ori_kids[key] = kid
             self.keys.append(key)
             if isinstance(key, tuple):
                 self.keys += list(key)
-                kids = list(range(ori_kids[key], len(self.keys)))
+                kids = list(range(self.__ori_kids[key], len(self.keys)))
                 self.add_edges_for_seq_(kids, KEY2KEY)
-        return ori_kids[key]
+        return self.__ori_kids[key]
 
     def __add_v_(self, sid, value) -> int:
         """
@@ -238,12 +255,15 @@ class RawGraph(MetaStruct):
             value = {}
         elif isinstance(value, list):
             value = []
-
         vid = len(self.values)
-        if sid is not None and sid >= self.num_samples:
-            self.__roots.append(vid)
-        self.sids.append(sid)
         self.values.append(value)
+        self.add_edge_(sid, vid, etype=SAMPLE2VALUE)
+        if sid >= len(self.__roots):
+            self.__roots.append(vid)
+            # 与所有global id节点相连
+            u = [sid] * len(self.__gids)
+            v = list(self.__gids.values())
+            self.add_edges_(u, v, etype=SAMPLE2VALUE)
         return vid
 
     def __add_lv_(self, sid, value) -> Tuple[int, bool]:
@@ -279,13 +299,18 @@ class RawGraph(MetaStruct):
         """
         flag = False
         if value not in self.__gids:
-            self.__gids[value] = self.__add_v_(None, value)
             flag = True
+            vid = self.__add_v_(0, value)
+            self.__gids[value] = vid
+            # 与所有sample节点相连
+            u = list(range(1, len(self.__roots)))
+            v = [vid] * len(u)
+            self.add_edges_(u, v, etype=SAMPLE2VALUE)
         return self.__gids[value], flag
 
     def add_kv_(self, sid: int, key: Union[str, Tuple], value) -> int:
         """返回新增的entity的id"""
-        kid = self.__add_k_(sid, key)
+        kid = self.__add_k_(key)
         vid = self.__add_v_(sid, value)
         self.add_edge_(kid, vid, KEY2VALUE)
         return vid
@@ -296,14 +321,18 @@ class RawGraph(MetaStruct):
             ntypes = {_: _ for _ in ntypes}
         for ori_key, mapped_key in ntypes.items():
             assert isinstance(ori_key, str)
-            kid = self.__add_k_(None, mapped_key)
+            kid = self.__add_k_(mapped_key)
             tids = list(range(len(self.__roots)))
+            # key to readout
             self.add_edges_([kid] * len(tids), tids, (KEY, EDGE, ori_key))
+            # value to readout
             self.add_edges_(self.__roots, tids, (VALUE, EDGE, ori_key))
+            # sample to readout
+            self.add_edges_(tids, tids, (SAMPLE, EDGE, ori_key))
 
     def add_lid_(self, sid: int, key: Union[str, Tuple[str]], value: str) -> int:
         """如果id已存在，则不会对图产生任何修改"""
-        kid = self.__add_k_(sid, key)
+        kid = self.__add_k_(key)
         vid, flag = self.__add_lv_(sid, value)
         if flag:
             self.add_edge_(kid, vid, KEY2VALUE)
@@ -311,7 +340,7 @@ class RawGraph(MetaStruct):
 
     def add_gid_(self, key: Union[str, Tuple[str]], value: str) -> int:
         """如果id已存在，则不会对图产生任何修改"""
-        kid = self.__add_k_(None, key)
+        kid = self.__add_k_(key)
         vid, flag = self.__add_gv_(value)
         if flag:
             self.add_edge_(kid, vid, KEY2VALUE)
@@ -335,24 +364,12 @@ class RawGraph(MetaStruct):
         utypes, u_keys, u_values = [], [], []
         vtypes, v_keys, v_values = [], [], []
 
-        # value graph
-        u, v = self.edges[VALUE2VALUE]
-        sids += self.get_sids(u)
-        uids += u
-        vids += v
-        utypes += [VALUE] * len(u)
-        vtypes += [VALUE] * len(v)
-        u_keys += self.get_keys(u, VALUE)
-        v_keys += self.get_keys(v, VALUE)
-        u_values += self.get_values(u)
-        v_values += self.get_values(v)
-
-        # readout
+        # value & readout
         for ntype in self.ntypes:
-            if ntype == KEY or ntype == VALUE:
+            if ntype == KEY or ntype == SAMPLE:
                 continue
             u, v = self.edges[(VALUE, EDGE, ntype)]
-            sids += [None] * len(u)
+            sids += self.get_sids(u)
             uids += u
             vids += v
             utypes += [VALUE] * len(u)
@@ -360,36 +377,12 @@ class RawGraph(MetaStruct):
             u_keys += self.get_keys(u, VALUE)
             v_keys += self.get_keys(v, ntype)
             u_values += self.get_values(u)
-            v_values += [None] * len(v)
+            v_values += self.get_values(v)
 
         if key:
             # key graph
-            u, v = self.edges[KEY2KEY]
-            sids += [None] * len(u)
-            uids += u
-            vids += v
-            utypes += [KEY] * len(u)
-            vtypes += [KEY] * len(v)
-            u_keys += [KEY] * len(u)
-            v_keys += [KEY] * len(v)
-            u_values += self.get_keys(u, KEY)
-            v_values += self.get_keys(v, KEY)
-
-            # key2value
-            u, v = self.edges[KEY2VALUE]
-            sids += self.get_sids(v)
-            uids += u
-            vids += v
-            utypes += [KEY] * len(u)
-            vtypes += [VALUE] * len(v)
-            u_keys += [KEY] * len(u)
-            v_keys += self.get_keys(v, VALUE)
-            u_values += self.get_keys(u, KEY)
-            v_values += self.get_values(v)
-
-            # readout
             for ntype in self.ntypes:
-                if ntype == KEY or ntype == VALUE:
+                if ntype == SAMPLE:
                     continue
                 u, v = self.edges[(KEY, EDGE, ntype)]
                 sids += [None] * len(u)
@@ -398,11 +391,15 @@ class RawGraph(MetaStruct):
                 utypes += [KEY] * len(u)
                 vtypes += [ntype] * len(v)
                 u_keys += [KEY] * len(u)
-                v_keys += self.get_keys(v, ntype)
                 u_values += self.get_keys(u, KEY)
-                v_values += [None] * len(v)
+                if ntype == KEY:
+                    v_keys += [KEY] * len(v)
+                    v_values += self.get_keys(v, ntype)
+                else:
+                    v_keys += self.get_keys(v, ntype)
+                    v_values += self.get_values(v, ntype)
 
-        df = pd.DataFrame({SID: sids, 'u': uids,  'utype': utypes, 'u_key': u_keys, 'u_value': u_values,
+        df = pd.DataFrame({SAMPLE: sids, 'u': uids,  'utype': utypes, 'u_key': u_keys, 'u_value': u_values,
                            'vtype': vtypes, 'v': vids, 'v_key': v_keys,  'v_value': v_values})
         if exclude_keys is not None:
             df['exclude_mask'] = False
@@ -430,8 +427,8 @@ class RawGraph(MetaStruct):
             u = row.utype + str(row.u)
             v = row.vtype + str(row.v)
             graph.add_edge(u, v)
-            graph.add_node(u, **{SID: row.sid, KEY: row.u_key, VALUE: row.u_value})
-            graph.add_node(v, **{SID: row.sid, KEY: row.v_key, VALUE: row.v_value})
+            graph.add_node(u, **{SAMPLE: row[SAMPLE], KEY: row.u_key, VALUE: row.u_value})
+            graph.add_node(v, **{SAMPLE: row[SAMPLE], KEY: row.v_key, VALUE: row.v_value})
         return graph
 
     def draw(
@@ -497,14 +494,15 @@ class RawGraph(MetaStruct):
         return fig, ax
 
     def meta_info(self, **kwargs) -> MetaInfo:
-        sample_ids = self.sids
-        keys = self.get_keys(range(self.num_nodes(VALUE)))
+        vids = list(range(self.num_nodes(VALUE)))
+        sample_ids = self.get_sids(vids)
+        keys = self.get_keys(vids)
         values = self.formated_values
         for ntype in self.readout_types:
-            nids = list(range(self.num_samples))
-            sample_ids = sample_ids + nids  # 因为+=会修改原始数据，所以不能用
-            keys += self.get_keys(nids, ntype=ntype)
-            values += [None] * self.num_samples
+            u, v = self.edges[(SAMPLE, EDGE, ntype)]
+            sample_ids += u
+            keys += self.get_keys(v, ntype=ntype)
+            values += [None] * len(v)
         return GraphInfo.from_data(sample_ids=sample_ids, keys=keys, values=values, **kwargs)
 
     def extra_repr(self) -> str:
@@ -512,18 +510,3 @@ class RawGraph(MetaStruct):
             {ntype: self.num_nodes(ntype) for ntype in self.ntypes},
             {etype: self.num_edges(etype) for etype in self.edges}
         )
-
-    def to_json(self, drop_nested_value=True) -> dict:
-        raise NotImplementedError
-
-    @classmethod
-    def from_json(cls, obj: dict):
-        return super().from_json(obj)
-
-    @classmethod
-    def from_data(cls, **kwargs):
-        raise NotImplementedError
-
-    @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
-        raise NotImplementedError
