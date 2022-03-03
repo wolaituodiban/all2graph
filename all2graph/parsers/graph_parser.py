@@ -45,7 +45,7 @@ class GraphParser(MetaStruct):
         return len(self.numbers)
 
     def encode_token(self, inputs: list) -> List[int]:
-        output = [self.dictionary.get(str(x).lower(), self.default_code) for x in inputs]
+        output = [self.dictionary.get(str(x), self.default_code) for x in inputs]
         return output
 
     def scale(self, keys, values) -> np.ndarray:

@@ -7,14 +7,16 @@ def test_add_kv_():
     graph.add_kv_(0, 'a', 'b', True)
     graph.add_kv_(0, 'a', [1, 2, 3, 4], True)
     graph.add_kv_(0, ('a', 'b'), 'b', False)
-    graph.add_kv_(0, ('a', 'b'), 'c', True)
+    graph.add_kv_(0, ('a', 'b'), 'haha', True)
+    graph.add_kv_(0, ('c', 'd'), 'hehe', True)
+    graph.add_kv_(0, ('e', 'f'), 'hihi', True)
     graph._assert()
     graph.draw(key=True)
     plt.title('test_add_kv_')
     plt.show()
 
 
-def test_add_targets_():
+def test_add_readouts_():
     graph = ag.graph_parser.RawGraph()
     graph.add_kv_(0, 'a', 'b', True)
     graph.add_kv_(1, 'a', [1, 2, 3, 4], True)
@@ -130,7 +132,7 @@ def test_mete_info():
 
 if __name__ == '__main__':
     test_add_kv_()
-    test_add_targets_()
+    test_add_readouts_()
     test_add_lid_()
     test_add_gid_()
     test_add_edge_()
