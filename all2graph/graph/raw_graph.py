@@ -138,14 +138,14 @@ class RawGraph(MetaStruct):
     def get_sids(self, nids):
         return [self.sids[i] for i in nids]
 
-    def _add_edge_(self, u, v, etype, bidirectional=False):
+    def add_edge_(self, u, v, etype=VALUE2VALUE, bidirectional=False):
         self.edges[etype][0].append(u)
         self.edges[etype][1].append(v)
         if bidirectional:
             self.edges[etype][0].append(v)
             self.edges[etype][1].append(u)
 
-    def _add_edges_(self, u: List[int], v: List[int], etype, bidirectional=False):
+    def add_edges_(self, u: List[int], v: List[int], etype=VALUE2VALUE, bidirectional=False):
         if bidirectional:
             u, v = u + v, v + u
         if etype not in self.edges:
@@ -154,7 +154,7 @@ class RawGraph(MetaStruct):
         self.edges[etype][1] += v
 
     # todo 考虑一些操作是否在Graph处做比较快
-    def _add_edges_for_seq_(self, nids: List[int], etype, degree: int = -1, r_degree: int = -1):
+    def add_edges_for_seq_(self, nids: List[int], etype=VALUE2VALUE, degree: int = -1, r_degree: int = -1):
         """
         为一些列点之间添加边
         Args:
@@ -176,15 +176,6 @@ class RawGraph(MetaStruct):
             # 补全
             self.edges[etype][0] += [nid] * (len(self.edges[etype][1]) - len(self.edges[etype][0]))
 
-    def add_edge_(self, *args, **kwargs):
-        self._add_edge_(*args, etype=VALUE2VALUE, **kwargs)
-
-    def add_edges_(self, *args, **kwargs):
-        self._add_edges_(*args, etype=VALUE2VALUE, **kwargs)
-
-    def add_edges_for_seq_(self, *args, **kwargs):
-        self._add_edges_for_seq_(*args, etype=VALUE2VALUE, **kwargs)
-
     def add_edges_by_key_(self, keys=None, **kwargs):
         """
         为某一个key的所有value点组成点序列增加边
@@ -204,7 +195,7 @@ class RawGraph(MetaStruct):
         for u, vs in group.items():
             if keys and self.keys[u] not in keys:
                 continue
-            self._add_edges_for_seq_(sorted(vs), VALUE2VALUE, **kwargs)
+            self.add_edges_for_seq_(sorted(vs), VALUE2VALUE, **kwargs)
 
     def __add_k_(self, sid, key) -> int:
         """
@@ -229,7 +220,7 @@ class RawGraph(MetaStruct):
             if isinstance(key, tuple):
                 self.keys += list(key)
                 kids = list(range(ori_kids[key], len(self.keys)))
-                self._add_edges_for_seq_(kids, KEY2KEY)
+                self.add_edges_for_seq_(kids, KEY2KEY)
         return ori_kids[key]
 
     def __add_v_(self, sid, value) -> int:
@@ -296,7 +287,7 @@ class RawGraph(MetaStruct):
         """返回新增的entity的id"""
         kid = self.__add_k_(sid, key)
         vid = self.__add_v_(sid, value)
-        self._add_edge_(kid, vid, KEY2VALUE)
+        self.add_edge_(kid, vid, KEY2VALUE)
         return vid
 
     def add_readouts_(self, ntypes: Union[List[str], Dict[str, Union[str, Tuple[str]]]]):
@@ -307,15 +298,15 @@ class RawGraph(MetaStruct):
             assert isinstance(ori_key, str)
             kid = self.__add_k_(None, mapped_key)
             tids = list(range(len(self.__roots)))
-            self._add_edges_([kid] * len(tids), tids, (KEY, EDGE, ori_key))
-            self._add_edges_(self.__roots, tids, (VALUE, EDGE, ori_key))
+            self.add_edges_([kid] * len(tids), tids, (KEY, EDGE, ori_key))
+            self.add_edges_(self.__roots, tids, (VALUE, EDGE, ori_key))
 
     def add_lid_(self, sid: int, key: Union[str, Tuple[str]], value: str) -> int:
         """如果id已存在，则不会对图产生任何修改"""
         kid = self.__add_k_(sid, key)
         vid, flag = self.__add_lv_(sid, value)
         if flag:
-            self._add_edge_(kid, vid, KEY2VALUE)
+            self.add_edge_(kid, vid, KEY2VALUE)
         return vid
 
     def add_gid_(self, key: Union[str, Tuple[str]], value: str) -> int:
@@ -323,7 +314,7 @@ class RawGraph(MetaStruct):
         kid = self.__add_k_(None, key)
         vid, flag = self.__add_gv_(value)
         if flag:
-            self._add_edge_(kid, vid, KEY2VALUE)
+            self.add_edge_(kid, vid, KEY2VALUE)
         return vid
 
     def to_simple_(self, etype=None):
