@@ -11,7 +11,7 @@ from ..stats import ECDF
 
 class GraphParser(MetaStruct):
     def __init__(
-            self, dictionary: Dict[str, int], numbers: Dict[str, ECDF], self_loop=False, to_simple=False,
+            self, dictionary: Dict[str, int], numbers: Dict[str, ECDF], add_self_loop=False, to_simple=False,
             scale_method=None, **scale_kwargs
     ):
         """
@@ -19,7 +19,7 @@ class GraphParser(MetaStruct):
         Args:
             dictionary: 字典
             numbers: 数值型的分布
-            self_loop: 自连接
+            add_self_loop: 自连接
             to_simple: 删除平行边
             scale_method: 归一化方法
             scale_kwargs: 归一化的参数
@@ -27,7 +27,7 @@ class GraphParser(MetaStruct):
         super().__init__(initialized=True)
         self.dictionary = dictionary
         self.numbers = numbers
-        self.add_self_loop = self_loop
+        self.add_self_loop = add_self_loop
         self.to_simple = to_simple
         self.scale_method = scale_method
         self.scale_kwargs = scale_kwargs
@@ -129,16 +129,19 @@ class GraphParser(MetaStruct):
         )
 
     @classmethod
-    def from_data(cls, meta_info: MetaInfo, scale_method='minmax', scale_kwargs=None, **kwargs):
+    def from_data(cls, meta_info: MetaInfo, add_self_loop=False, to_simple=False,
+                  scale_method='minmax', scale_kwargs=None, **kwargs):
         """
 
         Args:
             meta_info:
+            add_self_loop:
+            to_simple:
             scale_method:
             scale_kwargs:
             kwargs: MetaInfo.dictionary的参数
         Returns:
 
         """
-        return cls(dictionary=meta_info.dictionary(**kwargs), numbers=meta_info.numbers,
-                   scale_method=scale_method, **(scale_kwargs or {}))
+        return cls(dictionary=meta_info.dictionary(**kwargs), numbers=meta_info.numbers, add_self_loop=add_self_loop,
+                   to_simple=to_simple, scale_method=scale_method, **(scale_kwargs or {}))

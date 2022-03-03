@@ -1,25 +1,6 @@
-import os
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import all2graph as ag
-
-data = [
-    {
-        'ord_no': 'CH202007281033864',
-        ('bsy', 'typ'): 'CASH',
-    },
-    {
-        'ord_no': 'CH202007281033864',
-        ('stg', 'no'): '1',
-    },
-]
-df = pd.DataFrame(
-    {
-        'json': [data],
-        'crt_dte': '2020-10-09'
-    }
-)
 
 
 def test_targets():
@@ -74,7 +55,7 @@ def test_l_degree():
 
 
 def test_l_inner_degree():
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', l_inner_degree=0)
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', l_inner_degree=-1)
     graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))
@@ -93,16 +74,6 @@ def test_r_l_inner_degree():
     plt.show()
 
 
-def test_self_loop():
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', add_self_loop=True)
-    graph = json_parser(df)
-    graph._assert()
-    fig, ax = plt.subplots(figsize=(16, 8))
-    graph.draw(key=True, ax=ax)
-    plt.title('test_self_loop')
-    plt.show()
-
-
 def test_bidirectional():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', bidirectional=True)
     graph = json_parser(df)
@@ -114,7 +85,8 @@ def test_bidirectional():
 
 
 def test_global_seq():
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', global_seq=True)
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', global_seq=True,
+                                l_inner_degree=1, r_l_inner_degree=1)
     graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))
@@ -151,6 +123,23 @@ def test_analyse():
 
 
 if __name__ == '__main__':
+    data = [
+        {
+            'ord_no': 'CH202007281033864',
+            ('bsy', 'typ'): 'CASH',
+        },
+        {
+            'ord_no': 'CH202007281033864',
+            ('stg', 'no'): '1',
+        },
+    ]
+    df = pd.DataFrame(
+        {
+            'json': [data] * 2,
+            'crt_dte': '2020-10-09'
+        }
+    )
+
     test_targets()
     test_targets2()
     test_d_degree()
@@ -158,9 +147,16 @@ if __name__ == '__main__':
     test_l_degree()
     test_l_inner_degree()
     test_r_l_inner_degree()
-    test_self_loop()
     test_bidirectional()
     test_global_seq()
     test_lid_keys()
     test_gid_keys()
+
+    df = pd.DataFrame(
+        {
+            'json': [data * 100],
+            'crt_dte': '2020-10-09'
+        }
+    )
+
     test_analyse()

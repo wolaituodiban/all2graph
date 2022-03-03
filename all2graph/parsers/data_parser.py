@@ -12,13 +12,12 @@ from ..utils import tqdm, iter_csv, mp_run
 
 
 class DataParser(MetaStruct):
-    def __init__(self, json_col, time_col, time_format, targets, add_self_loop, **kwargs):
+    def __init__(self, json_col, time_col, time_format, targets, **kwargs):
         super().__init__(initialized=True, **kwargs)
         self.json_col = json_col
         self.time_col = time_col
         self.time_format = time_format
         self.targets = targets or []
-        self.add_self_loop = add_self_loop
 
         # cache
         self.__configs = {}
@@ -35,7 +34,7 @@ class DataParser(MetaStruct):
 
     def _add_readouts(self, graph: RawGraph):
         if self.targets:
-            graph.add_readouts_(ntypes=self.targets, self_loop=self.add_self_loop)
+            graph.add_readouts_(ntypes=self.targets)
 
     def _analyse(self, df: pd.DataFrame) -> Tuple[MetaInfo, int]:
         graph = self(df, disable=True)

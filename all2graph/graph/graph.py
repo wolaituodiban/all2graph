@@ -138,6 +138,10 @@ class Graph(MetaStruct):
             graph = dgl.add_self_loop(self.graph, etype)
         return Graph(graph)
 
+    def add_edges_by_key(self, degree, r_degree, keys=None):
+        kid, vid = self.graph.edges(etype=KEY2VALUE)
+        num_keys = torch.unique(kid).shape[0]
+
     @classmethod
     def load(cls, path, **kwargs):
         with gzip.open(path, 'rb', **kwargs) as file:

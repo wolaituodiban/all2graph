@@ -8,7 +8,7 @@ import pandas as pd
 from .data_parser import DataParser
 from ..graph import RawGraph
 from ..utils import tqdm
-from ..globals import ROOT
+from ..globals import ROOT, ITEM
 
 
 class JsonParser(DataParser):
@@ -25,7 +25,6 @@ class JsonParser(DataParser):
             l_degree=1,
             l_inner_degree=0,
             r_l_inner_degree=0,
-            add_self_loop=False,
             bidirectional=False,
             global_seq=False,
             lid_keys=None,
@@ -47,7 +46,6 @@ class JsonParser(DataParser):
             l_degree: 自然数，插入list时跳连前置节点的度数
             l_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
             r_l_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
-            add_self_loop: 自关联
             bidirectional: 双向边
             global_seq: 是否生成网格
             lid_keys: 样本内表示id的key
@@ -58,9 +56,7 @@ class JsonParser(DataParser):
                         return new_json_obj
             **kwargs:
         """
-        super().__init__(
-            json_col=json_col, time_col=time_col, time_format=time_format, targets=targets, add_self_loop=add_self_loop,
-            **kwargs)
+        super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, targets=targets, **kwargs)
         self.d_degree = d_degree
         self.d_inner_edge = d_inner_edge
         self.l_degree = l_degree
@@ -79,14 +75,14 @@ class JsonParser(DataParser):
         for key, value in obj.items():
             if self.lid_keys and key in self.lid_keys:
                 # local id
-                nid = graph.add_lid_(sid, key, value, self.add_self_loop)
+                nid = graph.add_lid_(sid, key, value)
                 graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=True)
             elif self.gid_keys and key in self.gid_keys:
                 # global id
-                nid = graph.add_gid_(key, value, self.add_self_loop)
+                nid = graph.add_gid_(key, value)
                 graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=True)
             else:
-                nid = graph.add_kv_(sid, key, value, self_loop=self.add_self_loop)
+                nid = graph.add_kv_(sid, key, value)
                 graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
                 self.add_obj(graph, sid=sid, obj=value, key=key, vids=vids + [nid])
             nids.append(nid)
@@ -97,19 +93,21 @@ class JsonParser(DataParser):
         sub_vids = vids[-self.d_degree:]
         nids = []
         for value in obj:
-            nid = graph.add_kv_(sid, key, value, self_loop=self.add_self_loop)
+            nid = graph.add_kv_(sid, key, value)
             nids.append(nid)
             graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
-            self.add_obj(graph, sid=sid, obj=value, key=key, vids=vids+[nid])
-        if self.l_inner_degree != 0 or self.r_l_inner_degree != 0:
+            self.add_obj(graph, sid=sid, obj=value, vids=vids+[nid], key=key)
+        if not self.global_seq and (self.l_inner_degree != 0 or self.r_l_inner_degree != 0):
             graph.add_edges_for_seq_(nids, degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
 
     def add_obj(self, graph, sid, obj, key=ROOT, vids=None):
-        vids = vids or [graph.add_kv_(sid, key, obj, self.add_self_loop)]
+        vids = vids or [graph.add_kv_(sid, key, obj)]
         if isinstance(obj, dict):
             self._add_dict(graph, sid=sid, obj=obj, vids=vids)
         elif isinstance(obj, list):
-            self._add_list(graph, sid=sid, key=key, obj=obj, vids=vids)
+            self._add_list(
+                graph, sid=sid, obj=obj, vids=vids,
+                key=key + (ITEM, ) if isinstance(key, tuple) else (key, ITEM))
 
     def process_json(self, obj, now=None):
         # json load
@@ -131,7 +129,7 @@ class JsonParser(DataParser):
             self.add_obj(graph, sid=sid, obj=obj)
         self._add_readouts(graph)
         if self.global_seq:
-            graph.add_edges_for_seq_by_key_(degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
+            graph.add_edges_by_key_(degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
         if self.to_simple:
             graph.to_simple_()
         return graph

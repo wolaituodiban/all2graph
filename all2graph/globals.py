@@ -8,6 +8,7 @@ EDGE = 'edge'
 ROOT = 'root'
 TOKEN = 'token'
 NUMBER = 'number'
+ITEM = 'item'
 
 KEY2KEY = (KEY, EDGE, KEY)
 KEY2VALUE = (KEY, EDGE, VALUE)

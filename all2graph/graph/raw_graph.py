@@ -185,7 +185,7 @@ class RawGraph(MetaStruct):
     def add_edges_for_seq_(self, *args, **kwargs):
         self._add_edges_for_seq_(*args, etype=VALUE2VALUE, **kwargs)
 
-    def add_edges_for_seq_by_key_(self, keys=None, **kwargs):
+    def add_edges_by_key_(self, keys=None, **kwargs):
         """
         为某一个key的所有value点组成点序列增加边
         Args:
@@ -195,42 +195,40 @@ class RawGraph(MetaStruct):
         Returns:
 
         """
-        if keys is None:
-            keys = self.__ori_kids
-        if not isinstance(keys, list):
-            keys = list(keys)
-        for key in keys:
-            kid = self.__ori_kids[key]
-            vids = [v for u, v in zip(*self.edges[KEY2VALUE]) if u == kid]
-            self._add_edges_for_seq_(vids, VALUE2VALUE, **kwargs)
+        for ori_kids in self.__ori_kids.values():
+            for key, kid in ori_kids.items():
+                if keys and key not in keys:
+                    continue
+                vids = [v for u, v in zip(*self.edges[KEY2VALUE]) if u == kid]
+                self._add_edges_for_seq_(vids, VALUE2VALUE, **kwargs)
 
-    def __add_k_(self, key, self_loop) -> int:
+    def __add_k_(self, sid, key) -> int:
         """
         # key图的自动创建机制
         # 每当一个key-value pair被插入时，首先检查是否已有相同的key存在，
         # 如果没有否则则插入一个新点key的节点
         # 另外如果key是一个tuple，那么tuple中的每个元素都会单独插入一个点，并且插入边使这些点之间完全联通
         Args:
+            sid:
             key:
 
         Returns:
             key的坐标
         """
-        if key not in self.__ori_kids:
+        if sid not in self.__ori_kids:
+            self.__ori_kids[sid] = {}
+        ori_kids = self.__ori_kids[sid]
+        if key not in ori_kids:
             kid = self.num_nodes(KEY)
-            self.__ori_kids[key] = kid
+            ori_kids[key] = kid
             self.keys.append(key)
-            if self_loop:
-                self._add_edge_(kid, kid, KEY2KEY)
             if isinstance(key, tuple):
                 self.keys += list(key)
-                kids = list(range(self.__ori_kids[key], len(self.keys)))
+                kids = list(range(ori_kids[key], len(self.keys)))
                 self._add_edges_for_seq_(kids, KEY2KEY)
-                if self_loop:
-                    self._add_edges_(kids, kids, KEY2KEY)
-        return self.__ori_kids[key]
+        return ori_kids[key]
 
-    def __add_v_(self, sid, value, self_loop) -> int:
+    def __add_v_(self, sid, value) -> int:
         """
         # 自动添加root机制
         # 每一个sid的第一个点会被作为root
@@ -251,11 +249,9 @@ class RawGraph(MetaStruct):
             self.__roots.append(vid)
         self.sids.append(sid)
         self.values.append(value)
-        if self_loop:
-            self._add_edge_(vid, vid, VALUE2VALUE)
         return vid
 
-    def __add_lv_(self, sid, value, self_loop) -> Tuple[int, bool]:
+    def __add_lv_(self, sid, value) -> Tuple[int, bool]:
         """
         加入local id，自动判断是否存在
         Args:
@@ -272,11 +268,11 @@ class RawGraph(MetaStruct):
         lids = self.__lids[sid]
         flag = False
         if value not in lids:
-            lids[value] = self.__add_v_(sid, value, self_loop)
+            lids[value] = self.__add_v_(sid, value)
             flag = True
         return lids[value], flag
 
-    def __add_gv_(self, value, self_loop) -> Tuple[int, bool]:
+    def __add_gv_(self, value) -> Tuple[int, bool]:
         """
         加入global id，自动判断是否存在
         Args:
@@ -288,44 +284,42 @@ class RawGraph(MetaStruct):
         """
         flag = False
         if value not in self.__gids:
-            self.__gids[value] = self.__add_v_(None, value, self_loop)
+            self.__gids[value] = self.__add_v_(None, value)
             flag = True
         return self.__gids[value], flag
 
-    def add_kv_(self, sid: int, key: Union[str, Tuple], value, self_loop: bool) -> int:
+    def add_kv_(self, sid: int, key: Union[str, Tuple], value) -> int:
         """返回新增的entity的id"""
-        kid = self.__add_k_(key, self_loop)
-        vid = self.__add_v_(sid, value, self_loop)
+        kid = self.__add_k_(sid, key)
+        vid = self.__add_v_(sid, value)
         self._add_edge_(kid, vid, KEY2VALUE)
         return vid
 
-    def add_readouts_(self, ntypes: Union[List[str], Dict[str, Union[str, Tuple[str]]]], self_loop):
+    def add_readouts_(self, ntypes: Union[List[str], Dict[str, Union[str, Tuple[str]]]]):
         assert self.ntypes.isdisjoint(ntypes), '{} already exists'.format(self.ntypes.intersection(ntypes))
         if isinstance(ntypes, list):
             ntypes = {_: _ for _ in ntypes}
         for ori_key, mapped_key in ntypes.items():
             assert isinstance(ori_key, str)
-            kid = self.__add_k_(mapped_key, self_loop=self_loop)
+            kid = self.__add_k_(None, mapped_key)
             tids = list(range(len(self.__roots)))
             self._add_edges_([kid] * len(tids), tids, (KEY, EDGE, ori_key))
             self._add_edges_(self.__roots, tids, (VALUE, EDGE, ori_key))
 
-    def add_lid_(self, sid: int, key: Union[str, Tuple[str]], value: str, self_loop: bool) -> int:
+    def add_lid_(self, sid: int, key: Union[str, Tuple[str]], value: str) -> int:
         """如果id已存在，则不会对图产生任何修改"""
-        kid = self.__add_k_(key, self_loop)
-        vid, flag = self.__add_lv_(sid, value, self_loop)
+        kid = self.__add_k_(sid, key)
+        vid, flag = self.__add_lv_(sid, value)
         if flag:
             self._add_edge_(kid, vid, KEY2VALUE)
         return vid
 
-    def add_gid_(self, key: Union[str, Tuple[str]], value: str, self_loop: bool) -> int:
+    def add_gid_(self, key: Union[str, Tuple[str]], value: str) -> int:
         """如果id已存在，则不会对图产生任何修改"""
-        kid = self.__add_k_(key, self_loop=self_loop)
-        vid, flag = self.__add_gv_(value, self_loop=self_loop)
+        kid = self.__add_k_(None, key)
+        vid, flag = self.__add_gv_(value)
         if flag:
             self._add_edge_(kid, vid, KEY2VALUE)
-            if self_loop:
-                self._add_edge_(vid, vid, VALUE2VALUE)
         return vid
 
     def to_simple_(self, etype=None):
