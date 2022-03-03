@@ -1,4 +1,4 @@
-from typing import List, Union, Tuple, Set
+from typing import List, Union, Tuple, Set, Dict
 
 import numpy as np
 import pandas as pd
@@ -299,13 +299,16 @@ class RawGraph(MetaStruct):
         self._add_edge_(kid, vid, KEY2VALUE)
         return vid
 
-    def add_readouts_(self, ntypes: List[Union[str, Tuple]], self_loop):
+    def add_readouts_(self, ntypes: Union[List[str], Dict[str, Union[str, Tuple[str]]]], self_loop):
         assert self.ntypes.isdisjoint(ntypes), '{} already exists'.format(self.ntypes.intersection(ntypes))
-        for key in ntypes:
-            kid = self.__add_k_(key, self_loop=self_loop)
+        if isinstance(ntypes, list):
+            ntypes = {_: _ for _ in ntypes}
+        for ori_key, mapped_key in ntypes.items():
+            assert isinstance(ori_key, str)
+            kid = self.__add_k_(mapped_key, self_loop=self_loop)
             tids = list(range(len(self.__roots)))
-            self._add_edges_([kid] * len(tids), tids, (KEY, EDGE, key))
-            self._add_edges_(self.__roots, tids, (VALUE, EDGE, key))
+            self._add_edges_([kid] * len(tids), tids, (KEY, EDGE, ori_key))
+            self._add_edges_(self.__roots, tids, (VALUE, EDGE, ori_key))
 
     def add_lid_(self, sid: int, key: Union[str, Tuple[str]], value: str, self_loop: bool) -> int:
         """如果id已存在，则不会对图产生任何修改"""
@@ -435,8 +438,8 @@ class RawGraph(MetaStruct):
         graph = MultiDiGraph()
         df = self.to_df(key=key, exclude_keys=exclude_keys, include_keys=include_keys)
         for _, row in tqdm(df.iterrows(), disable=disable):
-            u = str(row.utype) + str(row.u)
-            v = str(row.vtype) + str(row.v)
+            u = row.utype + str(row.u)
+            v = row.vtype + str(row.v)
             graph.add_edge(u, v)
             graph.add_node(u, **{SID: row.sid, KEY: row.u_key, VALUE: row.u_value})
             graph.add_node(v, **{SID: row.sid, KEY: row.v_key, VALUE: row.v_value})

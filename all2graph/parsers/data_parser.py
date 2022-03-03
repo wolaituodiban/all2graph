@@ -34,10 +34,8 @@ class DataParser(MetaStruct):
             return {}
 
     def _add_readouts(self, graph: RawGraph):
-        if isinstance(self.targets, list):
+        if self.targets:
             graph.add_readouts_(ntypes=self.targets, self_loop=self.self_loop)
-        elif isinstance(self.targets, dict):
-            graph.add_readouts_(ntypes=self.targets.values(), self_loop=self.self_loop)
 
     def _analyse(self, df: pd.DataFrame) -> Tuple[MetaInfo, int]:
         graph = self(df, disable=True)

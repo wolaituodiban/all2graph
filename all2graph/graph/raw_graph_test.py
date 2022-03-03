@@ -23,7 +23,7 @@ def test_add_readouts_():
     # graph.add_kv_(0, ('a', 'b'), 'b', False)
     # graph.add_kv_(1, ('a', 'b'), 'c', True)
     # graph.add_kv_(2, ('a', 'b'), 'c', True)
-    graph.add_readouts_(['c', 'haha', ('b', 'd')], True)
+    graph.add_readouts_({'c': 'c', 'd': 'd', 'e_f': ('e', 'f')}, True)
     graph._assert()
     graph.draw(key=True)
     plt.title('test_add_targets_')
