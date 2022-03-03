@@ -435,8 +435,8 @@ class RawGraph(MetaStruct):
         graph = MultiDiGraph()
         df = self.to_df(key=key, exclude_keys=exclude_keys, include_keys=include_keys)
         for _, row in tqdm(df.iterrows(), disable=disable):
-            u = row.utype + str(row.u)
-            v = row.vtype + str(row.v)
+            u = str(row.utype) + str(row.u)
+            v = str(row.vtype) + str(row.v)
             graph.add_edge(u, v)
             graph.add_node(u, **{SID: row.sid, KEY: row.u_key, VALUE: row.u_value})
             graph.add_node(v, **{SID: row.sid, KEY: row.v_key, VALUE: row.v_value})

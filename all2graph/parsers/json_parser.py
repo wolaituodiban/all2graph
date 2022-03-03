@@ -1,7 +1,7 @@
 import json
 from datetime import datetime as ddt
 from inspect import ismethod
-from typing import List
+from typing import List, Union, Dict
 
 import pandas as pd
 
@@ -18,7 +18,7 @@ class JsonParser(DataParser):
             json_col,
             time_col,
             time_format=None,
-            targets=None,
+            targets: Union[List, Dict] = None,
             # 图生成参数
             d_degree=1,
             d_inner_edge=False,
@@ -58,13 +58,14 @@ class JsonParser(DataParser):
                         return new_json_obj
             **kwargs:
         """
-        super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, targets=targets, **kwargs)
+        super().__init__(
+            json_col=json_col, time_col=time_col, time_format=time_format, targets=targets, self_loop=self_loop,
+            **kwargs)
         self.d_degree = d_degree
         self.d_inner_edge = d_inner_edge
         self.l_degree = l_degree
         self.l_inner_degree = l_inner_degree
         self.r_l_inner_degree = r_l_inner_degree
-        self.self_loop = self_loop
         self.bidirectional = bidirectional
         self.global_seq = global_seq
         self.lid_keys = lid_keys
@@ -128,7 +129,7 @@ class JsonParser(DataParser):
         for sid, row in tqdm(enumerate(df[cols].itertuples()), disable=disable, postfix='parsing json'):
             obj = self.process_json(row[1], now=row[2])
             self.add_obj(graph, sid=sid, obj=obj)
-        graph.add_readouts_(self.targets, self_loop=self.self_loop)
+        self._add_readouts(graph)
         if self.global_seq:
             graph.add_edges_for_seq_by_key_(degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
         if self.to_simple:

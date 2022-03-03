@@ -12,11 +12,13 @@ except ImportError:
 def mp_run(fn, data, fn_kwargs=None, processes=0, chunksize=1, disable=False, postfix=None, **kwargs):
     if fn_kwargs is not None:
         fn = partial(fn, **fn_kwargs)
-    data = tqdm(data, disable=disable, postfix=postfix, **kwargs)
-    if processes == 0:
-        for item in map(fn, data):
-            yield item
-    else:
-        with Pool(processes=processes) as pool:
-            for item in pool.imap(fn, data, chunksize=chunksize):
+    with tqdm(data, disable=disable, postfix=postfix, **kwargs) as bar:
+        if processes == 0:
+            for item in map(fn, data):
+                bar.update()
                 yield item
+        else:
+            with Pool(processes=processes) as pool:
+                for item in pool.imap(fn, data, chunksize=chunksize):
+                    bar.update()
+                    yield item

@@ -31,6 +31,16 @@ def test_targets():
     plt.title('test_d_targets')
     plt.show()
 
+def test_targets2():
+    json_parser = ag.JsonParser(
+        json_col='json', time_col='crt_dte', time_format='%y-%m-%d', targets={'a_b': ('a', 'b'), 'c_d': ('c', 'd')})
+    graph = json_parser(df)
+    graph._assert()
+    fig, ax = plt.subplots(figsize=(16, 8))
+    graph.draw(key=True, ax=ax)
+    plt.title('test_d_targets')
+    plt.show()
+
 
 def test_d_degree():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', d_degree=2)
@@ -141,6 +151,7 @@ def test_analyse():
 
 if __name__ == '__main__':
     test_targets()
+    test_targets2()
     test_d_degree()
     test_d_inner_edge()
     test_l_degree()
