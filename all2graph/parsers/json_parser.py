@@ -1,7 +1,6 @@
 import json
 from datetime import datetime as ddt
-from inspect import ismethod
-from typing import List, Union, Dict
+from typing import List, Union, Dict, Set, Tuple
 
 import pandas as pd
 
@@ -23,13 +22,9 @@ class JsonParser(DataParser):
             d_degree=1,
             d_inner_edge=False,
             l_degree=1,
-            l_inner_degree=0,
-            r_l_inner_degree=0,
             bidirectional=False,
-            global_seq=False,
-            lid_keys=None,
-            gid_keys=None,
-            to_simple=True,
+            lid_keys: Set[Union[str, Tuple[str]]] = None,
+            gid_keys: Set[Union[str, Tuple[str]]] = None,
             # 预处理
             processor=None,
             **kwargs
@@ -47,7 +42,7 @@ class JsonParser(DataParser):
             l_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
             r_l_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
             bidirectional: 双向边
-            global_seq: 是否生成网格
+            seq_keys: 是否生成网格
             lid_keys: 样本内表示id的key
             gid_keys: 样本间表示id的key
             processor:
@@ -60,13 +55,9 @@ class JsonParser(DataParser):
         self.d_degree = d_degree
         self.d_inner_edge = d_inner_edge
         self.l_degree = l_degree
-        self.l_inner_degree = l_inner_degree
-        self.r_l_inner_degree = r_l_inner_degree
         self.bidirectional = bidirectional
-        self.global_seq = global_seq
         self.lid_keys = lid_keys
         self.gid_keys = gid_keys
-        self.to_simple = to_simple
         self.processor = processor
 
     def _add_dict(self, graph: RawGraph, sid: int, obj: dict, vids: List[int]):
@@ -91,14 +82,10 @@ class JsonParser(DataParser):
 
     def _add_list(self, graph: RawGraph, sid: int, key, obj: list, vids: List[int]):
         sub_vids = vids[-self.d_degree:]
-        nids = []
         for value in obj:
             nid = graph.add_kv_(sid, key, value)
-            nids.append(nid)
             graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
             self.add_obj(graph, sid=sid, obj=value, vids=vids+[nid], key=key)
-        if not self.global_seq and (self.l_inner_degree != 0 or self.r_l_inner_degree != 0):
-            graph.add_edges_for_seq_(nids, degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
 
     def add_obj(self, graph, sid, obj, key=ROOT, vids=None):
         vids = vids or [graph.add_kv_(sid, key, obj)]
@@ -127,15 +114,7 @@ class JsonParser(DataParser):
         for sid, row in tqdm(enumerate(df[cols].itertuples()), disable=disable, postfix='parsing json'):
             obj = self.process_json(row[1], now=row[2])
             self.add_obj(graph, sid=sid, obj=obj)
-        self._add_readouts(graph)
-        if self.global_seq:
-            graph.add_edges_by_key_(degree=self.l_inner_degree, r_degree=self.r_l_inner_degree)
-        if self.to_simple:
-            graph.to_simple_()
+        self._post_call(graph)
         return graph
 
-    def extra_repr(self) -> str:
-        s = '\n,'.join(
-            '{}={}'.format(k, v) for k, v in self.__dict__.items() if not ismethod(v) and not k.startswith('_')
-        )
-        return s
+

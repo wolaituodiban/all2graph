@@ -1,23 +1,35 @@
 from abc import abstractmethod
-from multiprocessing import Pool
-from typing import Tuple, List, Union, Iterable
+from inspect import ismethod
+from typing import Tuple, List, Union, Set
 
 import numpy as np
 import pandas as pd
 
 from ..graph import RawGraph
-from ..meta_struct import MetaStruct
 from ..info import MetaInfo
-from ..utils import tqdm, iter_csv, mp_run
+from ..meta_struct import MetaStruct
+from ..utils import iter_csv, mp_run
 
 
 class DataParser(MetaStruct):
-    def __init__(self, json_col, time_col, time_format, targets, **kwargs):
+    def __init__(
+            self,
+            json_col,
+            time_col,
+            time_format,
+            targets,
+            seq_keys: Set[Union[str, Tuple[str]]] = None,
+            degree=0,
+            r_degree=0,
+            **kwargs):
         super().__init__(initialized=True, **kwargs)
         self.json_col = json_col
         self.time_col = time_col
         self.time_format = time_format
         self.targets = targets or []
+        self.seq_keys = seq_keys
+        self.degree = degree
+        self.r_degree = r_degree
 
         # cache
         self.__configs = {}
@@ -31,10 +43,6 @@ class DataParser(MetaStruct):
             }
         else:
             return {}
-
-    def _add_readouts(self, graph: RawGraph):
-        if self.targets:
-            graph.add_readouts_(ntypes=self.targets)
 
     def _analyse(self, df: pd.DataFrame) -> Tuple[MetaInfo, int]:
         graph = self(df, disable=True)
@@ -67,6 +75,12 @@ class DataParser(MetaStruct):
         cls = meta_infos[0].__class__
         return cls.reduce(meta_infos, weights=weights, disable=disable, processes=processes, **self.__configs)
 
+    def _post_call(self, graph: RawGraph):
+        if self.targets:
+            graph.add_readouts_(ntypes=self.targets)
+        if self.degree != 0 and self.r_degree != 0:
+            graph.add_edges_by_key_(keys=self.seq_keys, degree=self.degree, r_degree=self.r_degree)
+
     @abstractmethod
     def __call__(self, data: pd.DataFrame, disable: bool = True) -> RawGraph:
         raise NotImplementedError
@@ -89,6 +103,12 @@ class DataParser(MetaStruct):
     def reduce(cls, structs, weights=None, **kwargs):
         raise NotImplementedError
 
+    def extra_repr(self) -> str:
+        s = '\n,'.join(
+            '{}={}'.format(k, v) for k, v in self.__dict__.items() if not ismethod(v) and not k.startswith('_')
+        )
+        return s
+
 
 class DataAugmenter(DataParser):
     def __init__(self, parsers: List[DataParser], weights: List[float] = None):
@@ -99,6 +119,6 @@ class DataAugmenter(DataParser):
         else:
             self.weights = np.array(weights) / np.sum(weights)
 
-    def __call__(self, data, disable: bool = True, **kwargs) -> Tuple[RawGraph, dict, List[dict]]:
+    def __call__(self, *args, **kwargs):
         parser = np.random.choice(self.parsers, p=self.weights)
-        return parser.__call__(data, disable=disable, **kwargs)
+        return parser.__call__(*args, **kwargs)

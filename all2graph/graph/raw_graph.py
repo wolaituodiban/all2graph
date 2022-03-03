@@ -195,12 +195,16 @@ class RawGraph(MetaStruct):
         Returns:
 
         """
-        for ori_kids in self.__ori_kids.values():
-            for key, kid in ori_kids.items():
-                if keys and key not in keys:
-                    continue
-                vids = [v for u, v in zip(*self.edges[KEY2VALUE]) if u == kid]
-                self._add_edges_for_seq_(vids, VALUE2VALUE, **kwargs)
+        group = {}
+        for u, v in zip(*self.edges[KEY2VALUE]):
+            if u not in group:
+                group[u] = []
+            group[u].append(v)
+
+        for u, vs in group.items():
+            if keys and self.keys[u] not in keys:
+                continue
+            self._add_edges_for_seq_(sorted(vs), VALUE2VALUE, **kwargs)
 
     def __add_k_(self, sid, key) -> int:
         """
