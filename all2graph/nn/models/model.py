@@ -42,10 +42,10 @@ class Model(MetaStruct):
 
     def fit(self,
             train_data,
-            chunksize,
-            batch_size,
             loss,
             epoches,
+            chunksize=None,
+            batch_size=None,
             valid_data: list = None,
             processes=None,
             optimizer_cls=None,
