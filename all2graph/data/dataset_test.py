@@ -46,7 +46,7 @@ def test_graph_dataset():
     if os.path.exists('temp'):
         shutil.rmtree('temp')
     path_df = parser_wrapper.save(df, 'temp')
-    dataset = ag.data.GraphDataset(path_df)
+    dataset = ag.data.GraphDataset(path_df, parser_wrapper)
     data_loader = dataset.dataloader(num_workers=2, shuffle=True, batch_size=16)
     num_samples = 0
     x, y = None, None
@@ -73,13 +73,14 @@ if __name__ == '__main__':
     df = pd.DataFrame({'json': [json.dumps(data)], 'crt_dte': '2020-10-09'})
     df = pd.concat([df] * 1000)
     json_parser = ag.JsonParser(
-        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys=['ord_no'])
+        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
     raw_graph = json_parser(df, disable=False)
     print(raw_graph)
     print(raw_graph.num_samples)
     meta_info = raw_graph.meta_info()
     graph_parser = ag.GraphParser.from_data(meta_info)
-    parser_wrapper = ag.ParserWrapper(data_parser=json_parser, graph_parser=graph_parser)
+    post_parser = ag.PostParser()
+    parser_wrapper = ag.ParserWrapper(data_parser=json_parser, graph_parser=graph_parser, post_parser=post_parser)
 
     test_csv_dataset()
     test_df_dataset()

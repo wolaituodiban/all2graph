@@ -47,7 +47,7 @@ def test_ecdf():
         ecdfs.append(ecdf)
 
     array = np.concatenate(arrays)
-    ecdf = ECDF.reduce(ecdfs, weights=np.array([a.shape[0] for a in arrays]))
+    ecdf = ECDF.batch(ecdfs, weights=np.array([a.shape[0] for a in arrays]))
     print(ecdf)
     mean, var = ecdf.mean_var
     assert np.abs(array.mean() - mean) < 1e-5, 'test_mean_var failed, {} vs. {}'.format(array.mean(), mean)
@@ -166,7 +166,7 @@ def speed():
     use_time = time.time() - start_time
 
     start_time = time.time()
-    ECDF.reduce(ecdfs, num_bins=100)
+    ECDF.batch(ecdfs, num_bins=100)
     use_time2 = time.time() - start_time
     assert use_time2 < use_time
 

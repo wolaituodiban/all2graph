@@ -88,7 +88,7 @@ class Factory(MetaStruct):
         raise NotImplementedError
 
     @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
+    def batch(cls, structs, weights=None, **kwargs):
         raise NotImplementedError
 
     def to_json(self) -> dict:

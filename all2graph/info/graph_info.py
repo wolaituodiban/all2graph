@@ -142,7 +142,7 @@ class GraphInfo(MetaInfo):
         return super().from_data(token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
 
     @classmethod
-    def reduce(cls, structs, weights=None, num_bins=None, processes=0, chunksize=1, disable=True):
+    def batch(cls, structs, weights=None, num_bins=None, processes=0, chunksize=1, disable=True):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -163,32 +163,32 @@ class GraphInfo(MetaInfo):
         number_infos = {
             key: info for key, info in zip(
                 number_infos,
-                mp_run(NumberInfo.reduce, [s for _, s in number_infos.iteritems()], processes=processes,
+                mp_run(NumberInfo.batch, [s for _, s in number_infos.iteritems()], processes=processes,
                        chunksize=chunksize, disable=disable, postfix='reduce number info', total=number_infos.shape[1],
-                       fn_kwargs=fn_kwargs)
+                       kwds=fn_kwargs)
             )
         }
 
         token_infos = {
             key: info for key, info in zip(
                 token_infos,
-                mp_run(TokenInfo.reduce, [s for _, s in token_infos.iteritems()], processes=processes,
+                mp_run(TokenInfo.batch, [s for _, s in token_infos.iteritems()], processes=processes,
                        chunksize=chunksize, disable=disable, postfix='reduce token info', total=token_infos.shape[1],
-                       fn_kwargs=fn_kwargs)
+                       kwds=fn_kwargs)
             )
         }
 
         key_counts = {
             key: info for key, info in zip(
                 key_counts,
-                mp_run(ECDF.reduce, [s for _, s in key_counts.iteritems()], processes=processes,
+                mp_run(ECDF.batch, [s for _, s in key_counts.iteritems()], processes=processes,
                        chunksize=chunksize, disable=disable, postfix='reduce key count', total=key_counts.shape[1],
-                       fn_kwargs=fn_kwargs)
+                       kwds=fn_kwargs)
             )
         }
 
-        return super().reduce(structs, weights=weights,
-                              token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
+        return super().batch(structs, weights=weights,
+                             token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
 
     def extra_repr(self) -> str:
         return 'num_keys={}, num_tokens={}, num_numbers={}'.format(self.num_keys, self.num_tokens, self.num_numbers)

@@ -160,7 +160,7 @@ class ECDF(Distribution):
         return super().from_data(quantiles=counts_cumsum.index, probs=counts_cumsum.values, num_bins=num_bins)
 
     @classmethod
-    def reduce(cls, structs, weights=None, num_bins=None):
+    def batch(cls, structs, weights=None, num_bins=None):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
@@ -172,7 +172,7 @@ class ECDF(Distribution):
 
         probs = [w * struct.get_probs(quantiles, kind='previous') for w, struct in zip(weights, structs)]
         probs = np.sum(probs, axis=0)
-        return super().reduce(structs, weights=weights, quantiles=quantiles, probs=probs, num_bins=num_bins)
+        return super().batch(structs, weights=weights, quantiles=quantiles, probs=probs, num_bins=num_bins)
 
     def extra_repr(self) -> str:
         if self.num_bins == 0:

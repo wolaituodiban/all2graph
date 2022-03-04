@@ -73,7 +73,7 @@ class DataParser(MetaStruct):
             meta_infos.append(meta_info)
             weights.append(weight)
         cls = meta_infos[0].__class__
-        return cls.reduce(meta_infos, weights=weights, disable=disable, processes=processes, **self.__configs)
+        return cls.batch(meta_infos, weights=weights, disable=disable, processes=processes, **self.__configs)
 
     def _post_call(self, graph: RawGraph):
         if self.targets:

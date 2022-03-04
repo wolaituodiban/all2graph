@@ -24,7 +24,7 @@ def test_reduce():
         num_nodes.append(_num_nodes)
         infos.append(_token_info)
 
-    info1 = ag.TokenInfo.reduce(infos, weights=weights)
+    info1 = ag.TokenInfo.batch(infos, weights=weights)
 
     counts = np.concatenate(counts)
     num_nodes = np.concatenate(num_nodes)

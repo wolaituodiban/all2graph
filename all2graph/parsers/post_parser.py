@@ -4,7 +4,7 @@ from ..graph import Graph
 from ..meta_struct import MetaStruct
 
 
-class PostAugmenter(MetaStruct):
+class PostParser(MetaStruct):
     def __init__(self, add_self_loop=True, to_simple=False, to_bidirected=False,
                  seq_keys: Set[int] = None, degree=0, r_degree=0,):
         super().__init__(initialized=True)

@@ -26,7 +26,7 @@ def test_reduce():
         values.append(value)
         number_infos.append(number_info)
     values = np.concatenate(values)
-    number_info1 = ag.NumberInfo.reduce(number_infos)
+    number_info1 = ag.NumberInfo.batch(number_infos)
     number_info2 = ag.NumberInfo.from_data(counts=counts, values=values)
     assert number_info1 == number_info2, (number_info1.value.quantiles, number_info2.value.quantiles)
 

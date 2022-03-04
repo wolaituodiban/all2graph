@@ -46,7 +46,7 @@ class MetaStruct(ABC):
         return cls(initialized=True, **kwargs)
 
     @classmethod
-    def reduce(cls, structs, weights=None, **kwargs):
+    def batch(cls, structs, weights=None, **kwargs):
         """
         合并多个结构，返回一个加总的结构
         """

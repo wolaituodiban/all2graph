@@ -22,9 +22,8 @@ class Dataset(_Dataset):
     def collate_fn(self, batches):
         raise NotImplementedError
 
-    @abstractmethod
-    def dataloader(self, num_workers: int, shuffle=False, batch_size=1, **kwargs) -> DataLoader:
-        raise NotImplementedError
+    def dataloader(self, **kwargs) -> DataLoader:
+        return DataLoader(self, collate_fn=self.collate_fn, **kwargs)
 
 
 class ParserDataset(Dataset):
@@ -38,10 +37,8 @@ class ParserDataset(Dataset):
         raise NotImplementedError
 
     def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
-        return self.parser.graph_and_labels(pd.concat(batches))
-
-    def dataloader(self, **kwargs) -> DataLoader:
-        return DataLoader(self, collate_fn=self.collate_fn, **kwargs)
+        graph, df = self.parser(pd.concat(batches), return_df=True)
+        return graph, self.parser.labels(df)
 
 
 class PartitionDataset(Dataset):
@@ -133,6 +130,10 @@ class DFDataset(ParserDataset):
 
 
 class GraphDataset(PartitionDataset):
+    def __init__(self, path, parser: ParserWrapper=None):
+        super().__init__(path=path)
+        self.parser = parser
+
     def read_file(self, path):
         return Graph.load(path)
 
@@ -151,4 +152,7 @@ class GraphDataset(PartitionDataset):
         for graph, label in batches:
             graphs.append(graph)
             labels.append(label)
-        return Graph.batch(graphs), default_collate(labels)
+        graph = Graph.batch(graphs)
+        if self.parser:
+            graph = self.parser.call_post_parser(graph)
+        return graph, default_collate(labels)

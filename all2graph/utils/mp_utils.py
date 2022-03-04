@@ -9,9 +9,9 @@ except ImportError:
         from multiprocessing import Pool
 
 
-def mp_run(fn, data, fn_kwargs=None, processes=0, chunksize=1, disable=False, postfix=None, **kwargs):
-    if fn_kwargs is not None:
-        fn = partial(fn, **fn_kwargs)
+def mp_run(fn, data, kwds=None, processes=0, chunksize=1, disable=False, postfix=None, **kwargs):
+    if kwds is not None:
+        fn = partial(fn, **kwds)
     with tqdm(data, disable=disable, postfix=postfix, **kwargs) as bar:
         if processes == 0:
             for item in map(fn, data):

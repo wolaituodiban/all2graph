@@ -34,7 +34,7 @@ def test_merge():
         arrays.append(array)
         discretes.append(discrete)
 
-    discrete1 = Discrete.reduce(discretes, weights=np.array([pd.notna(a).sum() for a in arrays]))
+    discrete1 = Discrete.batch(discretes, weights=np.array([pd.notna(a).sum() for a in arrays]))
     discrete2 = Discrete.from_data(np.concatenate(arrays))
     assert discrete1 == discrete2, '{}\n{}'.format(discrete1.to_json(), discrete2.to_json())
     print(discrete1.to_json())
@@ -57,7 +57,7 @@ def speed():
     use_time = time.time() - start_time
 
     start_time = time.time()
-    discrete = Discrete.reduce(discretes)
+    discrete = Discrete.batch(discretes)
     use_time2 = time.time() - start_time
     print(use_time, use_time2, len(discrete), sum(map(len, discretes)))
     assert use_time2 < use_time

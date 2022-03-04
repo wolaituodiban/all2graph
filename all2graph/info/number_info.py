@@ -51,12 +51,12 @@ class NumberInfo(MetaStruct):
         return super().from_data(count=count, value=value)
 
     @classmethod
-    def reduce(cls, structs, weights=None, num_bins=None):
+    def batch(cls, structs, weights=None, num_bins=None):
         if weights is None:
             weights = np.full(len(structs), 1 / len(structs))
         else:
             weights = np.array(weights) / sum(weights)
-        count = ECDF.reduce([struct.count for struct in structs], weights=weights, num_bins=num_bins)
+        count = ECDF.batch([struct.count for struct in structs], weights=weights, num_bins=num_bins)
         # info data的weight可以从freq中推出
         new_weights = []
         values = []
@@ -64,8 +64,8 @@ class NumberInfo(MetaStruct):
             if struct.value.num_bins > 0:
                 values.append(struct.value)
                 new_weights.append(weight * struct.count.mean)
-        value = ECDF.reduce(values, weights=new_weights, num_bins=num_bins)
-        return super().reduce(structs, count=count, value=value, weights=weights)
+        value = ECDF.batch(values, weights=new_weights, num_bins=num_bins)
+        return super().batch(structs, count=count, value=value, weights=weights)
 
     def extra_repr(self) -> str:
         return 'count={}\nvalue={}'.format(self.count, self.value)

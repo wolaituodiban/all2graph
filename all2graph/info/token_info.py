@@ -75,15 +75,15 @@ class TokenInfo(MetaStruct):
         return super().from_data(count=count, freq=freq)
 
     @classmethod
-    def reduce(cls, structs, weights=None, num_bins=None):
+    def batch(cls, structs, weights=None, num_bins=None):
         counts = []
         freqs = []
         for struct in structs:
             counts.append(struct.count)
             freqs.append(struct.freq)
-        count = ECDF.reduce(counts, weights, num_bins=num_bins)
-        freq = ECDF.reduce(freqs, weights, num_bins=num_bins)
-        return super().reduce(structs, weights=weights, count=count, freq=freq)
+        count = ECDF.batch(counts, weights, num_bins=num_bins)
+        freq = ECDF.batch(freqs, weights, num_bins=num_bins)
+        return super().batch(structs, weights=weights, count=count, freq=freq)
 
     def extra_repr(self) -> str:
         return 'count={}\nfreq={}'.format(self.count, self.freq)

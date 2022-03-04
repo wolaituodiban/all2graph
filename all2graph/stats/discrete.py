@@ -44,7 +44,7 @@ class Discrete(Distribution):
         return super().from_data(prob=prob, num_samples=num_samples, **kwargs)
 
     @classmethod
-    def reduce(cls, discretes, weights=None, **kwargs):
+    def batch(cls, discretes, weights=None, **kwargs):
         discretes = list(discretes)
         if weights is None:
             weights = np.full(len(discretes), 1/len(discretes))
@@ -58,7 +58,7 @@ class Discrete(Distribution):
                     prob[k] += v * w
                 else:
                     prob[k] = v * w
-        return super().reduce(discretes, prob=prob, **kwargs)
+        return super().batch(discretes, prob=prob, **kwargs)
 
     @classmethod
     def from_ecdfs(cls, ecdfs: Dict[str, ECDF], weights: Dict[str, float] = None, **kwargs):

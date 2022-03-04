@@ -5,19 +5,22 @@ import pandas as pd
 
 from .data_parser import DataParser
 from .graph_parser import GraphParser
-from ..graph import Graph
+from .post_parser import PostParser
+from ..graph import Graph, RawGraph
 from ..meta_struct import MetaStruct
 from ..utils import iter_csv, mp_run
 
 
-UnionType = Union[GraphParser, Tuple[GraphParser, List[str]]]
+UnionGraphParser = Union[GraphParser, Tuple[GraphParser, List[str]]]
+UnionPostParser = Union[PostParser, Tuple[PostParser, List[str]]]
 
 
 class ParserWrapper(MetaStruct):
     def __init__(
             self,
             data_parser: Union[DataParser, List[DataParser], Dict[str, DataParser]],
-            graph_parser: Union[UnionType, List[UnionType], Dict[str, UnionType]]
+            graph_parser: Union[UnionGraphParser, List[UnionGraphParser], Dict[str, UnionGraphParser]],
+            post_parser: Union[UnionPostParser, List[UnionPostParser], Dict[str, UnionPostParser]] = None
     ):
         super().__init__(initialized=True)
         if not isinstance(data_parser, (list, dict)):
@@ -36,16 +39,52 @@ class ParserWrapper(MetaStruct):
                 parser = (parser, list(self.data_parser))
             self.graph_parser[k] = parser
 
-    def __call__(self, df: pd.DataFrame, disable=True, return_df=True) -> Union[Graph, Tuple[Graph, pd.DataFrame]]:
+        if post_parser is None:
+            self.post_parser = None
+        else:
+            if not isinstance(post_parser, (list, dict)):
+                post_parser = [post_parser]
+            if isinstance(post_parser, list):
+                post_parser = {i: parser for i, parser in enumerate(post_parser)}
+            self.post_parser: Dict[str, Tuple[PostParser, List[str]]] = {}
+            for k, parser in post_parser.items():
+                if not isinstance(parser, tuple):
+                    parser = (parser, list(self.graph_parser))
+                self.post_parser[k] = parser
+
+    def call_post_parser(self, graph: Graph, key: str = None) -> Union[Graph, Dict[str, Graph]]:
+        if self.post_parser is None:
+            return graph
+        output = {}
+        for key2, (parser, key3) in self.post_parser.items():
+            if key and key not in key3:
+                continue
+            output[key2] = parser(graph)
+        if len(output) == 1:
+            return list(output.values())[0]
+        return output
+
+    def call_graph_parser(self, raw_graph: RawGraph, key: str = None, post=True) -> Union[Graph, dict]:
+        output = {}
+        for key2, (parser, key3) in self.graph_parser.items():
+            if key and key not in key3:
+                continue
+            output[key2] = self.call_post_parser(parser(raw_graph), key=key2)
+        if len(output) == 1:
+            return list(output.values())[0]
+        return output
+
+    def __call__(self, df: pd.DataFrame, disable=True, return_df=False, sel_cols=None, drop_cols=None, post=True
+                 ) -> Union[Union[Graph, dict], Tuple[Union[Graph, dict], pd.DataFrame]]:
         raw_graph = {k: parser(df, disable=disable) for k, parser in self.data_parser.items()}
-        graph = {}
-        for graph_key, (graph_parser, data_keys) in self.graph_parser.items():
-            for data_key in data_keys:
-                out_key = '{}_{}'.format(data_key, graph_key)
-                graph[out_key] = graph_parser(raw_graph[data_key])
+        graph = {k: self.call_graph_parser(g, key=k, post=post) for k, g in raw_graph.items()}
         if len(graph) == 1:
             graph = list(graph.values())[0]
         if return_df:
+            if sel_cols is not None:
+                df = df[sel_cols]
+            if drop_cols is not None:
+                df = df.drop(columns=drop_cols)
             return graph, df.drop(columns=[parser.json_col for parser in self.data_parser.values()])
         else:
             return graph
@@ -56,36 +95,26 @@ class ParserWrapper(MetaStruct):
             labels.update(data_parser.get_targets(df))
         return labels
 
-    def graph_and_labels(self, df):
-        return self(df, return_df=False), self.labels(df)
-
-    def generator(
-            self, src, disable=False, chunksize=64, processes=None, postfix='parsing', return_df=False, **kwargs):
+    def _save(self, inputs, **kwargs):
         """
-        返回一个graph生成器
+        不执行post parser
         Args:
-            src: dataframe 或者"list和路径的任意嵌套"
-            disable: 是否禁用进度条
-            chunksize: 批次处理的大小
-            processes: 多进程数量
-            postfix: 进度条后缀
-            return_df: 是否返回graph之外的东西
-            **kwargs: pd.read_csv的额外参数
+            inputs:
+            **kwargs: __call__的额外参数
 
         Returns:
-            graph:
-            df
-        """
-        data = iter_csv(src, chunksize=chunksize, **kwargs)
-        for graph, df in mp_run(self, data, processes=processes, disable=disable, postfix=postfix):
-            if return_df:
-                yield graph, df
-            else:
-                yield graph
 
-    def save(
-            self, src, dst, disable=False, chunksize=64,
-            postfix='saving graph', processes=None, sel_cols=None, drop_cols=None, **kwargs):
+        """
+        df, path = inputs
+        graph, df = self(df, return_df=True, post=False, **kwargs)
+        labels = self.labels(df)
+        graph.save(path, labels=labels)
+        df = df.copy()
+        df['path'] = path
+        return df
+
+    def save(self, src, dst, disable=False, chunksize=64, postfix='saving graph', processes=None, sel_cols=None,
+             drop_cols=None, **kwargs):
         """
         将原始数据加工后，存储成分片的文件
         Args:
@@ -102,33 +131,47 @@ class ParserWrapper(MetaStruct):
         Returns:
             返回一个包含路径和元数据的DataFrame
         """
-        # assert meta_col is None or isinstance(meta_col, list)
         assert not os.path.exists(dst), '{} already exists'.format(dst)
         os.mkdir(dst)
         dfs = []
-        for i, (graph, df) in enumerate(
-                self.generator(
-                    src, disable=disable, chunksize=chunksize, postfix=postfix, processes=processes, return_df=True,
-                    **kwargs)):
-            if sel_cols is not None:
-                df = df[sel_cols]
-            if drop_cols is not None:
-                df = df.drop(columns=drop_cols)
-
-            labels = self.labels(df)
-            if isinstance(graph, dict):
-                for k, g in graph.items():
-                    path = os.path.join(dst, '{}_{}.all2graph.graph'.format(i, k))
-                    g.save(path, labels=labels)
-                    df['path_{}'.format(k)] = path
-            else:
-                path = os.path.join(dst, '{}.all2graph.graph'.format(i))
-                graph.save(path, labels=labels)
-                df['path'] = path
+        inputs = (
+            (df, os.path.join(dst, '{}.ag.graph'.format(i)))
+            for i, df in enumerate(iter_csv(src, chunksize=chunksize, **kwargs))
+        )
+        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
+        for df in mp_run(self._save, inputs, kwds=kwds, disable=disable, processes=processes, postfix=postfix):
             dfs.append(df)
         path_df = pd.concat(dfs)
         path_df.to_csv(dst + '_path.csv', index=False)
         return pd.concat(dfs)
+
+    def generator(
+            self, src, disable=False, chunksize=64, processes=None, postfix='parsing', return_df=False, sel_cols=None,
+            drop_cols=None, **kwargs):
+        """
+        返回一个graph生成器
+        Args:
+            src: dataframe 或者"list和路径的任意嵌套"
+            disable: 是否禁用进度条
+            chunksize: 批次处理的大小
+            processes: 多进程数量
+            postfix: 进度条后缀
+            return_df: 是否返回graph之外的东西
+            sel_cols: 需要返回的元数据列
+            drop_cols: 需要去掉的列，只在meta_col为None时生效
+            **kwargs: pd.read_csv的额外参数
+
+        Returns:
+            graph:
+            df
+        """
+        data = iter_csv(src, chunksize=chunksize, **kwargs)
+        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
+        for graph, df in mp_run(self, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix):
+            if return_df:
+                yield graph, df
+            else:
+                yield graph
 
     def __eq__(self, other):
         return self.data_parser == other.data_parser and self.graph_parser == other.data_parser

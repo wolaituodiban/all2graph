@@ -169,5 +169,5 @@ class Graph(MetaStruct):
         return Graph(graph)
 
     @classmethod
-    def batch(cls, graphs):
-        return cls(dgl.batch([graph.graph for graph in graphs]))
+    def batch(cls, graphs, **kwargs):
+        return cls(dgl.batch([graph.graph for graph in graphs], **kwargs))
