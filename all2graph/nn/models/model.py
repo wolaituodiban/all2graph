@@ -13,8 +13,8 @@ from ...parsers import DataParser, GraphParser, PostParser, ParserWrapper
 class Model(MetaStruct):
     def __init__(
             self,
-            data_parser: DataParser,
-            check_point,
+            data_parser: DataParser = None,
+            check_point=None,
             meta_info_configs=None,
             graph_parser_configs=None,
             post_parser: PostParser = None
@@ -22,8 +22,9 @@ class Model(MetaStruct):
         super().__init__(initialized=True)
         self.data_parser = data_parser
         self.check_point = check_point
-        os.mkdir(check_point)
-        os.mkdir(os.path.join(check_point, 'temp'))
+        if check_point:
+            os.mkdir(check_point)
+            os.mkdir(os.path.join(check_point, 'temp'))
         self.meta_info_configs = meta_info_configs or {}
         self.graph_parser_configs = graph_parser_configs or {}
         self.post_parser = post_parser
