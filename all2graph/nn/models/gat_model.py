@@ -12,12 +12,12 @@ from ...parsers import PostParser
 class GATModel(Model):
     def __init__(
             self,
-            data_parser,
-            check_point,
             d_model,
             num_key_layers,
             num_value_layers,
             num_heads,
+            data_parser=None,
+            check_point=None,
             out_feats=1,
             dropout=0,
             activation='prelu',
