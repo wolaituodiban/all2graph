@@ -12,9 +12,9 @@ class FeedForward(Module):
         activation = _get_activation(activation)
         linear2 = torch.nn.Linear(num_feats, num_feats)
         if norm_first:
-            self.seq = torch.nn.Sequential(dropout, linear1, norm1, activation, linear2)
+            self.layers = torch.nn.Sequential(dropout, linear1, norm1, activation, linear2)
         else:
-            self.seq = torch.nn.Sequential(dropout, linear1, activation, norm1, linear2)
+            self.layers = torch.nn.Sequential(dropout, linear1, activation, norm1, linear2)
         self.norm = torch.nn.LayerNorm(num_feats)
 
     @property
@@ -22,11 +22,11 @@ class FeedForward(Module):
         return self.norm.weight
 
     def reset_parameters(self):
-        for module in self.seq:
+        for module in self.layers:
             if hasattr(module, 'reset_parameters'):
                 module.reset_parameters()
         self.norm.reset_parameters()
 
     def forward(self, in_feats: torch.Tensor) -> torch.Tensor:
-        out_feats = self.seq(in_feats)
+        out_feats = self.layers(in_feats)
         return self.norm(out_feats + in_feats)
