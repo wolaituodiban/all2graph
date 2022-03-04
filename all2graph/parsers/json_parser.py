@@ -22,7 +22,7 @@ class JsonParser(DataParser):
             d_degree=1,
             d_inner_edge=False,
             l_degree=1,
-            bidirectional=False,
+            to_bidirected=False,
             lid_keys: Set[Union[str, Tuple[str]]] = None,
             gid_keys: Set[Union[str, Tuple[str]]] = None,
             # 预处理
@@ -41,7 +41,7 @@ class JsonParser(DataParser):
             l_degree: 自然数，插入list时跳连前置节点的度数
             l_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
             r_l_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
-            bidirectional: 双向边
+            to_bidirected: 双向边
             seq_keys: 是否生成网格
             lid_keys: 样本内表示id的key
             gid_keys: 样本间表示id的key
@@ -55,7 +55,7 @@ class JsonParser(DataParser):
         self.d_degree = d_degree
         self.d_inner_edge = d_inner_edge
         self.l_degree = l_degree
-        self.bidirectional = bidirectional
+        self.bidirectional = to_bidirected
         self.lid_keys = lid_keys
         self.gid_keys = gid_keys
         self.processor = processor

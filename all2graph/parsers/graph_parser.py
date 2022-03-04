@@ -11,8 +11,7 @@ from ..stats import ECDF
 
 class GraphParser(MetaStruct):
     def __init__(
-            self, dictionary: Dict[str, int], numbers: Dict[str, ECDF], add_self_loop=False, to_simple=False,
-            scale_method=None, **scale_kwargs
+            self, dictionary: Dict[str, int], numbers: Dict[str, ECDF], scale_method=None, **scale_kwargs
     ):
         """
 
@@ -27,8 +26,6 @@ class GraphParser(MetaStruct):
         super().__init__(initialized=True)
         self.dictionary = dictionary
         self.numbers = numbers
-        self.add_self_loop = add_self_loop
-        self.to_simple = to_simple
         self.scale_method = scale_method
         self.scale_kwargs = scale_kwargs
 
@@ -83,10 +80,6 @@ class GraphParser(MetaStruct):
         numbers = torch.tensor(self.scale(key_of_values, graph.formated_values), dtype=torch.float32)
         graph = Graph.from_data(
             edges, num_samples=graph.num_samples, key_tokens=key_tokens, value_tokens=value_tokens, numbers=numbers)
-        if self.add_self_loop:
-            graph = graph.add_self_loop()
-        if self.to_simple:
-            graph = graph.to_simple()
         return graph
 
     def __eq__(self, other, debug=False):
@@ -118,19 +111,16 @@ class GraphParser(MetaStruct):
         )
 
     @classmethod
-    def from_data(cls, meta_info: MetaInfo, add_self_loop=False, to_simple=False,
-                  scale_method='minmax', scale_kwargs=None, **kwargs):
+    def from_data(cls, meta_info: MetaInfo, scale_method='minmax', scale_kwargs=None, **kwargs):
         """
 
         Args:
             meta_info:
-            add_self_loop:
-            to_simple:
             scale_method:
             scale_kwargs:
             kwargs: MetaInfo.dictionary的参数
         Returns:
 
         """
-        return cls(dictionary=meta_info.dictionary(**kwargs), numbers=meta_info.numbers, add_self_loop=add_self_loop,
-                   to_simple=to_simple, scale_method=scale_method, **(scale_kwargs or {}))
+        return cls(dictionary=meta_info.dictionary(**kwargs), numbers=meta_info.numbers, scale_method=scale_method,
+                   **(scale_kwargs or {}))

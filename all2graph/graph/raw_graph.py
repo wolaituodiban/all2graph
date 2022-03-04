@@ -9,6 +9,20 @@ from ..utils import tqdm
 from ..globals import *
 
 
+def gen_edges_for_seq_(nids, degree, r_degree):
+    u, v = [], []
+    for i, nid in enumerate(nids):
+        # 正向
+        end = i + degree + 1 if degree >= 0 else len(nids)
+        v += nids[i + 1:end]
+        # 反向
+        start = max(0, i - r_degree) if r_degree >= 0 else 0
+        v += nids[start:i]
+        # 补全
+        u += [nid] * (len(v) - len(u))
+    return u, v
+
+
 class RawGraph(MetaStruct):
     """
     异构图
@@ -70,7 +84,7 @@ class RawGraph(MetaStruct):
             if etype[-1] == KEY:
                 all_kids += v
         all_kids = set(all_kids)
-        assert len(self.keys) == len(all_kids) == max(all_kids) + 1
+        assert len(self.keys) == len(all_kids) == max(all_kids) + 1, (self.keys, all_kids)
         # 检验value的数量一致
         all_vids = []
         for etype, (u, v) in self.edges.items():
@@ -185,15 +199,8 @@ class RawGraph(MetaStruct):
         Returns:
 
         """
-        for i, nid in enumerate(nids):
-            # 正向
-            end = i + degree + 1 if degree >= 0 else len(nids)
-            self.edges[etype][1] += nids[i + 1:end]
-            # 反向
-            start = max(0, i - r_degree) if r_degree >= 0 else 0
-            self.edges[etype][1] += nids[start:i]
-            # 补全
-            self.edges[etype][0] += [nid] * (len(self.edges[etype][1]) - len(self.edges[etype][0]))
+        u, v = gen_edges_for_seq_(sorted(nids), degree=degree, r_degree=r_degree)
+        self.add_edges_(u, v, etype=etype)
 
     def add_edges_by_key_(self, keys=None, **kwargs):
         """

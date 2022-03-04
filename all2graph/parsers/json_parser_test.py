@@ -55,7 +55,7 @@ def test_l_degree():
 
 
 def test_bidirectional():
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', bidirectional=True)
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', to_bidirected=True)
     graph = json_parser(df)
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))

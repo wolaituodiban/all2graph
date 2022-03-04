@@ -4,8 +4,10 @@ import pickle
 import dgl
 import dgl.function as fn
 import torch
+import pandas as pd
 
-from ..globals import KEY, VALUE, TOKEN, NUMBER, KEY2VALUE, EDGE, KEY2KEY, VALUE2VALUE, SAMPLE
+from .raw_graph import gen_edges_for_seq_
+from ..globals import KEY, VALUE, TOKEN, NUMBER, KEY2VALUE, EDGE, KEY2KEY, VALUE2VALUE, SAMPLE, SAMPLE2VALUE
 from ..meta_struct import MetaStruct
 
 
@@ -59,7 +61,7 @@ class Graph(MetaStruct):
 
     @property
     def readout_types(self):
-        return {ntype for ntype in self.graph.ntypes if ntype != KEY and ntype != VALUE}
+        return {ntype for ntype in self.graph.ntypes if ntype != KEY and ntype != VALUE and ntype != SAMPLE}
 
     def push_key2value(self, feats: torch.Tensor) -> torch.Tensor:
         with self.graph.local_scope():
@@ -111,9 +113,27 @@ class Graph(MetaStruct):
             graph = dgl.add_self_loop(self.graph, etype)
         return Graph(graph)
 
+    def to_bidirectied(self, etype=None):
+        raise NotImplementedError
+
     def add_edges_by_key(self, degree, r_degree, keys=None):
-        kid, vid = self.graph.edges(etype=KEY2VALUE)
-        num_keys = torch.unique(kid).shape[0]
+        all_u, all_v = [], []
+
+        sid = self.graph.adj(transpose=True, etype=SAMPLE2VALUE).coalesce().indices()[1]
+        kid = self.graph.adj(transpose=True, etype=KEY2VALUE).coalesce().indices()[1]
+        df = pd.DataFrame({'sid': sid.cpu().detach().numpy(), 'kid': kid.cpu().detach().numpy()})
+        for (sid, kid), group in df.groupby(['sid', 'kid']):
+            if keys and kid not in keys:
+                continue
+            u, v = gen_edges_for_seq_(group.index.tolist(), degree=degree, r_degree=r_degree)
+            all_u += u
+            all_v += v
+        all_u = torch.tensor(all_u, dtype=torch.long)
+        all_v = torch.tensor(all_v, dtype=torch.long)
+
+        graph = dgl.add_edges(
+            self.graph, torch.tensor(all_u, dtype=torch.long), torch.tensor(all_v, dtype=torch.long), etype=VALUE2VALUE)
+        return Graph(graph)
 
     @classmethod
     def load(cls, path, **kwargs):

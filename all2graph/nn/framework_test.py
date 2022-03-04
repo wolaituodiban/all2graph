@@ -6,22 +6,22 @@ import matplotlib.pyplot as plt
 
 def test_forward():
     raw_graph = ag.graph.RawGraph()
-    raw_graph.add_kv_(0, 'a', 'b', True)
-    raw_graph.add_kv_(0, 'a', 3, True)
-    raw_graph.add_kv_(0, ('a', 'b'), 'b', True)
-    raw_graph.add_kv_(0, ('a', 'b'), 'c', True)
-    raw_graph.add_kv_(0, 'a', 'b', True)
-    raw_graph.add_kv_(1, 'a', '0.23', True)
-    raw_graph.add_kv_(0, ('a', 'b'), 'b', True)
-    raw_graph.add_kv_(1, ('a', 'b'), 'c', True)
-    raw_graph.add_kv_(2, ('a', 'b'), 'c', True)
-    raw_graph.add_readouts_(['sdf', 'ge'], True)
+    raw_graph.add_kv_(0, 'a', 'b')
+    raw_graph.add_kv_(0, 'a', 3)
+    raw_graph.add_kv_(0, ('a', 'b'), 'b')
+    raw_graph.add_kv_(0, ('a', 'b'), 'c')
+    raw_graph.add_kv_(0, 'a', 'b')
+    raw_graph.add_kv_(1, 'a', '0.23')
+    raw_graph.add_kv_(0, ('a', 'b'), 'b')
+    raw_graph.add_kv_(1, ('a', 'b'), 'c')
+    raw_graph.add_kv_(2, ('a', 'b'), 'c')
+    raw_graph.add_readouts_(['sdf', 'ge'])
     raw_graph.draw(key=True)
     plt.show()
 
     meta_info = raw_graph.meta_info()
     graph_parser = ag.GraphParser.from_data(meta_info)
-    graph = graph_parser(raw_graph)
+    graph = graph_parser(raw_graph).add_self_loop()
 
     d_model = 12
     module = ag.nn.Framework(
