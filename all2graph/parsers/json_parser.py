@@ -51,7 +51,7 @@ class JsonParser(DataParser):
                         return new_json_obj
             **kwargs:
         """
-        super().__init__(json_col=json_col, time_col=time_col, time_format=time_format, targets=targets, **kwargs)
+        super().__init__(data_col=json_col, time_col=time_col, time_format=time_format, targets=targets, **kwargs)
         self.d_degree = d_degree
         self.d_inner_edge = d_inner_edge
         self.l_degree = l_degree
@@ -110,7 +110,7 @@ class JsonParser(DataParser):
 
     def __call__(self, df: pd.DataFrame, disable: bool = True) -> RawGraph:
         graph = RawGraph()
-        cols = [self.json_col, self.time_col]
+        cols = [self.data_col, self.time_col]
         for sid, row in tqdm(enumerate(df[cols].itertuples()), disable=disable, postfix='parsing json'):
             obj = self.process_json(row[1], now=row[2])
             self.add_obj(graph, sid=sid, obj=obj)

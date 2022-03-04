@@ -1,3 +1,4 @@
+import os
 from abc import abstractmethod
 from inspect import ismethod
 from typing import Tuple, List, Union, Set
@@ -14,7 +15,7 @@ from ..utils import iter_csv, mp_run
 class DataParser(MetaStruct):
     def __init__(
             self,
-            json_col,
+            data_col,
             time_col,
             time_format,
             targets,
@@ -23,16 +24,13 @@ class DataParser(MetaStruct):
             r_degree=0,
             **kwargs):
         super().__init__(initialized=True, **kwargs)
-        self.json_col = json_col
+        self.data_col = data_col
         self.time_col = time_col
         self.time_format = time_format
         self.targets = targets or []
         self.seq_keys = seq_keys
         self.degree = degree
         self.r_degree = r_degree
-
-        # cache
-        self.__configs = {}
 
     def get_targets(self, df: pd.DataFrame):
         if self.targets:
@@ -44,36 +42,58 @@ class DataParser(MetaStruct):
         else:
             return {}
 
-    def _analyse(self, df: pd.DataFrame) -> Tuple[MetaInfo, int]:
+    def _analyse(self, inputs, **kwargs) -> Tuple[MetaInfo, pd.DataFrame]:
+        df, path = inputs
         graph = self(df, disable=True)
-        meta_info = graph.meta_info(**self.__configs)
-        return meta_info, df.shape[0]
+        if path is not None:
+            graph.save(path)
+            df = df.copy()
+            df['path'] = path
+        meta_info = graph.meta_info(**kwargs)
+        return meta_info, df.drop(columns=self.data_col)
 
-    def analyse(self, data, chunksize=64, disable=False, postfix='reading csv', processes=None, configs=None, **kwargs):
+    def analyse(self, data, dst=None, chunksize=64, disable=False, postfix='reading csv', processes=None, configs=None,
+                **kwargs):
         """
         返回数据的元信息
         Args:
             data:
+            dst: 如果不是None，那么在此文件夹下保存中间结果
             chunksize:
             disable:
             postfix:
             processes:
-            configs:
-            **kwargs:
+            configs:MetaInfo的额外参数
+            **kwargs: read_csv参数
 
         Returns:
 
         """
-        self.__configs = configs or {}
-
+        if dst is not None:
+            assert not os.path.exists(dst), '{} already exists'.format(dst)
+            os.mkdir(dst)
+            data = (
+                (df, os.path.join(dst, '{}.ag.rg'.format(i)))
+                for i, df in enumerate(iter_csv(data, chunksize=chunksize, **kwargs))
+            )
+        else:
+            data = ((df, None) for i, df in enumerate(iter_csv(data, chunksize=chunksize, **kwargs)))
         meta_infos: List[MetaInfo] = []
+        dfs = []
         weights = []
-        data = iter_csv(data, chunksize=chunksize, **kwargs)
-        for meta_info, weight in mp_run(self._analyse, data, processes=processes, disable=disable, postfix=postfix):
+        for meta_info, df in mp_run(
+                self._analyse, data, kwds=configs or {}, processes=processes, disable=disable, postfix=postfix):
             meta_infos.append(meta_info)
-            weights.append(weight)
+            weights.append(df.shape[0])
+            if dst:
+                dfs.append(df)
         cls = meta_infos[0].__class__
-        return cls.batch(meta_infos, weights=weights, disable=disable, processes=processes, **self.__configs)
+        meta_info = cls.batch(meta_infos, weights=weights, disable=disable, processes=processes, **configs or {})
+        if dst:
+            df = pd.concat(dfs)
+            df.to_csv(dst+'_path.csv', index=False)
+            return meta_info, df
+        return meta_info
 
     def _post_call(self, graph: RawGraph):
         if self.targets:

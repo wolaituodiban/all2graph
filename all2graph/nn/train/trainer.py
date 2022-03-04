@@ -16,7 +16,6 @@ from .metric import Metric
 from ..utils import predict_dataloader, Predictor, Module
 from ...utils import tqdm, json_round
 from ...version import __version__
-from ...factory import Factory
 
 
 class Trainer(torch.nn.Module):
@@ -281,24 +280,6 @@ class Trainer(torch.nn.Module):
         print("save prediction at '{}'".format(dst))
         output.to_csv(dst)
         return output
-
-    def build_factory(
-            self, valid_id=None, data_parser=None, raw_graph_parser=None, meta_info_config: dict = None,
-            raw_graph_parser_config: dict = None) -> Union[Factory, None]:
-        data_parser = data_parser or self.get_data_parser(valid_id=valid_id)
-        if data_parser is None:
-            print('can not get DataParser, failed to build Factory', file=sys.stderr)
-            return
-
-        raw_graph_parser = raw_graph_parser or self.get_raw_graph_parser(valid_id=valid_id)
-        if raw_graph_parser is None:
-            print('can not get RawGraphParser, failed to build Factory', file=sys.stderr)
-            return
-
-        factory = Factory(
-            data_parser=data_parser, graph_parser_config=raw_graph_parser_config, meta_info_config=meta_info_config)
-        factory.graph_parser = raw_graph_parser
-        return factory
 
     def delete_history(self, epochs=None):
         """

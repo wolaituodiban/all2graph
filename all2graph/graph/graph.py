@@ -131,8 +131,7 @@ class Graph(MetaStruct):
         all_u = torch.tensor(all_u, dtype=torch.long)
         all_v = torch.tensor(all_v, dtype=torch.long)
 
-        graph = dgl.add_edges(
-            self.graph, torch.tensor(all_u, dtype=torch.long), torch.tensor(all_v, dtype=torch.long), etype=VALUE2VALUE)
+        graph = dgl.add_edges(self.graph, all_u, all_v, etype=VALUE2VALUE)
         return Graph(graph)
 
     @classmethod

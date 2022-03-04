@@ -69,7 +69,9 @@ class ParserWrapper(MetaStruct):
         for key2, (parser, key3) in self.graph_parser.items():
             if key and key not in key3:
                 continue
-            output[key2] = self.call_post_parser(parser(raw_graph), key=key2)
+            output[key2] = parser(raw_graph)
+            if post:
+                output[key2] = self.call_post_parser(output[key2], key=key2)
         if len(output) == 1:
             return list(output.values())[0]
         return output
@@ -85,7 +87,7 @@ class ParserWrapper(MetaStruct):
                 df = df[sel_cols]
             if drop_cols is not None:
                 df = df.drop(columns=drop_cols)
-            return graph, df.drop(columns=[parser.json_col for parser in self.data_parser.values()])
+            return graph, df.drop(columns=[parser.data_col for parser in self.data_parser.values()])
         else:
             return graph
 

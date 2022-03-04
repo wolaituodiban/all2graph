@@ -30,7 +30,6 @@ else:
 
 from . import graph
 from .parsers import *
-from .factory import Factory
 from .info import *
 from .stats import ECDF, Discrete, Distribution
 from .utils import *

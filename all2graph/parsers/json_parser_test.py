@@ -98,7 +98,7 @@ def test_gid_keys():
 def test_analyse():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', gid_keys={'ord_no'})
     meta_info1 = json_parser.analyse(pd.concat([df] * 10000), processes=0)
-    meta_info2 = json_parser.analyse(pd.concat([df] * 10000))
+    meta_info2, _ = json_parser.analyse(pd.concat([df] * 10000), dst='temp')
     assert meta_info1 == meta_info2
 
 

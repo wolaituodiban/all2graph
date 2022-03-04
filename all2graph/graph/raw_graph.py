@@ -1,3 +1,5 @@
+import gzip
+import pickle
 from typing import List, Union, Tuple, Set, Dict
 
 import numpy as np
@@ -517,3 +519,12 @@ class RawGraph(MetaStruct):
             {ntype: self.num_nodes(ntype) for ntype in self.ntypes},
             {etype: self.num_edges(etype) for etype in self.edges}
         )
+
+    @classmethod
+    def load(cls, path, **kwargs):
+        with gzip.open(path, 'rb', **kwargs) as file:
+            return pickle.load(file)
+
+    def save(self, path, **kwargs):
+        with gzip.open(path, 'wb', **kwargs) as file:
+            pickle.dump(self, file)
