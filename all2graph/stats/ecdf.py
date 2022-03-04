@@ -35,7 +35,7 @@ class ECDF(Distribution):
         :return: 分位数对应的累计概率
         """
         if self.num_bins == 1:
-            return np.array(q) >= self.quantiles[0]
+            return (np.array(q) >= self.quantiles[0]).astype(float)
         else:
             return interpolate.interp1d(
                 self.quantiles, self.probs, bounds_error=bounds_error, fill_value=fill_value,

@@ -70,7 +70,10 @@ class Model(MetaStruct):
         else:
             train_path_df = self.parser_wrapper.save(
                 src=train_data,
-                dst=os.path.join(self.check_point, 'temp', 'train')
+                dst=os.path.join(self.check_point, 'temp', 'train'),
+                chunksize=chunksize,
+                processes=processes,
+                **kwargs
             )
             train_dataset = GraphDataset(path=train_path_df, parser=self.parser_wrapper)
             train_dataloader = train_dataset.dataloader(batch_size=batch_size, shuffle=True, num_workers=num_workers)
@@ -83,7 +86,10 @@ class Model(MetaStruct):
                 else:
                     valid_path_df = self.parser_wrapper.save(
                         src=train_data,
-                        dst=os.path.join(self.check_point, 'temp', 'valid_{}'.format(i))
+                        dst=os.path.join(self.check_point, 'temp', 'valid_{}'.format(i)),
+                        chunksize=chunksize,
+                        processes=processes,
+                        **kwargs
                     )
                     valid_dataset = GraphDataset(path=valid_path_df, parser=self.parser_wrapper)
                     valid_dataloader = valid_dataset.dataloader(

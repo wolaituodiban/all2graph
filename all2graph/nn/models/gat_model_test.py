@@ -55,6 +55,7 @@ def test_gat_model():
         train_data=df,
         chunksize=100,
         batch_size=16,
+        processes=0,
         loss=ag.nn.DictLoss(torch.nn.BCEWithLogitsLoss()),
         epoches=2,
         valid_data=[df],

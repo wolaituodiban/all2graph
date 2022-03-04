@@ -111,7 +111,7 @@ class GraphParser(MetaStruct):
         )
 
     @classmethod
-    def from_data(cls, meta_info: MetaInfo, scale_method='minmax', scale_kwargs=None, **kwargs):
+    def from_data(cls, meta_info: MetaInfo, scale_method='prob', scale_kwargs=None, **kwargs):
         """
 
         Args:
