@@ -81,9 +81,10 @@ class GraphParser(MetaStruct):
         edges = {k: (torch.tensor(u, dtype=torch.long), torch.tensor(v, dtype=torch.long))
                  for k, (u, v) in graph.edges.items()}
         key_tokens = torch.tensor(self.encode(graph.keys), dtype=torch.long)
-        value_tokens = torch.tensor(self.encode(graph.values), dtype=torch.long)
+        formatted_values = graph.formatted_values
+        value_tokens = torch.tensor(self.encode(formatted_values), dtype=torch.long)
         numbers = torch.tensor(
-            self.scale(keys=graph.get_keys(range(graph.num_values)), values=graph.values),
+            self.scale(keys=graph.get_keys(range(graph.num_values)), values=formatted_values),
             dtype=torch.float32)
         graph = Graph.from_data(
             edges, num_samples=graph.num_samples, key_tokens=key_tokens, value_tokens=value_tokens, numbers=numbers)

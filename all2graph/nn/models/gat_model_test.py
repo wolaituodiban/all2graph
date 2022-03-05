@@ -64,6 +64,8 @@ def test_gat_model():
         metrics={'auc': ag.Metric(roc_auc_score, label_first=True)},
         early_stop=ag.nn.EarlyStop(5, higher=True, fn=get_metric)
     )
+    for k, v in gat_model.named_parameters():
+        assert not torch.isnan(v).any(), k
 
 
 if __name__ == '__main__':
