@@ -96,6 +96,7 @@ def num_parameters(module: torch.nn.Module):
 class Module(torch.nn.Module):
     def __init__(self):
         super().__init__()
+        self.version = __version__
 
     @abstractproperty
     def device(self):

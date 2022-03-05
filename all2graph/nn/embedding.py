@@ -1,4 +1,5 @@
 import math
+from typing import Tuple
 import torch
 from .utils import _get_activation, Module
 
@@ -28,13 +29,15 @@ class NumEmb(Module):
         if self.bias is not None:
             torch.nn.init.zeros_(self.bias)
 
-    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
-        output = inputs.unsqueeze(-1) * self.weight
+    def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        mask = torch.isnan(inputs)
+        output = torch.masked_fill(inputs, mask, 0)
+        output = output.unsqueeze(-1) * self.weight
         if self.bias is not None:
             output = output + self.bias
         if self.activation:
             output = self.activation(output)
-        return output
+        return output, torch.bitwise_not(mask)
 
     def extra_repr(self):
         return 'emb_dim={}, bias={}'.format(

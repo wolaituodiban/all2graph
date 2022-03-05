@@ -46,9 +46,15 @@ class GraphParser(MetaStruct):
     def num_numbers(self):
         return len(self.numbers)
 
-    def encode_token(self, inputs: list) -> List[int]:
+    def encode(self, inputs: list) -> List[int]:
         output = [self.dictionary.get(str(x), self.default_code) for x in inputs]
         return output
+
+    def decode(self, inputs):
+        rd = {v: k for k, v in self.dictionary.items()}
+        rd[self.default_code] = 'default'
+        rd[self.mask_code] = 'mask'
+        return [rd[x] for x in inputs]
 
     def scale(self, keys, values) -> np.ndarray:
         """归一化"""
@@ -74,10 +80,11 @@ class GraphParser(MetaStruct):
         import torch
         edges = {k: (torch.tensor(u, dtype=torch.long), torch.tensor(v, dtype=torch.long))
                  for k, (u, v) in graph.edges.items()}
-        key_tokens = torch.tensor(self.encode_token(graph.keys), dtype=torch.long)
-        key_of_values = graph.get_keys(range(graph.num_values))
-        value_tokens = torch.tensor(self.encode_token(key_of_values), dtype=torch.long)
-        numbers = torch.tensor(self.scale(key_of_values, graph.formated_values), dtype=torch.float32)
+        key_tokens = torch.tensor(self.encode(graph.keys), dtype=torch.long)
+        value_tokens = torch.tensor(self.encode(graph.values), dtype=torch.long)
+        numbers = torch.tensor(
+            self.scale(keys=graph.get_keys(range(graph.num_values)), values=graph.values),
+            dtype=torch.float32)
         graph = Graph.from_data(
             edges, num_samples=graph.num_samples, key_tokens=key_tokens, value_tokens=value_tokens, numbers=numbers)
         return graph

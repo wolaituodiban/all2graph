@@ -105,7 +105,7 @@ class RawGraph(MetaStruct):
         return len(self.__roots)
 
     @property
-    def formated_values(self):
+    def formatted_values(self):
         # 排除所有ID的value
         glids = set(self.__gids.values())
         for lids in self.__lids.values():
@@ -506,7 +506,7 @@ class RawGraph(MetaStruct):
         vids = list(range(self.num_nodes(VALUE)))
         sample_ids = self.get_sids(vids)
         keys = self.get_keys(vids)
-        values = self.formated_values
+        values = self.formatted_values
         for ntype in self.readout_types:
             u, v = self.edges[(SAMPLE, EDGE, ntype)]
             sample_ids += u

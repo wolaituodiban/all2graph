@@ -29,7 +29,7 @@ def test_parse():
         graph_parser={'c': graph_parser, 'd': (graph_parser, ['a'])},
         post_parser=post_parser
     )
-    graphs, df2 = parser_wrapper(df)
+    graphs, df2 = parser_wrapper(df, return_df=True)
     print(graphs)
 
 

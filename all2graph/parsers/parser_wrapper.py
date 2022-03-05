@@ -18,45 +18,73 @@ UnionPostParser = Union[PostParser, Tuple[PostParser, List[str]]]
 class ParserWrapper(MetaStruct):
     def __init__(
             self,
-            data_parser: Union[DataParser, List[DataParser], Dict[str, DataParser]],
-            graph_parser: Union[UnionGraphParser, List[UnionGraphParser], Dict[str, UnionGraphParser]],
+            data_parser: Union[DataParser, List[DataParser], Dict[str, DataParser]] = None,
+            graph_parser: Union[UnionGraphParser, List[UnionGraphParser], Dict[str, UnionGraphParser]] = None,
             post_parser: Union[UnionPostParser, List[UnionPostParser], Dict[str, UnionPostParser]] = None
     ):
         super().__init__(initialized=True)
+        self.data_parser = data_parser
+        self.graph_parser = graph_parser
+        self.post_parser = post_parser
+
+    @property
+    def data_parser(self):
+        if len(self._data_parser) == 1:
+            return list(self._data_parser.values())[0]
+        return self._data_parser
+
+    @data_parser.setter
+    def data_parser(self, data_parser):
         if not isinstance(data_parser, (list, dict)):
             data_parser = [data_parser]
         if isinstance(data_parser, list):
             data_parser = {i: parser for i, parser in enumerate(data_parser)}
-        self.data_parser: Dict[str, DataParser] = data_parser
+        self._data_parser: Dict[str, DataParser] = data_parser
 
+    @property
+    def graph_parser(self):
+        if len(self._graph_parser) == 1:
+            return list(self._graph_parser.values())[0][0]
+        return {k: v[0] for k, v in self.graph_parser.items()}
+
+    @graph_parser.setter
+    def graph_parser(self, graph_parser):
         if not isinstance(graph_parser, (list, dict)):
             graph_parser = [graph_parser]
         if isinstance(graph_parser, list):
             graph_parser = {i: parser for i, parser in enumerate(graph_parser)}
-        self.graph_parser: Dict[str, Tuple[GraphParser, List[str]]] = {}
+        self._graph_parser: Dict[str, Tuple[GraphParser, List[str]]] = {}
         for k, parser in graph_parser.items():
             if not isinstance(parser, tuple):
-                parser = (parser, list(self.data_parser))
-            self.graph_parser[k] = parser
+                parser = (parser, list(self._data_parser))
+                self._graph_parser[k] = parser
 
+    @property
+    def post_parser(self):
+        if len(self._post_parser) == 1:
+            return list(self._post_parser.values())[0][0]
+        return {k: v[0] for k, v in self._post_parser.items()}
+
+    @post_parser.setter
+    def post_parser(self, post_parser):
         if post_parser is None:
-            self.post_parser = None
+            self._post_parser = None
         else:
             if not isinstance(post_parser, (list, dict)):
                 post_parser = [post_parser]
             if isinstance(post_parser, list):
                 post_parser = {i: parser for i, parser in enumerate(post_parser)}
-            self.post_parser: Dict[str, Tuple[PostParser, List[str]]] = {}
+            self._post_parser: Dict[str, Tuple[PostParser, List[str]]] = {}
             for k, parser in post_parser.items():
                 if not isinstance(parser, tuple):
-                    parser = (parser, list(self.graph_parser))
-                self.post_parser[k] = parser
+                    parser = (parser, list(self._graph_parser))
+                self._post_parser[k] = parser
 
     def call_post_parser(self, graph: Graph, key: str = None) -> Union[Graph, Dict[str, Graph]]:
-        if self.post_parser is None:
+        if self._post_parser is None:
             return graph
         output = {}
-        for key2, (parser, key3) in self.post_parser.items():
+        for key2, (parser, key3) in self._post_parser.items():
             if key and key not in key3:
                 continue
             output[key2] = parser(graph)
@@ -66,7 +94,7 @@ class ParserWrapper(MetaStruct):
 
     def call_graph_parser(self, raw_graph: RawGraph, key: str = None, post=True) -> Union[Graph, dict]:
         output = {}
-        for key2, (parser, key3) in self.graph_parser.items():
+        for key2, (parser, key3) in self._graph_parser.items():
             if key and key not in key3:
                 continue
             output[key2] = parser(raw_graph)
@@ -78,7 +106,7 @@ class ParserWrapper(MetaStruct):
 
     def __call__(self, df: pd.DataFrame, disable=True, return_df=False, sel_cols=None, drop_cols=None, post=True
                  ) -> Union[Union[Graph, dict], Tuple[Union[Graph, dict], pd.DataFrame]]:
-        raw_graph = {k: parser(df, disable=disable) for k, parser in self.data_parser.items()}
+        raw_graph = {k: parser(df, disable=disable) for k, parser in self._data_parser.items()}
         graph = {k: self.call_graph_parser(g, key=k, post=post) for k, g in raw_graph.items()}
         if len(graph) == 1:
             graph = list(graph.values())[0]
@@ -87,13 +115,13 @@ class ParserWrapper(MetaStruct):
                 df = df[sel_cols]
             if drop_cols is not None:
                 df = df.drop(columns=drop_cols)
-            return graph, df.drop(columns=[parser.data_col for parser in self.data_parser.values()])
+            return graph, df.drop(columns=[parser.data_col for parser in self._data_parser.values()])
         else:
             return graph
 
     def labels(self, df):
         labels = {}
-        for data_key, data_parser in self.data_parser.items():
+        for data_key, data_parser in self._data_parser.items():
             labels.update(data_parser.get_targets(df))
         return labels
 
@@ -176,4 +204,5 @@ class ParserWrapper(MetaStruct):
                 yield graph
 
     def __eq__(self, other):
-        return self.data_parser == other.data_parser and self.graph_parser == other.data_parser
+        return self.data_parser == other.data_parser and self.graph_parser == other.graph_parser\
+               and self.post_parser == other.post_parser
