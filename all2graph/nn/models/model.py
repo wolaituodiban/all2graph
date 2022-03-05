@@ -128,7 +128,7 @@ class Model(Module):
         # model
         self.module = module or self.build_module(self.graph_parser.num_tokens)
         if torch.cuda.is_available():
-            self.module = module.cuda()
+            self.module.cuda()
 
         if optimizer_cls is not None:
             optimizer = optimizer_cls(self.module.parameters(), **(optimizer_kwds or {}))
