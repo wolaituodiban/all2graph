@@ -27,7 +27,7 @@ def test_framework():
                    'stg_no': '1',
                },
            ]
-    df = pd.DataFrame({'json': [json.dumps(data)], 'crt_dte': '2020-10-09'})
+    df = pd.DataFrame({'json': [json.dumps(data)] * 2, 'crt_dte': '2020-10-09'})
     df['m3_ovd_30'] = np.random.choice([0, 1], size=df.shape[0])
 
     json_parser = ag.JsonParser(
@@ -41,11 +41,12 @@ def test_framework():
     module = ag.nn.Framework(
         token_emb=torch.nn.Embedding(graph_parser.num_tokens, d_model),
         number_emb=ag.nn.NumEmb(d_model),
-        bottle_neck=ag.nn.BottleNeck(d_model),
+        bottle_neck=ag.nn.BottleNeck(d_model, num_inputs=3),
         key_body=ag.nn.GATBody(d_model, num_heads=2, num_layers=2),
         value_body=ag.nn.GATBody(d_model, num_heads=2, num_layers=6),
         readout=ag.nn.Readout(d_model)
     )
+    print(module)
     pred = module(graph)
     pred['m3_ovd_30'].sum().backward()
     for k, v in module.named_parameters():

@@ -41,7 +41,7 @@ class GATModel(Model):
 
     def build_module(self, num_tokens) -> torch.nn.Module:
         module = Framework(
-            token_emb=torch.nn.Embedding(self.graph_parser.num_tokens, self.d_model),
+            token_emb=torch.nn.Embedding(num_tokens, self.d_model),
             number_emb=NumEmb(self.d_model, activation=self.activation),
             bottle_neck=BottleNeck(
                 self.d_model, dropout=self.dropout, activation=self.activation, norm_first=self.norm_first),

@@ -1,16 +1,16 @@
+from typing import List
+
 import torch
 
-from .utils import Module, _get_activation
-from ..graph import Graph
-from ..globals import KEY, VALUE
+from .utils import Module, _get_activation, _get_norm
 
 
 class BottleNeck(Module):
-    def __init__(self, d_model, dropout=0, activation='relu', norm_first=True):
+    def __init__(self, d_model, num_inputs=2, dropout=0, activation='relu', norm='layer', norm_first=True):
         super().__init__()
         dropout = torch.nn.Dropout(dropout)
-        linear = torch.nn.Linear(2 * d_model, d_model)
-        norm = torch.nn.LayerNorm(d_model)
+        linear = torch.nn.Linear(num_inputs * d_model, d_model)
+        norm = _get_norm(norm, d_model)
         activation = _get_activation(activation)
         if norm_first:
             self.layers = torch.nn.Sequential(dropout, linear, norm, activation)
@@ -26,14 +26,6 @@ class BottleNeck(Module):
             if hasattr(layer, 'reset_parameters'):
                 layer.reset_parameters()
 
-    def forward(
-            self, graph: Graph, key_feats: torch.Tensor, token_emb: torch.Tensor, num_emb: torch.Tensor,
-            mask: torch.Tensor
-    ) -> torch.Tensor:
-        key_feats = graph.push_key2value(key_feats)
-
-        value_emb = token_emb.masked_fill(mask.unsqueeze(-1), 0)
-        value_emb[mask] += num_emb[mask]
-
-        kv_emb = torch.cat([key_feats, value_emb], dim=-1)
+    def forward(self, *inputs: torch.Tensor) -> torch.Tensor:
+        kv_emb = torch.cat(inputs, dim=-1)
         return self.layers(kv_emb)

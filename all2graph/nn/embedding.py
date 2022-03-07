@@ -9,7 +9,7 @@ class NumEmb(Module):
     参考torch.nn.Embedding文档，将数值型特征也变成相同的形状。
     实际上就是将输入的张量扩展一个为1的维度之后，加上一个没有常数项的全连接层
     """
-    def __init__(self, emb_dim, bias=True, activation='relu'):
+    def __init__(self, emb_dim, bias=True, activation='prelu'):
         super(NumEmb, self).__init__()
         self.weight = torch.nn.Parameter(torch.empty(emb_dim))
         if bias:
@@ -17,6 +17,7 @@ class NumEmb(Module):
         else:
             self.bias = None
         self.activation = _get_activation(activation)
+        self.norm = torch.nn.LayerNorm(emb_dim)
         self.reset_parameters()
 
     @property
@@ -29,15 +30,16 @@ class NumEmb(Module):
         if self.bias is not None:
             torch.nn.init.zeros_(self.bias)
 
-    def forward(self, inputs: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def forward(self, inputs: torch.Tensor) -> torch.Tensor:
         mask = torch.isnan(inputs)
         output = torch.masked_fill(inputs, mask, 0)
         output = output.unsqueeze(-1) * self.weight
         if self.bias is not None:
             output = output + self.bias
+        output = self.norm(output)
         if self.activation:
             output = self.activation(output)
-        return output, torch.bitwise_not(mask)
+        return output
 
     def extra_repr(self):
         return 'emb_dim={}, bias={}'.format(

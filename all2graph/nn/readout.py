@@ -2,37 +2,30 @@ from typing import Dict
 
 import torch
 
-from .utils import Module, _get_activation
+from .bottle_neck import BottleNeck
+from .utils import Module
 from ..graph import Graph
 
 
 class Readout(Module):
-    def __init__(self, in_feats, out_feats=1, dropout=0, activation='relu', norm_first=True):
+    def __init__(self, in_feats, out_feats=1, dropout=0, activation='prelu', norm_first=True):
         super().__init__()
-        dropout = torch.nn.Dropout(dropout)
-        linear = torch.nn.Linear(2 * in_feats, in_feats)
-        norm = torch.nn.LayerNorm(in_feats)
-        activation = _get_activation(activation)
-        output = torch.nn.Linear(in_feats, out_feats)
-        if norm_first:
-            self.layers = torch.nn.Sequential(dropout, linear, norm, activation, output)
-        else:
-            self.layers = torch.nn.Sequential(dropout, linear, activation, norm, output)
+        self.bottle_neck = BottleNeck(
+            d_model=in_feats, dropout=dropout, activation=activation, norm='batch1d', norm_first=norm_first)
+        self.output = torch.nn.Linear(in_feats, out_feats)
 
     @property
     def device(self):
         return self.linear.weight.device
 
     def reset_parameters(self):
-        for module in self.layers:
-            if hasattr(module, 'reset_parameters'):
-                module.reset_parameters()
+        self.bottle_neck.reset_parameters()
+        self.output.reset_parameters()
 
     def forward(self, graph: Graph, key_feats: torch.Tensor, value_feats: torch.Tensor) -> Dict[str, torch.Tensor]:
         output = {}
         for ntype in graph.readout_types:
-            value_feats2 = graph.push_value2readout(value_feats, ntype)
-            key_feats2 = graph.push_key2readout(key_feats, ntype)
-            readout_feats = torch.cat([value_feats2, key_feats2], dim=-1)
-            output[ntype] = self.layers(readout_feats).squeeze(-1)
+            readout_feats = self.bottle_neck(
+                graph.push_key2readout(key_feats, ntype), graph.push_value2readout(value_feats, ntype))
+            output[ntype] = self.output(readout_feats).squeeze(-1)
         return output

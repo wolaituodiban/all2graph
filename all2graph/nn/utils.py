@@ -184,3 +184,16 @@ def _get_activation(act):
         return torch.nn.PReLU()
     else:
         return copy.deepcopy(act)
+
+
+def _get_norm(norm, *args, **kwargs):
+    if norm == 'layer':
+        return torch.nn.LayerNorm(*args, **kwargs)
+    elif norm == 'batch1d':
+        return torch.nn.BatchNorm1d(*args, **kwargs)
+    elif norm == 'batch2d':
+        return torch.nn.BatchNorm2d(*args, **kwargs)
+    elif norm == 'batch3d':
+        return torch.nn.BatchNorm3d(*args, **kwargs)
+    else:
+        return copy.deepcopy(norm)

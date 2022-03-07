@@ -63,6 +63,14 @@ class Graph(MetaStruct):
     def readout_types(self):
         return {ntype for ntype in self.graph.ntypes if ntype != KEY and ntype != VALUE and ntype != SAMPLE}
 
+    @property
+    def nodes(self):
+        return self.graph.nodes
+
+    @property
+    def edges(self):
+        return self.graph.edges
+
     def push_key2value(self, feats: torch.Tensor) -> torch.Tensor:
         with self.graph.local_scope():
             self.graph.nodes[KEY].data['feat'] = feats
