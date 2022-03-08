@@ -8,28 +8,30 @@ from torch.utils.data import DataLoader
 from ..train import Trainer
 from ..utils import Module
 from ...data import GraphDataset
+from ...info import MetaInfo
 from ...parsers import DataParser, GraphParser, PostParser, ParserWrapper
 
 
 class Model(Module):
     def __init__(
             self,
-            check_point=None,
+            module: torch.nn.Module = None,
             data_parser: DataParser = None,
+            graph_parser: GraphParser = None,
+            post_parser: PostParser = None,
+            meta_info: MetaInfo = None,
             meta_info_configs=None,
             graph_parser_configs=None,
-            post_parser: PostParser = None
+            check_point=None,
     ):
         super().__init__()
-        self.check_point = check_point
-        self.parser_wrapper = ParserWrapper(data_parser=data_parser, post_parser=post_parser)
+        self.module = module
+        self.parser_wrapper = ParserWrapper(data_parser=data_parser, graph_parser=graph_parser, post_parser=post_parser)
 
-        self.meta_info = None
+        self.meta_info = meta_info
         self.meta_info_configs = meta_info_configs or {}
         self.graph_parser_configs = graph_parser_configs or {}
-        self.post_parser = post_parser
-
-        self.module = None
+        self.check_point = check_point
 
     @property
     def data_parser(self):
@@ -63,36 +65,19 @@ class Model(Module):
     def build_module(self, num_tokens) -> torch.nn.Module:
         raise NotImplementedError
 
-    def fit(self,
-            train_data,
-            loss,
-            epoches,
-            chunksize=None,
-            batch_size=None,
-            valid_data: list = None,
-            processes=None,
-            optimizer_cls=None,
-            optimizer_kwds=None,
-            metrics=None,
-            early_stop=None,
-            meta_info=None,
-            graph_parser=None,
-            module=None,
-            **kwargs
-            ):
-        if graph_parser:
-            self.graph_parser = graph_parser
-        else:
-            self.meta_info = meta_info or self.data_parser.analyse(
-                train_data, chunksize=chunksize, processes=processes, configs=self.meta_info_configs, **kwargs)
-            print(self.meta_info)
+    def build_data(self, train_data, batch_size, valid_data=None, processes=None, **kwargs):
+        # MetaInfo
+        if self.meta_info is None:
+            self.meta_info = self.data_parser.analyse(
+                train_data, processes=processes, configs=self.meta_info_configs, **kwargs)
+        print(self.meta_info)
+
+        # GraphParser
+        if self.graph_parser is None:
             self.graph_parser = GraphParser.from_data(self.meta_info, **self.graph_parser_configs)
         print(self.graph_parser)
 
-        # data
-        if self.check_point:
-            if not os.path.exists(self.check_point) or not os.path.isdir(self.check_point):
-                os.mkdir(self.check_point)
+        # DataLoader
         num_workers = processes or os.cpu_count()
         if isinstance(train_data, DataLoader):
             train_dataloader = train_data
@@ -100,7 +85,6 @@ class Model(Module):
             train_path_df = self.parser_wrapper.save(
                 src=train_data,
                 dst=os.path.join(self.check_point, 'train'),
-                chunksize=chunksize,
                 processes=processes,
                 **kwargs
             )
@@ -116,7 +100,6 @@ class Model(Module):
                     valid_path_df = self.parser_wrapper.save(
                         src=train_data,
                         dst=os.path.join(self.check_point, 'valid_{}'.format(i)),
-                        chunksize=chunksize,
                         processes=processes,
                         **kwargs
                     )
@@ -124,9 +107,32 @@ class Model(Module):
                     valid_dataloader = valid_dataset.dataloader(
                         batch_size=batch_size, shuffle=True, num_workers=num_workers)
                     valid_dataloaders.append(valid_dataloader)
+        return train_dataloader, valid_dataloaders
+
+    def fit(self,
+            train_data,
+            loss,
+            epoches,
+            batch_size=None,
+            valid_data: list = None,
+            processes=None,
+            optimizer_cls=None,
+            optimizer_kwds=None,
+            metrics=None,
+            early_stop=None,
+            **kwargs
+            ):
+        if self.check_point:
+            if not os.path.exists(self.check_point) or not os.path.isdir(self.check_point):
+                os.mkdir(self.check_point)
+
+        # data
+        train_dataloader, valid_dataloaders = self.build_data(
+            train_data=train_data, batch_size=batch_size, valid_data=valid_data, processes=processes)
 
         # model
-        self.module = module or self.build_module(self.graph_parser.num_tokens)
+        if self.module is None:
+            self.module = self.build_module(self.graph_parser.num_tokens)
         if torch.cuda.is_available():
             self.module.cuda()
 

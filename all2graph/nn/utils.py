@@ -175,6 +175,10 @@ class Predictor(Module):
         self.module.set_filter_key(x)
 
 
+def predict_csv(parser, module, src, **kwargs):
+    pass
+
+
 def _get_activation(act):
     if act == 'relu':
         return torch.nn.ReLU()

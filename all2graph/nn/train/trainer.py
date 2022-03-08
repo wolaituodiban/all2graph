@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from .early_stop import EarlyStop
 from .history import History, EpochBuffer
 from .metric import Metric
-from ..utils import predict_dataloader, Predictor, Module
+from ..utils import predict_dataloader, Module
 from ...utils import tqdm, json_round
 from ...version import __version__
 
@@ -201,11 +201,8 @@ class Trainer(torch.nn.Module):
     def get_data_loader(self, valid_id=None) -> DataLoader:
         return self.get_history(valid_id).loader
 
-    def get_data_parser(self, valid_id=None):
-        return self.get_history(valid_id=valid_id).data_parser
-
-    def get_raw_graph_parser(self, valid_id=None):
-        return self.get_history(valid_id=valid_id).raw_graph_parser
+    def get_parser(self, valid_id=None):
+        return self.get_history(valid_id=valid_id).parser
 
     def get_pred(self, epoch=None, valid_id=None):
         epoch = epoch or self._current_epoch
@@ -233,27 +230,6 @@ class Trainer(torch.nn.Module):
     def add_valid_data(self, loader: DataLoader):
         self.valid_history.append(History(loader))
 
-    def build_predictor(self, valid_id=None, data_parser=None) -> Union[Predictor, None]:
-        """
-        生成一个predictor
-        Args:
-            valid_id: 如果None，那么使用train dataloader的data parser，否则使用对应valid dataloader的data parser
-            data_parser: 如果提供了自定义的data parser，那么valid_id将不生效
-        Returns:
-
-        """
-        data_parser = data_parser or self.get_data_parser(valid_id=valid_id)
-
-        if data_parser is None:
-            print('can not get DataParser, failed to build Predictor', file=sys.stderr)
-            return
-
-        if not isinstance(self.module, Module):
-            print('module is not a all2graph Module, can build predictor', file=sys.stderr)
-            return
-
-        return Predictor(data_parser=data_parser, module=self.module)
-
     def predict(self, src: Union[str, List[str]], valid_id=None, data_parser=None, **kwargs) -> pd.DataFrame:
         """
         自动将预测结果保存在check point目录下
@@ -266,6 +242,7 @@ class Trainer(torch.nn.Module):
         Returns:
 
         """
+        # todo
         if isinstance(src, list):
             return pd.concat(self.predict(path, valid_id=valid_id, data_parser=data_parser, **kwargs) for path in src)
 

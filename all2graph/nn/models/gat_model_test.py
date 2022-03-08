@@ -48,7 +48,7 @@ def test_gat_model():
         meta_info_configs=dict(num_bins=100),
         graph_parser_configs=dict(min_df=0.01),
         post_parser=ag.PostParser(degree=-1, r_degree=-1),
-        residual=True
+        gat_kwds=dict(residual=True)
     )
 
     gat_model.fit(

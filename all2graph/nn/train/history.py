@@ -5,7 +5,7 @@ import torch
 from torch.utils.data import Dataset as _Dataset, DataLoader
 from ..utils import detach, default_collate
 from ...data import ParserDataset
-from ...parsers import DataParser, GraphParser
+from ...parsers import ParserWrapper
 
 
 class EpochBuffer:
@@ -56,16 +56,10 @@ class History:
             return self.loader.dataset
 
     @property
-    def data_parser(self) -> DataParser:
+    def parser(self) -> ParserWrapper:
         dataset = self.dataset
         if isinstance(dataset, ParserDataset):
-            return dataset.data_parser
-
-    @property
-    def raw_graph_parser(self) -> GraphParser:
-        dataset = self.dataset
-        if isinstance(dataset, ParserDataset):
-            return dataset.graph_parser
+            return dataset.parser
 
     @property
     def num_epochs(self):

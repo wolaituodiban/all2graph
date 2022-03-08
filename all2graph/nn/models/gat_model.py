@@ -16,19 +16,14 @@ class GATModel(Model):
             num_key_layers,
             num_value_layers,
             num_heads,
-            data_parser=None,
-            check_point=None,
             out_feats=1,
             dropout=0,
             activation='prelu',
             norm_first=True,
-            meta_info_configs=None,
-            graph_parser_configs=None,
-            post_parser: PostParser = None,
+            gat_kwds=None,
             **kwargs
     ):
-        super().__init__(data_parser=data_parser, check_point=check_point, meta_info_configs=meta_info_configs,
-                         graph_parser_configs=graph_parser_configs, post_parser=post_parser)
+        super().__init__(**kwargs)
         self.d_model = d_model
         self.num_key_layers = num_key_layers
         self.num_value_layers = num_value_layers
@@ -37,20 +32,20 @@ class GATModel(Model):
         self.dropout = dropout
         self.activation = activation
         self.norm_first = norm_first
-        self.kwargs = kwargs
+        self.gat_kwds = gat_kwds
 
     def build_module(self, num_tokens) -> torch.nn.Module:
         module = Framework(
             token_emb=torch.nn.Embedding(num_tokens, self.d_model),
             number_emb=NumEmb(self.d_model, activation=self.activation),
             bottle_neck=BottleNeck(
-                self.d_model, dropout=self.dropout, activation=self.activation, norm_first=self.norm_first),
+                self.d_model, num_inputs=3, dropout=self.dropout, activation=self.activation, norm_first=self.norm_first),
             key_body=GATBody(
                 self.d_model, num_heads=self.num_heads, num_layers=self.num_key_layers, dropout=self.dropout,
-                activation=self.activation, norm_first=self.norm_first, **self.kwargs),
+                activation=self.activation, norm_first=self.norm_first, **self.gat_kwds),
             value_body=GATBody(
                 self.d_model, num_heads=self.num_heads, num_layers=self.num_value_layers, dropout=self.dropout,
-                activation=self.activation, norm_first=self.norm_first, **self.kwargs),
+                activation=self.activation, norm_first=self.norm_first, **self.gat_kwds),
             readout=Readout(
                 self.d_model, dropout=self.dropout, activation=self.activation, norm_first=self.norm_first,
                 out_feats=self.out_feats)

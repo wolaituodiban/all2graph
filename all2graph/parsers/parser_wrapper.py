@@ -80,44 +80,44 @@ class ParserWrapper(MetaStruct):
                     parser = (parser, list(self._graph_parser))
                 self._post_parser[k] = parser
 
-    def call_post_parser(self, graph: Graph, key: str = None) -> Union[Graph, Dict[str, Graph]]:
+    def call_post_parser(self, graph: Graph, key: str = None) -> Dict[Tuple, Graph]:
         if self._post_parser is None:
-            return graph
+            return {(key, ): graph}
         output = {}
         for key2, (parser, key3) in self._post_parser.items():
             if key and key not in key3:
                 continue
-            output[key2] = parser(graph)
-        if len(output) == 1:
-            return list(output.values())[0]
+            output[(key, key2)] = parser(graph)
         return output
 
-    def call_graph_parser(self, raw_graph: RawGraph, key: str = None, post=True) -> Union[Graph, dict]:
+    def call_graph_parser(self, raw_graph: RawGraph, key: str = None, post=True) -> Dict[Tuple, Graph]:
         output = {}
         for key2, (parser, key3) in self._graph_parser.items():
             if key and key not in key3:
                 continue
-            output[key2] = parser(raw_graph)
             if post:
-                output[key2] = self.call_post_parser(output[key2], key=key2)
-        if len(output) == 1:
-            return list(output.values())[0]
+                for kk, graph in self.call_post_parser(parser(raw_graph), key=key2).items():
+                    output[(key, ) + kk] = graph
+            else:
+                output[(key, key2, )] = parser(raw_graph)
         return output
 
     def __call__(self, df: pd.DataFrame, disable=True, return_df=False, sel_cols=None, drop_cols=None, post=True
                  ) -> Union[Union[Graph, dict], Tuple[Union[Graph, dict], pd.DataFrame]]:
-        raw_graph = {k: parser(df, disable=disable) for k, parser in self._data_parser.items()}
-        graph = {k: self.call_graph_parser(g, key=k, post=post) for k, g in raw_graph.items()}
-        if len(graph) == 1:
-            graph = list(graph.values())[0]
+        output = {}
+        for k, parser in self._data_parser.items():
+            raw_graph = parser(df, disable=disable)
+            output.update(self.call_graph_parser(raw_graph, key=k, post=post))
+        if len(output) == 1:
+            output = list(output.values())[0]
         if return_df:
             if sel_cols is not None:
                 df = df[sel_cols]
             if drop_cols is not None:
                 df = df.drop(columns=drop_cols)
-            return graph, df.drop(columns=[parser.data_col for parser in self._data_parser.values()])
+            return output, df.drop(columns=[parser.data_col for parser in self._data_parser.values()])
         else:
-            return graph
+            return output
 
     def labels(self, df):
         labels = {}
@@ -136,7 +136,7 @@ class ParserWrapper(MetaStruct):
 
         """
         df, path = inputs
-        graph, df = self(df, return_df=True, post=False, **kwargs)
+        graph, df = self(df, return_df=True, **kwargs)
         labels = self.labels(df)
         graph.save(path, labels=labels)
         df = df.copy()
@@ -144,7 +144,7 @@ class ParserWrapper(MetaStruct):
         return df
 
     def save(self, src, dst, disable=False, chunksize=64, postfix='saving graph', processes=None, sel_cols=None,
-             drop_cols=None, **kwargs):
+             drop_cols=None, post=False, **kwargs):
         """
         将原始数据加工后，存储成分片的文件
         Args:
@@ -156,6 +156,7 @@ class ParserWrapper(MetaStruct):
             processes: 多进程数量
             sel_cols: 需要返回的元数据列
             drop_cols: 需要去掉的列，只在meta_col为None时生效
+            post: post parser是否生效
             **kwargs: pd.read_csv的额外参数
 
         Returns:
@@ -168,11 +169,11 @@ class ParserWrapper(MetaStruct):
             (df, os.path.join(dst, '{}.ag.graph'.format(i)))
             for i, df in enumerate(iter_csv(src, chunksize=chunksize, **kwargs))
         )
-        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
+        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols, post=post)
         for df in mp_run(self._save, inputs, kwds=kwds, disable=disable, processes=processes, postfix=postfix):
             dfs.append(df)
         path_df = pd.concat(dfs)
-        path_df.to_csv(dst + '_path.csv', index=False)
+        path_df.to_csv(os.path.abspath(dst) + '_path.csv', index=False)
         return pd.concat(dfs)
 
     def generator(

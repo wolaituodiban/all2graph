@@ -91,7 +91,7 @@ class DataParser(MetaStruct):
         meta_info = cls.batch(meta_infos, weights=weights, disable=disable, processes=processes, **configs or {})
         if dst:
             df = pd.concat(dfs)
-            df.to_csv(dst+'_path.csv', index=False)
+            df.to_csv(os.path.abspath(dst)+'_path.csv', index=False)
             return meta_info, df
         return meta_info
 

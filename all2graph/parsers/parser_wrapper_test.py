@@ -25,6 +25,13 @@ def test_parse():
     post_parser = ag.PostParser(degree=-1, r_degree=-1)
 
     parser_wrapper = ag.ParserWrapper(
+        data_parser=json_parser,
+        graph_parser=graph_parser
+    )
+    graphs = parser_wrapper(df, return_df=False)
+    print(graphs)
+
+    parser_wrapper = ag.ParserWrapper(
         data_parser={'a': json_parser, 'b': json_parser},
         graph_parser={'c': graph_parser, 'd': (graph_parser, ['a'])},
         post_parser=post_parser
