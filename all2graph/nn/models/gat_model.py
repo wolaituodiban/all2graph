@@ -6,7 +6,6 @@ from ..bottle_neck import BottleNeck
 from ..embedding import NumEmb
 from ..framework import Framework
 from ..readout import Readout
-from ...parsers import PostParser
 
 
 class GATModel(Model):
@@ -20,6 +19,7 @@ class GATModel(Model):
             dropout=0,
             activation='prelu',
             norm_first=True,
+            norm='batch1d',
             gat_kwds=None,
             **kwargs
     ):
@@ -32,20 +32,22 @@ class GATModel(Model):
         self.dropout = dropout
         self.activation = activation
         self.norm_first = norm_first
+        self.norm = self.norm
         self.gat_kwds = gat_kwds
 
     def build_module(self, num_tokens) -> torch.nn.Module:
         module = Framework(
             token_emb=torch.nn.Embedding(num_tokens, self.d_model),
-            number_emb=NumEmb(self.d_model, activation=self.activation),
+            number_emb=NumEmb(self.d_model, activation=self.activation, norm=self.norm),
             bottle_neck=BottleNeck(
-                self.d_model, num_inputs=3, dropout=self.dropout, activation=self.activation, norm_first=self.norm_first),
+                self.d_model, num_inputs=3, dropout=self.dropout, activation=self.activation,
+                norm_first=self.norm_first, norm=self.norm),
             key_body=GATBody(
                 self.d_model, num_heads=self.num_heads, num_layers=self.num_key_layers, dropout=self.dropout,
-                activation=self.activation, norm_first=self.norm_first, **self.gat_kwds),
+                activation=self.activation, norm_first=self.norm_first, norm=self.norm, **self.gat_kwds),
             value_body=GATBody(
                 self.d_model, num_heads=self.num_heads, num_layers=self.num_value_layers, dropout=self.dropout,
-                activation=self.activation, norm_first=self.norm_first, **self.gat_kwds),
+                activation=self.activation, norm_first=self.norm_first, norm=self.norm, **self.gat_kwds),
             readout=Readout(
                 self.d_model, dropout=self.dropout, activation=self.activation, norm_first=self.norm_first,
                 out_feats=self.out_feats)

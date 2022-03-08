@@ -133,7 +133,10 @@ class Trainer(torch.nn.Module):
                 # step fit
                 self.optimizer.zero_grad()
                 pred = self.module(data)
-                loss = self.loss(pred, label)
+                if self.loss:
+                    loss = self.loss(pred, label)
+                else:
+                    loss = pred
                 loss.backward()
                 self.optimizer.step()
                 if self.scheduler:

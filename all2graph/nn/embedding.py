@@ -1,7 +1,6 @@
 import math
-from typing import Tuple
 import torch
-from .utils import _get_activation, Module
+from .utils import _get_activation, Module, _get_norm
 
 
 class NumEmb(Module):
@@ -9,7 +8,7 @@ class NumEmb(Module):
     参考torch.nn.Embedding文档，将数值型特征也变成相同的形状。
     实际上就是将输入的张量扩展一个为1的维度之后，加上一个没有常数项的全连接层
     """
-    def __init__(self, emb_dim, bias=True, activation='prelu'):
+    def __init__(self, emb_dim, bias=True, activation='prelu', norm='layer'):
         super(NumEmb, self).__init__()
         self.weight = torch.nn.Parameter(torch.empty(emb_dim))
         if bias:
@@ -17,7 +16,7 @@ class NumEmb(Module):
         else:
             self.bias = None
         self.activation = _get_activation(activation)
-        self.norm = torch.nn.LayerNorm(emb_dim)
+        self.norm = _get_norm(norm, emb_dim)
         self.reset_parameters()
 
     @property

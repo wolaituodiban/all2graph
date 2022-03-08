@@ -71,6 +71,12 @@ class Graph(MetaStruct):
     def edges(self):
         return self.graph.edges
 
+    def num_nodes(self, ntype):
+        return self.graph.num_nodes(ntype)
+
+    def num_edges(self, etype):
+        return self.graph.num_edges(etype)
+
     def push_key2value(self, feats: torch.Tensor) -> torch.Tensor:
         with self.graph.local_scope():
             self.graph.nodes[KEY].data['feat'] = feats
@@ -178,3 +184,6 @@ class Graph(MetaStruct):
     @classmethod
     def batch(cls, graphs, **kwargs):
         return cls(dgl.batch([graph.graph for graph in graphs], **kwargs))
+
+    def local_scope(self):
+        return self.graph.local_scope()

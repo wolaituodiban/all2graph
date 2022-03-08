@@ -16,6 +16,7 @@ class Model(Module):
     def __init__(
             self,
             module: torch.nn.Module = None,
+            parser: ParserWrapper = None,
             data_parser: DataParser = None,
             graph_parser: GraphParser = None,
             post_parser: PostParser = None,
@@ -26,7 +27,8 @@ class Model(Module):
     ):
         super().__init__()
         self.module = module
-        self.parser = ParserWrapper(data_parser=data_parser, graph_parser=graph_parser, post_parser=post_parser)
+        parser = parser or ParserWrapper(data_parser=data_parser, graph_parser=graph_parser, post_parser=post_parser)
+        self.parser = parser
 
         self.meta_info = meta_info
         self.meta_info_configs = meta_info_configs or {}
@@ -128,7 +130,7 @@ class Model(Module):
 
         # data
         train_dataloader, valid_dataloaders = self.build_data(
-            train_data=train_data, batch_size=batch_size, valid_data=valid_data, processes=processes)
+            train_data=train_data, batch_size=batch_size, valid_data=valid_data, processes=processes, **kwargs)
 
         # model
         if self.module is None:
