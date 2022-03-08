@@ -119,64 +119,20 @@ class Module(torch.nn.Module):
         return 'num_parameters={}'.format(self.num_parameters)
 
 
-class Predictor(Module):
-    def __init__(self, data_parser: Union[DataParser, Dict[str, DataParser]], module: Module):
-        super().__init__()
-        self.version = __version__
-        self.data_parser = data_parser
-        self.module = module
-
-    def parser_wrapper(self, temp_file, data_parser: DataParser = None):
-        return ParserWrapper(data_parser or self.data_parser, self.module.raw_graph_parser, temp_file=temp_file)
-
-    def set_data_parser(self, data_parser: Union[DataParser, Dict[str, DataParser]]):
-        self.data_parser = data_parser
-
-    def forward(self, df: pd.DataFrame) -> Dict[str, torch.Tensor]:
-        if self.module.version <= '0.1.5' and __version__ >= '0.1.6':
-            print('old version model (<=0.1.5) has a bug in Conv.forward', file=sys.stderr)
-            print('from version 0.1.6, that bug has been fixed and output will be influenced', file=sys.stderr)
-        parser_wrapper = self.parser_wrapper(temp_file=False)
-        df, graphs, *_ = parser_wrapper.parse(df, disable=True)
-        return self._predict(graphs)
-
-    def _predict(self, graphs) -> Dict[str, torch.Tensor]:
-        outputs = {}
-        for name, graph in graphs.items():
-            if isinstance(graph, str):
-                filename = graph
-                graph, _ = Graph.load(graph)
-                os.remove(filename)
-            pred = self.module(graph)
-            for k, v in pred.items():
-                outputs['_'.join([k, name])] = v
-        return outputs
-
-    @torch.no_grad()
-    def predict(
-            self, src, chunksize=64, disable=False, processes=None, postfix='predicting', temp_file=False,
-            data_parser: DataParser = None, **kwargs) -> pd.DataFrame:
-        self.eval()
-        if processes == 0:
-            temp_file = False
-        parser_wrapper = self.parser_wrapper(temp_file=temp_file, data_parser=data_parser)
-        outputs = []
-        for df, graphs, *_ in parser_wrapper.generate(
-                src, chunksize=chunksize, disable=disable, processes=processes, postfix=postfix, **kwargs):
-            for k, v in self._predict(graphs).items():
-                df[k] = v.cpu().numpy()
-            outputs.append(df)
-        if len(outputs) == 0:
-            return pd.DataFrame()
-        outputs = pd.concat(outputs)
-        return outputs
-
-    def set_filter_key(self, x):
-        self.module.set_filter_key(x)
-
-
-def predict_csv(parser, module, src, **kwargs):
-    pass
+@torch.no_grad()
+def predict_csv(parser: ParserWrapper, module: torch.nn.Module, src, **kwargs):
+    module.eval()
+    dfs = []
+    for graphs, df in parser.generator(src, return_df=True, **kwargs):
+        if isinstance(graphs, dict):
+            for k, graph in graphs.items():
+                for kk, pred in module(graph).items():
+                    df['{}_{}'.format(kk, k)] = pred.cpu().numpy()
+        else:
+            for kk, pred in module(graphs).items():
+                df['{}_{}'.format(kk, 'pred')] = pred.cpu().numpy()
+        dfs.append(df)
+    return pd.concat(dfs)
 
 
 def _get_activation(act):

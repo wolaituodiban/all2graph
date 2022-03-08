@@ -13,7 +13,7 @@ from torch.utils.data import DataLoader
 from .early_stop import EarlyStop
 from .history import History, EpochBuffer
 from .metric import Metric
-from ..utils import predict_dataloader, Module
+from ..utils import predict_dataloader, predict_csv
 from ...utils import tqdm, json_round
 from ...version import __version__
 
@@ -250,10 +250,7 @@ class Trainer(torch.nn.Module):
         if not os.path.exists(dst):
             os.mkdir(dst)
         dst = os.path.join(dst, 'pred_{}.csv'.format(os.path.split(src)[-1]))
-        predictor = self.build_predictor(valid_id=valid_id, data_parser=data_parser)
-        if predictor is None:
-            return pd.DataFrame()
-        output = predictor.predict(src, **kwargs)
+        output = predict_csv(self.get_parser(valid_id=valid_id), self.module, src, **kwargs)
         print("save prediction at '{}'".format(dst))
         output.to_csv(dst)
         return output

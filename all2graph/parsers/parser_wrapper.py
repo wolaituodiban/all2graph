@@ -197,7 +197,7 @@ class ParserWrapper(MetaStruct):
             df
         """
         data = iter_csv(src, chunksize=chunksize, **kwargs)
-        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
+        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols, return_df=True)
         for graph, df in mp_run(self, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix):
             if return_df:
                 yield graph, df

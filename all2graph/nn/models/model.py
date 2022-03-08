@@ -6,7 +6,7 @@ import torch
 from torch.utils.data import DataLoader
 
 from ..train import Trainer
-from ..utils import Module
+from ..utils import Module, predict_csv
 from ...data import GraphDataset
 from ...info import MetaInfo
 from ...parsers import DataParser, GraphParser, PostParser, ParserWrapper
@@ -26,7 +26,7 @@ class Model(Module):
     ):
         super().__init__()
         self.module = module
-        self.parser_wrapper = ParserWrapper(data_parser=data_parser, graph_parser=graph_parser, post_parser=post_parser)
+        self.parser = ParserWrapper(data_parser=data_parser, graph_parser=graph_parser, post_parser=post_parser)
 
         self.meta_info = meta_info
         self.meta_info_configs = meta_info_configs or {}
@@ -35,27 +35,27 @@ class Model(Module):
 
     @property
     def data_parser(self):
-        return self.parser_wrapper.data_parser
+        return self.parser.data_parser
 
     @data_parser.setter
     def data_parser(self, data_parser):
-        self.parser_wrapper.data_parser = data_parser
+        self.parser.data_parser = data_parser
 
     @property
     def graph_parser(self):
-        return self.parser_wrapper.graph_parser
+        return self.parser.graph_parser
 
     @graph_parser.setter
     def graph_parser(self, graph_parser):
-        self.parser_wrapper.graph_parser = graph_parser
+        self.parser.graph_parser = graph_parser
 
     @property
     def post_parser(self):
-        return self.parser_wrapper.post_parser
+        return self.parser.post_parser
 
     @post_parser.setter
     def post_parser(self, post_parser):
-        self.parser_wrapper.post_parser = post_parser
+        self.parser.post_parser = post_parser
 
     @property
     def device(self):
@@ -82,13 +82,13 @@ class Model(Module):
         if isinstance(train_data, DataLoader):
             train_dataloader = train_data
         else:
-            train_path_df = self.parser_wrapper.save(
+            train_path_df = self.parser.save(
                 src=train_data,
                 dst=os.path.join(self.check_point, 'train'),
                 processes=processes,
                 **kwargs
             )
-            train_dataset = GraphDataset(path=train_path_df, parser=self.parser_wrapper)
+            train_dataset = GraphDataset(path=train_path_df, parser=self.parser)
             train_dataloader = train_dataset.dataloader(batch_size=batch_size, shuffle=True, num_workers=num_workers)
 
         valid_dataloaders = []
@@ -97,13 +97,13 @@ class Model(Module):
                 if isinstance(src, DataLoader):
                     valid_dataloaders.append(src)
                 else:
-                    valid_path_df = self.parser_wrapper.save(
+                    valid_path_df = self.parser.save(
                         src=train_data,
                         dst=os.path.join(self.check_point, 'valid_{}'.format(i)),
                         processes=processes,
                         **kwargs
                     )
-                    valid_dataset = GraphDataset(path=valid_path_df, parser=self.parser_wrapper)
+                    valid_dataset = GraphDataset(path=valid_path_df, parser=self.parser)
                     valid_dataloader = valid_dataset.dataloader(
                         batch_size=batch_size, shuffle=True, num_workers=num_workers)
                     valid_dataloaders.append(valid_dataloader)
@@ -154,3 +154,6 @@ class Model(Module):
         print(trainer)
         trainer.fit(epoches)
         shutil.rmtree(self.check_point)
+
+    def predict(self, src, **kwargs):
+        return predict_csv(self.parser, self.module, src, **kwargs)
