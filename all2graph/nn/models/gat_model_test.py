@@ -66,7 +66,7 @@ def test_gat_model():
     )
     for k, v in gat_model.named_parameters():
         assert not torch.isnan(v).any(), k
-
+    print(gat_model(df))
     print(gat_model.predict(df, chunksize=64))
 
 

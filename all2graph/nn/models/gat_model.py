@@ -32,7 +32,7 @@ class GATModel(Model):
         self.dropout = dropout
         self.activation = activation
         self.norm_first = norm_first
-        self.norm = self.norm
+        self.norm = norm
         self.gat_kwds = gat_kwds
 
     def build_module(self, num_tokens) -> torch.nn.Module:
