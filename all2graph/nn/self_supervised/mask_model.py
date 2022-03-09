@@ -1,6 +1,7 @@
 from typing import Dict
 
 import torch
+import numpy as np
 
 from ..framework import Framework
 from ..utils import Module
