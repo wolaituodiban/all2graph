@@ -130,7 +130,9 @@ def predict_csv(parser: ParserWrapper, module: torch.nn.Module, src, **kwargs):
                     df['{}_{}'.format(kk, k)] = pred.cpu().numpy()
         else:
             for kk, pred in module(graphs).items():
-                df['{}_{}'.format(kk, 'pred')] = pred.cpu().numpy()
+                while kk in df:
+                    kk = '{}_{}'.format(kk, 'pred')
+                df[kk] = pred.cpu().numpy()
         dfs.append(df)
     return pd.concat(dfs)
 

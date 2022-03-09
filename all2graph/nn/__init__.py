@@ -5,6 +5,7 @@ from .embedding import NumEmb
 from .feedforward import FeedForward
 from .framework import Framework
 from .models import *
+from .self_supervised import *
 from .loss import DictLoss, ListLoss
 from .readout import Readout
-
+from .utils import Module

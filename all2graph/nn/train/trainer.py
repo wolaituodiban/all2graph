@@ -1,7 +1,6 @@
 import copy
 import os
 import json
-import sys
 import traceback
 from datetime import datetime as ddt
 from typing import Dict, Callable, List, Union
@@ -23,7 +22,7 @@ class Trainer(torch.nn.Module):
     """
 
     def __init__(
-            self, module: torch.nn.Module, loss: torch.nn.Module, data: DataLoader,
+            self, module: torch.nn.Module,  data: DataLoader, loss: torch.nn.Module = None,
             optimizer: torch.optim.Optimizer = None, scheduler=None, valid_data: List[DataLoader] = None,
             early_stop: EarlyStop = None, metrics: Dict[str, Callable] = None, callbacks: List[Callable] = None,
             valid_callbacks: List[Callable] = None, check_point=None, max_batch=None, max_history=None,

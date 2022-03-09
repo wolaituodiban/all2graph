@@ -1,7 +1,7 @@
 import os
 import shutil
 from abc import abstractmethod
-from typing import Dict
+from typing import Dict, Union
 
 import pandas as pd
 import torch
@@ -13,6 +13,7 @@ from ..utils import Module, predict_csv
 from ...data import GraphDataset
 from ...info import MetaInfo
 from ...parsers import DataParser, GraphParser, PostParser, ParserWrapper
+from ...graph import Graph
 
 
 class Model(Module):
@@ -168,21 +169,22 @@ class Model(Module):
 
     def predict(self, src, **kwargs):
         self.encoder_mode(False)
-        return predict_csv(self.parser, self.module, src, **kwargs)
+        return predict_csv(self.parser, self, src, **kwargs)
 
     def encode(self, src, **kwargs):
         self.encoder_mode(True)
-        return predict_csv(self.parser, self.module, src, **kwargs)
+        return predict_csv(self.parser, self, src, **kwargs)
 
     @torch.no_grad()
-    def forward(self, df: pd.DataFrame) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: Union[pd.DataFrame, Graph]) -> Dict[str, torch.Tensor]:
         self.eval()
-        graph = self.parser(df)
+        if isinstance(inputs, pd.DataFrame):
+            inputs = self.parser(inputs)
         if self._encoder_mode:
-            emb = self.module(graph, ret_graph_emb=True)
+            emb = self.module(inputs, ret_graph_emb=True)
             output = {}
             for i in range(emb.shape[1]):
                 output['emb_{}'.format(i)] = emb[:, i]
             return output
         else:
-            return self.module(graph)
+            return self.module(inputs)
