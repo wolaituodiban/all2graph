@@ -7,6 +7,7 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
+from ..framework import Framework
 from ..train import Trainer
 from ..utils import Module, predict_csv
 from ...data import GraphDataset
@@ -17,7 +18,7 @@ from ...parsers import DataParser, GraphParser, PostParser, ParserWrapper
 class Model(Module):
     def __init__(
             self,
-            module: torch.nn.Module = None,
+            module: Framework = None,
             parser: ParserWrapper = None,
             data_parser: DataParser = None,
             graph_parser: GraphParser = None,
@@ -36,6 +37,12 @@ class Model(Module):
         self.meta_info_configs = meta_info_configs or {}
         self.graph_parser_configs = graph_parser_configs or {}
         self.check_point = check_point
+
+        self._encoder_mode = False
+
+    def encoder_mode(self, mode: bool):
+        assert isinstance(mode, bool)
+        self._encoder_mode = mode
 
     @property
     def data_parser(self):
@@ -160,10 +167,22 @@ class Model(Module):
         shutil.rmtree(self.check_point)
 
     def predict(self, src, **kwargs):
+        self.encoder_mode(False)
+        return predict_csv(self.parser, self.module, src, **kwargs)
+
+    def encode(self, src, **kwargs):
+        self.encoder_mode(True)
         return predict_csv(self.parser, self.module, src, **kwargs)
 
     @torch.no_grad()
     def forward(self, df: pd.DataFrame) -> Dict[str, torch.Tensor]:
         self.eval()
         graph = self.parser(df)
-        return self.module(graph)
+        if self._encoder_mode:
+            emb = self.module(graph, ret_graph_emb=True)
+            output = {}
+            for i in range(emb.shape[1]):
+                output['emb_{}'.format(i)] = emb[:, i]
+            return output
+        else:
+            return self.module(graph)

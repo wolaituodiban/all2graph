@@ -4,7 +4,6 @@ import torch
 
 from .bottle_neck import BottleNeck
 from .utils import Module
-from ..graph import Graph
 
 
 class Readout(Module):
@@ -22,10 +21,6 @@ class Readout(Module):
         self.bottle_neck.reset_parameters()
         self.output.reset_parameters()
 
-    def forward(self, graph: Graph, key_feats: torch.Tensor, value_feats: torch.Tensor) -> Dict[str, torch.Tensor]:
-        output = {}
-        for ntype in graph.readout_types:
-            readout_feats = self.bottle_neck(
-                graph.push_key2readout(key_feats, ntype), graph.push_value2readout(value_feats, ntype))
-            output[ntype] = self.output(readout_feats).squeeze(-1)
-        return output
+    def forward(self, key_feats, value_feats) -> Dict[str, torch.Tensor]:
+        readout_feats = self.bottle_neck(key_feats, value_feats)
+        return self.output(readout_feats).squeeze(-1)

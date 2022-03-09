@@ -68,6 +68,8 @@ def test_gat_model():
         assert not torch.isnan(v).any(), k
     print(gat_model(df))
     print(gat_model.predict(df, chunksize=64))
+    gat_model.encoder_mode(True)
+    print(gat_model(df))
 
 
 if __name__ == '__main__':

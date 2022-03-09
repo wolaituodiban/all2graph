@@ -61,7 +61,7 @@ class Graph(MetaStruct):
 
     @property
     def readout_types(self):
-        return {ntype for ntype in self.graph.ntypes if ntype != KEY and ntype != VALUE and ntype != SAMPLE}
+        return [ntype for ntype in self.graph.ntypes if ntype != KEY and ntype != VALUE and ntype != SAMPLE]
 
     @property
     def nodes(self):

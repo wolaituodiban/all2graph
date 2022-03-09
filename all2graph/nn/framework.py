@@ -1,4 +1,4 @@
-from typing import Dict
+from typing import Dict, Union
 
 import torch
 
@@ -30,7 +30,9 @@ class Framework(Module):
     def reset_parameters(self):
         super().reset_parameters()
 
-    def forward(self, graph: Graph, details=False) -> Dict[str, torch.Tensor]:
+    def forward(
+            self, graph: Graph, details=False, ret_graph_emb=False
+    ) -> Union[Graph, torch.Tensor, Dict[str, torch.Tensor]]:
         graph = graph.to(self.device, non_blocking=True)
         key_emb = self.token_emb(graph.key_token)
         key_feats = self.key_body(graph.key_graph, in_feats=key_emb)
@@ -38,7 +40,6 @@ class Framework(Module):
         num_emb = self.number_emb(graph.number)
         bottle_neck = self.bottle_neck(graph.push_key2value(key_feats[-1]), token_emb, num_emb)
         value_feats = self.value_body(graph.value_graph, in_feats=bottle_neck)
-        readout = self.readout(graph, key_feats=key_feats[-1], value_feats=value_feats[-1])
         if details:
             graph.nodes[KEY].data['emb'] = key_emb
             graph.nodes[KEY].data['feats'] = torch.stack(key_feats, dim=1)
@@ -46,8 +47,21 @@ class Framework(Module):
             graph.nodes[VALUE].data['num_emb'] = num_emb
             graph.nodes[VALUE].data['bottle_neck'] = bottle_neck
             graph.nodes[VALUE].data['feats'] = torch.stack(value_feats, dim=1)
-            for k, v in readout.items():
-                graph.nodes[k].data['readout'] = v
+            for ntype in graph.readout_types:
+                graph.nodes[ntype].data['key_feats'] = graph.push_key2readout(key_feats[-1], ntype)
+                graph.nodes[ntype].data['value_feats'] = graph.push_value2readout(value_feats[-1], ntype)
+                graph.nodes[ntype].data['readout'] = self.readout(
+                    key_feats=graph.nodes[ntype].data['key_feats'],
+                    value_feats=graph.nodes[ntype].data['value_feats']
+                )
             return graph
+        elif ret_graph_emb:
+            return graph.push_value2readout(value_feats[-1], graph.readout_types[0])
         else:
-            return readout
+            output = {}
+            for ntype in graph.readout_types:
+                output[ntype] = self.readout(
+                    key_feats=graph.push_key2readout(key_feats[-1], ntype),
+                    value_feats=graph.push_value2readout(value_feats[-1], ntype)
+                )
+            return output
