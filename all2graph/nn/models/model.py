@@ -1,7 +1,9 @@
 import os
 import shutil
 from abc import abstractmethod
+from typing import Dict
 
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
@@ -159,3 +161,9 @@ class Model(Module):
 
     def predict(self, src, **kwargs):
         return predict_csv(self.parser, self.module, src, **kwargs)
+
+    @torch.no_grad()
+    def forward(self, df: pd.DataFrame) -> Dict[str, torch.Tensor]:
+        self.eval()
+        graph = self.parser(df)
+        return self.module(graph)
