@@ -22,6 +22,7 @@ def test_parse():
     print(graph.sample_subgraph(0))
     print(graph.sample_subgraph(1))
     print(graph.sample_subgraph(2))
+    print(graph.value_subgraph([0, 1], store_ids=False))
 
 
 if __name__ == '__main__':

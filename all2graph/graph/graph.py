@@ -40,6 +40,18 @@ class Graph(MetaStruct):
         return self.graph.__repr__()
 
     @property
+    def device(self):
+        return self.graph.device
+
+    @property
+    def ntypes(self):
+        return self.graph.ntypes
+
+    @property
+    def etypes(self):
+        return self.graph.etypes
+
+    @property
     def key_token(self):
         return self.graph.nodes[KEY].data[TOKEN]
 
@@ -167,10 +179,10 @@ class Graph(MetaStruct):
                 self.graph.nodes[ntype].data[k] = v.pin_memory()
         for etype in self.graph.canonical_etypes:
             for k, v in self.graph.edges[etype].data.items():
-                self.graph.nodes[etype].data[k] = v.pin_memory()
+                self.graph.edges[etype].data[k] = v.pin_memory()
         return self
 
-    def sample_subgraph(self, i):
+    def sample_subgraph(self, i, **kwargs):
         nodes = {
             KEY: list(range(self.graph.num_nodes(KEY))),
             SAMPLE: i
@@ -178,7 +190,15 @@ class Graph(MetaStruct):
         for etype in self.graph.canonical_etypes:
             if etype[0] == SAMPLE:
                 nodes[etype[-1]] = self.graph.successors(i, etype=etype)
-        graph = dgl.node_subgraph(self.graph, nodes=nodes)
+        graph = dgl.node_subgraph(self.graph, nodes=nodes, **kwargs)
+        return Graph(graph)
+
+    def value_subgraph(self, nodes, **kwargs):
+        nodes = {VALUE: nodes}
+        for ntype in self.ntypes:
+            if ntype not in nodes:
+                nodes[ntype] = torch.arange(self.num_nodes(ntype))
+        graph = dgl.node_subgraph(self.graph, nodes, **kwargs)
         return Graph(graph)
 
     @classmethod
