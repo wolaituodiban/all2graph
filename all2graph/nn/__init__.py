@@ -1,3 +1,4 @@
+from .utils import *
 from .train import Trainer, EarlyStop, HyperBand
 from .body import GATBody, Body
 from .bottle_neck import BottleNeck
@@ -8,4 +9,3 @@ from .models import *
 from .self_supervised import *
 from .loss import DictLoss, ListLoss
 from .readout import Readout
-from .utils import Module

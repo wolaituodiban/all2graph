@@ -8,7 +8,7 @@ class NumEmb(Module):
     参考torch.nn.Embedding文档，将数值型特征也变成相同的形状。
     实际上就是将输入的张量扩展一个为1的维度之后，加上一个没有常数项的全连接层
     """
-    def __init__(self, emb_dim, bias=True, activation='prelu', norm='layer'):
+    def __init__(self, emb_dim, bias=True, activation='prelu', norm='batch1d'):
         super(NumEmb, self).__init__()
         self.weight = torch.nn.Parameter(torch.empty(emb_dim))
         if bias:

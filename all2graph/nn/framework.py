@@ -50,10 +50,11 @@ class Framework(Module):
             for ntype in graph.readout_types:
                 graph.nodes[ntype].data['key_feats'] = graph.push_key2readout(key_feats[-1], ntype)
                 graph.nodes[ntype].data['value_feats'] = graph.push_value2readout(value_feats[-1], ntype)
-                graph.nodes[ntype].data['readout'] = self.readout(
-                    key_feats=graph.nodes[ntype].data['key_feats'],
-                    value_feats=graph.nodes[ntype].data['value_feats']
-                )
+                if self.readout is not None:
+                    graph.nodes[ntype].data['readout'] = self.readout(
+                        key_feats=graph.nodes[ntype].data['key_feats'],
+                        value_feats=graph.nodes[ntype].data['value_feats']
+                    )
             return graph
         elif ret_graph_emb:
             return graph.push_value2readout(value_feats[-1], graph.readout_types[0])

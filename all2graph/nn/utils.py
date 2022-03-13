@@ -1,8 +1,5 @@
 import copy
-import os
-import sys
 from abc import abstractproperty, abstractmethod
-from typing import Dict, Union
 
 import numpy as np
 import pandas as pd
@@ -10,8 +7,6 @@ import torch
 from torch.utils.data import DataLoader
 
 from ..data import default_collate
-from ..graph import Graph
-from ..parsers import DataParser
 from ..parsers import ParserWrapper
 from ..utils import tqdm
 from ..version import __version__

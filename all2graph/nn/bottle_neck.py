@@ -1,12 +1,10 @@
-from typing import List
-
 import torch
 
 from .utils import Module, _get_activation, _get_norm
 
 
 class BottleNeck(Module):
-    def __init__(self, d_model, num_inputs=2, dropout=0, activation='relu', norm='layer', norm_first=True):
+    def __init__(self, d_model, num_inputs=2, dropout=0, activation='relu', norm='batch1d', norm_first=True):
         super().__init__()
         dropout = torch.nn.Dropout(dropout)
         linear = torch.nn.Linear(num_inputs * d_model, d_model)

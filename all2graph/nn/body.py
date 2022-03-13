@@ -12,7 +12,7 @@ class Body(Module):
 
 
 class GATBody(Body):
-    def __init__(self, num_feats, num_heads, num_layers, dropout=0, activation='prelu', norm='layer', norm_first=True,
+    def __init__(self, num_feats, num_heads, num_layers, dropout=0, activation='prelu', norm='batch1d', norm_first=True,
                  **kwargs):
         super().__init__()
         assert num_feats % num_heads == 0
