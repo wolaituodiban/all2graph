@@ -59,7 +59,6 @@ class MaskModel(Module):
             self.sgp = SGP(d_model, dropout=p, activation=activation, norm_first=norm_first)
             self.bce_with_logits = torch.nn.BCEWithLogitsLoss()
 
-
     @property
     def device(self):
         return self.module.device
@@ -72,7 +71,7 @@ class MaskModel(Module):
             self.sgp.reset_parameters()
 
     def forward(self, graph: Graph) -> Dict[str, torch.Tensor]:
-        mask1 = torch.rand(graph.num_nodes(VALUE)) <= self.p
+        mask1 = torch.rand(graph.num_nodes(VALUE), device=self.device) <= self.p
         if hasattr(self, 'sgp'):
             root_ids, _ = graph.edges(etype=(VALUE, EDGE, graph.readout_types[0]))
             mask2 = torch.bitwise_not(mask1)

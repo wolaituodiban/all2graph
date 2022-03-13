@@ -207,3 +207,10 @@ class ParserWrapper(MetaStruct):
     def __eq__(self, other):
         return self.data_parser == other.data_parser and self.graph_parser == other.graph_parser\
                and self.post_parser == other.post_parser
+
+    def extra_repr(self) -> str:
+        return 'data_parser={}\ngraph_parser={}\npost_parser={}\n'.format(
+            '  \n'.join(str(self.data_parser).split('\n')),
+            '  \n'.join(str(self.graph_parser).split('\n')),
+            '  \n'.join(str(self.post_parser).split('\n')),
+        )

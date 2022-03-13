@@ -36,6 +36,7 @@ def test_parse():
         graph_parser={'c': graph_parser, 'd': (graph_parser, ['a'])},
         post_parser=post_parser
     )
+    print(parser_wrapper)
     graphs, df2 = parser_wrapper(df, return_df=True)
     print(graphs)
 

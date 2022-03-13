@@ -25,3 +25,8 @@ class PostParser(MetaStruct):
         if self.to_simple:
             graph = graph.to_simple()
         return graph
+
+    def extra_repr(self) -> str:
+        return 'add_self_loop={}, to_simple={}, to_bidirected={}, degree={}, r_degree={}'.format(
+            self.add_self_loop, self.to_simple, self.to_bidirectied, self.degree, self.r_degree
+        )

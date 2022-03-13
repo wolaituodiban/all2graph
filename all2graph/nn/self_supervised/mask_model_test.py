@@ -43,7 +43,7 @@ def test_mask_model():
         readout=None
     )
     mask_model = ag.nn.MaskModel(module, 8, num_tokens=graph_parser.num_tokens, mask_token=graph_parser.mask_code)
-    print(mask_model)
+    print(mask_model.cuda())
     pred = mask_model(graph)
     print(pred)
     loss = mask_model.loss(pred)
