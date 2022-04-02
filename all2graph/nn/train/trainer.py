@@ -25,7 +25,7 @@ class Trainer(torch.nn.Module):
             self, module: torch.nn.Module,  data: DataLoader, loss: torch.nn.Module = None,
             optimizer: torch.optim.Optimizer = None, scheduler=None, valid_data: List[DataLoader] = None,
             early_stop: EarlyStop = None, metrics: Dict[str, Callable] = None, callbacks: List[Callable] = None,
-            valid_callbacks: List[Callable] = None, check_point=None, max_batch=None, max_history=None,
+            valid_callbacks: List[Callable] = None, check_point=None, max_batch=None, max_history=1,
             save_loader=True):
         """
 
@@ -198,10 +198,14 @@ class Trainer(torch.nn.Module):
             return self.valid_history[valid_id]
 
     def get_dataset(self, valid_id=None):
-        return self.get_history(valid_id=valid_id).dataset
+        history = self.get_history(valid_id=valid_id)
+        if history is not None:
+            return history.dataset
 
     def get_data_loader(self, valid_id=None) -> DataLoader:
-        return self.get_history(valid_id).loader
+        history = self.get_history(valid_id)
+        if history is not None:
+            return history.loader
 
     def get_parser(self, valid_id=None):
         return self.get_history(valid_id=valid_id).parser

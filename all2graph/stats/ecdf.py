@@ -3,7 +3,6 @@ import pandas as pd
 from scipy import interpolate
 
 from .distribution import Distribution
-from ..globals import EPSILON
 
 
 class ECDF(Distribution):
@@ -134,7 +133,7 @@ class ECDF(Distribution):
         # 一种能想到的指标是让min(diff(probs))最大化
         if self.num_bins <= num_bins:
             return
-        probs = np.arange(0, 1, 1/(num_bins+1))[1:]
+        probs = np.arange(0, 1+1/num_bins, 1/num_bins)
         probs = np.reshape(probs, (-1, 1))
         diff = np.abs(probs - self.probs)
         argmin = np.argmin(diff, axis=-1)

@@ -75,6 +75,8 @@ def test_compress():
         for _ in range(num_loops):
             samples = np.random.beta(5, 1, num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
+            assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+            assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
             q_diff(_, samples, ecdf)
 
     # binomial
@@ -83,6 +85,8 @@ def test_compress():
         for _ in range(num_loops):
             samples = np.random.binomial(100, 0.2, num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
+            assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+            assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
             q_diff(_, samples, ecdf)
 
     print('chisquare')
@@ -90,6 +94,8 @@ def test_compress():
         for _ in range(num_loops):
             samples = np.random.chisquare(5, num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
+            assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+            assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
             q_diff(_, samples, ecdf)
 
     print('exponential')
@@ -97,6 +103,8 @@ def test_compress():
         for _ in range(num_loops):
             samples = np.random.exponential(3.14, num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
+            assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+            assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
             q_diff(_, samples, ecdf)
 
     print('gamma')
@@ -104,6 +112,8 @@ def test_compress():
         for _ in range(num_loops):
             samples = np.random.gamma(2, 2, size=num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
+            assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+            assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
             q_diff(_, samples, ecdf)
 
     print('lognormal')
@@ -111,6 +121,8 @@ def test_compress():
         for _ in range(num_loops):
             samples = np.random.lognormal(2, 2, size=num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
+            assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+            assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
             q_diff(_, samples, ecdf)
 
     print('logistic')
@@ -118,6 +130,8 @@ def test_compress():
         for _ in range(num_loops):
             samples = np.random.logistic(1, 0.9, size=num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
+            assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+            assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
             q_diff(_, samples, ecdf)
 
     # print('poisson')
@@ -125,6 +139,8 @@ def test_compress():
     #     for _ in range(num_loops):
     #         samples = np.random.poisson(1, size=num_samples)
     #         ecdf = ECDF.from_data(samples, num_bins=b)
+    #         assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+    #         assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
     #         q_diff(_, samples, ecdf, kind='previous', fill_value=(0, np.nan))
 
     print('wald')
@@ -132,6 +148,8 @@ def test_compress():
         for _ in range(num_loops):
             samples = np.random.wald(1, 8, size=num_samples)
             ecdf = ECDF.from_data(samples, num_bins=b)
+            assert ecdf.quantiles[0] == samples.min() and ecdf.quantiles[-1] == samples.max()
+            assert ecdf.probs.min() >= 0 and ecdf.probs.max() <= 1
             q_diff(_, samples, ecdf)
 
 

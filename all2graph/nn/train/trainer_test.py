@@ -72,9 +72,10 @@ def test_trainer():
     trainer.fit(5)
 
     # 测试error_msg
-    trainer.train_history = None
+    trainer.train_history.loader = None
     trainer.fit(1)
     assert trainer.error_msg is not None
+    print('success')
 
 
 if __name__ == '__main__':
