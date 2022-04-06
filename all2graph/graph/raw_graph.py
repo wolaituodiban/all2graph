@@ -7,7 +7,7 @@ import numpy as np
 import pandas as pd
 
 from ..globals import *
-from ..info import MetaInfo
+from ..info import GraphInfo
 from ..meta_struct import MetaStruct
 from ..utils import tqdm
 
@@ -189,8 +189,16 @@ class RawGraph(MetaStruct):
         node_color = pd.factorize(keys)[0]
         node_color = ScalarMappable(norm=norm, cmap=cmap).to_rgba(node_color)
 
+        def format_value(value):
+            if isinstance(value, dict):
+                return '{}'
+            elif isinstance(value, list):
+                return '[]'
+            else:
+                return value
+
         if labels is None:
-            labels = {node: attr[VALUE] for node, attr in graph.nodes.items()}
+            labels = {node: format_value(attr[VALUE]) for node, attr in graph.nodes.items()}
         draw(graph, pos=pos, ax=ax, node_color=np.array(node_color), labels=labels, with_labels=with_labels, **kwargs)
 
         # 加标注
@@ -203,8 +211,8 @@ class RawGraph(MetaStruct):
 
         return fig, ax
 
-    def meta_info(self, **kwargs) -> MetaInfo:
-        raise NotImplementedError
+    def info(self, **kwargs) -> GraphInfo:
+        return GraphInfo.from_data(self.indices, self.formatted_values, **kwargs)
 
     def extra_repr(self) -> str:
         return 'num_samples={}, num_keys={}, num_nodes={}, num_edges={}, num_targets={}'.format(

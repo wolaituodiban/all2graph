@@ -19,10 +19,9 @@ class JsonParser(DataParser):
             time_format=None,
             targets: Union[List, Dict] = None,
             # 图生成参数
-            d_degree=1,
-            d_inner_edge=False,
-            l_degree=1,
-            to_bidirected=False,
+            dense_dict=False,
+            dict_degree=1,
+            list_degree=1,
             lid_keys: Set[Union[str, Tuple[str]]] = None,
             gid_keys: Set[Union[str, Tuple[str]]] = None,
             # 预处理
@@ -36,12 +35,11 @@ class JsonParser(DataParser):
             time_col:
             time_format:
             targets:
-            d_degree: 自然数，插入dict时跳连前置节点的度数
-            d_inner_edge: 字典内是否有边
-            l_degree: 自然数，插入list时跳连前置节点的度数
+            dict_degree: 自然数，插入dict时跳连前置节点的度数
+            dense_dict: 字典内是否有边
+            list_degree: 自然数，插入list时跳连前置节点的度数
             l_inner_degree: 整数，list内部节点跳连后置节点的度数，负数表示全部
             r_l_inner_degree: 整数，list内部节点跳连前置节点的度数，负数表示全部
-            to_bidirected: 双向边
             seq_keys: 是否生成网格
             lid_keys: 样本内表示id的key
             gid_keys: 样本间表示id的key
@@ -52,49 +50,48 @@ class JsonParser(DataParser):
             **kwargs:
         """
         super().__init__(data_col=json_col, time_col=time_col, time_format=time_format, targets=targets, **kwargs)
-        self.d_degree = d_degree
-        self.d_inner_edge = d_inner_edge
-        self.l_degree = l_degree
-        self.bidirectional = to_bidirected
+        self.dense_dict = dense_dict
+        self.dict_degree = dict_degree
+        self.list_degree = list_degree
         self.lid_keys = lid_keys
         self.gid_keys = gid_keys
         self.processor = processor
 
-    def _add_dict(self, graph: RawGraph, sid: int, obj: dict, vids: List[int]):
-        sub_vids = vids[-self.d_degree:]
+    def _add_dict(self, graph: RawGraph, obj: dict, vids: List[int]):
+        sub_vids = vids[-self.dict_degree:]
         nids = []
         for key, value in obj.items():
             if self.lid_keys and key in self.lid_keys:
                 # local id
-                nid = graph.add_lid_(sid, key, value)
-                graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=True)
+                nid = graph.add_lid_(key, value)
+                graph.add_edge_(sub_vids[-1], nid)
+                graph.add_edges_([nid] * len(sub_vids), sub_vids)
             elif self.gid_keys and key in self.gid_keys:
                 # global id
                 nid = graph.add_gid_(key, value)
-                graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=True)
+                graph.add_edge_(sub_vids[-1], nid)
+                graph.add_edges_([nid] * len(sub_vids), sub_vids)
             else:
-                nid = graph.add_kv_(sid, key, value)
-                graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
-                self.add_obj(graph, sid=sid, obj=value, key=key, vids=vids + [nid])
+                nid = graph.add_kv_(key, value)
+                graph.add_edges_([nid] * len(sub_vids), sub_vids)
+                self.add_obj(graph, obj=value, key=key, vids=vids + [nid])
             nids.append(nid)
-        if self.d_inner_edge:
-            graph.add_edges_for_seq_(nids)
+        if self.dense_dict:
+            graph.add_dense_edges_(nids)
 
-    def _add_list(self, graph: RawGraph, sid: int, key, obj: list, vids: List[int]):
-        sub_vids = vids[-self.d_degree:]
+    def _add_list(self, graph: RawGraph, key, obj: list, vids: List[int]):
+        sub_vids = vids[-self.dict_degree:]
         for value in obj:
-            nid = graph.add_kv_(sid, key, value)
-            graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
-            self.add_obj(graph, sid=sid, obj=value, vids=vids+[nid], key=key)
+            nid = graph.add_kv_(key, value)
+            graph.add_edges_([nid] * len(sub_vids), sub_vids)
+            self.add_obj(graph, obj=value, vids=vids+[nid], key=key)
 
-    def add_obj(self, graph, sid, obj, key=READOUT, vids=None):
-        vids = vids or [graph.add_kv_(sid, key, obj)]
+    def add_obj(self, graph, obj, key=READOUT, vids=None):
+        vids = vids or [graph.add_kv_(key, obj)]
         if isinstance(obj, dict):
-            self._add_dict(graph, sid=sid, obj=obj, vids=vids)
+            self._add_dict(graph, obj=obj, vids=vids)
         elif isinstance(obj, list):
-            self._add_list(
-                graph, sid=sid, obj=obj, vids=vids,
-                key=key + (ITEM, ) if isinstance(key, tuple) else (key, ITEM))
+            self._add_list(graph, obj=obj, vids=vids, key='_'.join([key, ITEM]))
 
     def process_json(self, obj, now=None):
         # json load
@@ -111,10 +108,11 @@ class JsonParser(DataParser):
     def __call__(self, df: pd.DataFrame, disable: bool = True) -> RawGraph:
         graph = RawGraph()
         cols = [self.data_col, self.time_col]
-        for sid, row in tqdm(enumerate(df[cols].itertuples()), disable=disable, postfix='parsing json'):
+        for row in tqdm(df[cols].itertuples(), disable=disable, postfix='parsing json'):
             obj = self.process_json(row[1], now=row[2])
-            self.add_obj(graph, sid=sid, obj=obj)
-        self._post_call(graph)
+            graph.add_sample_()
+            self.add_obj(graph, obj=obj)
+        graph.add_targets_(self.targets)
         return graph
 
 

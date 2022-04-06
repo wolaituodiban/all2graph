@@ -38,64 +38,84 @@ class NodeInfo(MetaStruct):
             num_count=0, num_ecdf=None, str_info=None, initialized=True)
 
     @classmethod
-    def from_data(cls, num_samples, df, num_bins=None, **kwargs):
-        count_df = df.groupby(SAMPLE).agg({SAMPLE: 'count', NUMBER: 'count'})
-        num_pos_samples = count_df.shape[0]
-        num_nodes = count_df[SAMPLE].tolist() + [0] * (num_samples - num_pos_samples)
-        num_nodes_ecdf = ECDF.from_data(num_nodes, num_bins=num_bins)
-        num_frac_ecdf = ECDF.from_data(count_df[NUMBER] / count_df[SAMPLE], num_bins=num_bins)
+    def from_data(cls, num_samples, df, num_bins=None, fast=True, **kwargs):
         num_count = df[NUMBER].count()
         if num_count > 0:
             num_ecdf = ECDF.from_data(df[NUMBER])
         else:
             num_ecdf = None
-        str_info = StrInfo.from_data(num_pos_samples, df, num_bins=num_bins)
+
+        if fast:
+            num_nodes_ecdf = None
+            num_pos_samples = None
+            num_frac_ecdf = None
+            str_info = None
+        else:
+            count_df = df.groupby(SAMPLE).agg({SAMPLE: 'count', NUMBER: 'count'})
+            num_pos_samples = count_df.shape[0]
+            num_nodes = count_df[SAMPLE].tolist() + [0] * (num_samples - num_pos_samples)
+            num_nodes_ecdf = ECDF.from_data(num_nodes, num_bins=num_bins)
+            num_frac_ecdf = ECDF.from_data(count_df[NUMBER] / count_df[SAMPLE], num_bins=num_bins)
+            str_info = StrInfo.from_data(num_pos_samples, df, num_bins=num_bins)
+
         return super().from_data(num_samples=num_samples, num_nodes_ecdf=num_nodes_ecdf,
                                  num_pos_samples=num_pos_samples, num_frac_ecdf=num_frac_ecdf,
                                  num_count=num_count, num_ecdf=num_ecdf,
                                  str_info=str_info)
 
     @classmethod
-    def batch(cls, node_infos: List, num_bins=None, **kwargs):
-        num_samples = []
-        num_nodes_ecdf = []
-        num_pos_samples = []
-        num_frac_ecdf = []
-        num_count = []
-        num_ecdf = []
-        str_info = []
+    def batch(cls, node_infos: List, num_bins=None, fast=True, **kwargs):
+        num_sampless = []
+        num_nodes_ecdfs = []
+        num_pos_sampless = []
+        num_frac_ecdfs = []
+        num_counts = []
+        num_ecdfs = []
+        str_infos = []
         for info in node_infos:
-            num_samples.append(info.num_samples)
-            num_nodes_ecdf.append(info.num_nodes_ecdf)
-            num_pos_samples.append(info.num_pos_samples)
-            num_frac_ecdf.append(info.num_frac_ecdf)
+            num_sampless.append(info.num_samples)
+            num_nodes_ecdfs.append(info.num_nodes_ecdf)
+            num_pos_sampless.append(info.num_pos_samples)
+            num_frac_ecdfs.append(info.num_frac_ecdf)
             if info.num_ecdf is not None:
-                num_count.append(info.num_count)
-                num_ecdf.append(info.num_ecdf)
+                num_counts.append(info.num_count)
+                num_ecdfs.append(info.num_ecdf)
             if info.str_info is not None:
-                str_info.append(info.str_info)
-        num_nodes_ecdf = ECDF.batch(num_nodes_ecdf, weights=num_samples, num_bins=num_bins)
-        num_frac_ecdf = ECDF.batch(num_frac_ecdf, weights=num_pos_samples, num_bins=num_bins)
-        if len(num_ecdf) > 0:
-            num_ecdf = ECDF.batch(num_ecdf, weights=num_count, num_bins=num_bins)
+                str_infos.append(info.str_info)
+
+        if len(num_ecdfs) > 0:
+            num_ecdf = ECDF.batch(num_ecdfs, weights=num_counts, num_bins=num_bins)
+            num_count = sum(num_counts)
         else:
-            num_count = [0]
+            num_count = 0
             num_ecdf = None
-        if len(str_info) > 0:
-            str_info = StrInfo.batch(str_info, num_bins=num_bins)
-        else:
+
+        if fast:
+            num_pos_samples = None
+            num_nodes_ecdf = None
+            num_frac_ecdf = None
             str_info = None
-        return super().from_data(num_samples=sum(num_samples), num_nodes_ecdf=num_nodes_ecdf,
-                                 num_pos_samples=sum(num_pos_samples), num_frac_ecdf=num_frac_ecdf,
-                                 num_count=sum(num_count), num_ecdf=num_ecdf,
+        else:
+            num_pos_samples = sum(num_sampless)
+            num_nodes_ecdf = ECDF.batch(num_nodes_ecdfs, weights=num_sampless, num_bins=num_bins)
+            num_frac_ecdf = ECDF.batch(num_frac_ecdfs, weights=num_pos_samples, num_bins=num_bins)
+            if len(str_infos) > 0:
+                str_info = StrInfo.batch(str_infos, num_bins=num_bins)
+            else:
+                str_info = None
+        return super().from_data(num_samples=sum(num_sampless), num_nodes_ecdf=num_nodes_ecdf,
+                                 num_pos_samples=num_pos_samples, num_frac_ecdf=num_frac_ecdf,
+                                 num_count=num_count, num_ecdf=num_ecdf,
                                  str_info=str_info)
 
     @property
     def num_frac(self):
-        return self.num_frac_ecdf.mean()
+        return self.num_frac_ecdf.mean
 
     @property
     def num_unique_str(self):
+        if self.str_info is None:
+            return None
         return self.str_info.num_unique_str
 
     def extra_repr(self) -> str:

@@ -1,4 +1,4 @@
-from typing import Dict, List, Union, Set
+from typing import Dict, Set
 
 import pandas as pd
 
@@ -17,7 +17,7 @@ class GraphInfo(MetaInfo):
         self.str_info = str_info
 
     @classmethod
-    def from_data(cls, indices, values: list, num_bins=None, **kwargs):
+    def from_data(cls, indices, values: list, num_bins=None, fast=True, **kwargs):
         num_samples = len(indices)
         df = pd.DataFrame({VALUE: values, SAMPLE: None, KEY: None})
         df[NUMBER] = pd.to_numeric(df[VALUE], errors='coerce')
@@ -31,14 +31,14 @@ class GraphInfo(MetaInfo):
         node_infos = {}
         for key, sub_df in df.groupby(KEY):
             # print('111111111111', key)
-            node_infos[key] = NodeInfo.from_data(num_samples, sub_df, num_bins=num_bins)
+            node_infos[key] = NodeInfo.from_data(num_samples, sub_df, num_bins=num_bins, fast=fast)
 
         # str info
         str_info = StrInfo.from_data(num_samples, df, num_bins=num_bins)
         return super().from_data(node_infos=node_infos, str_info=str_info)
 
     @classmethod
-    def batch(cls, graph_infos, num_bins=None, disable=False, postfix=None, **kwargs):
+    def batch(cls, graph_infos, num_bins=None, fast=True, disable=False, postfix=None, **kwargs):
         num_samples = 0
         node_infos = None
         str_info = None
@@ -52,7 +52,7 @@ class GraphInfo(MetaInfo):
                 node_infos[ntype] = NodeInfo.batch(
                     [node_infos.get(ntype, NodeInfo.empty(num_samples)),
                      graph_info.node_infos.get(ntype, NodeInfo.empty(graph_info.num_samples))],
-                    num_bins=num_bins,
+                    num_bins=num_bins, fast=fast
                 )
             str_info = StrInfo.batch([str_info, graph_info.str_info], num_bins=num_bins)
         return super().from_data(node_infos=node_infos, str_info=str_info)

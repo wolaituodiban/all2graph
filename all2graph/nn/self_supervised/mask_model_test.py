@@ -29,7 +29,7 @@ def test_mask_model():
     json_parser = ag.JsonParser(
         json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
     raw_graph = json_parser(df)
-    meta_info = raw_graph.meta_info()
+    meta_info = raw_graph.info()
     graph_parser = ag.GraphParser.from_data(meta_info)
     graph = graph_parser(raw_graph).add_self_loop()
 

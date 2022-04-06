@@ -15,7 +15,7 @@ def test_parse():
     raw_graph.add_gid_('gkey', 'hehe')
     raw_graph.add_readouts_(['a', 'haha'])
     print(raw_graph)
-    meta_info = raw_graph.meta_info()
+    meta_info = raw_graph.info()
     graph_parser = ag.GraphParser.from_data(meta_info)
     graph = graph_parser(raw_graph)
     print(graph)
