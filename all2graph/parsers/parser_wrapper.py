@@ -5,14 +5,12 @@ import pandas as pd
 
 from .data_parser import DataParser
 from .graph_parser import GraphParser
-from .post_parser import PostParser
 from ..graph import Graph, RawGraph
 from ..meta_struct import MetaStruct
 from ..utils import iter_csv, mp_run
 
 
 UnionGraphParser = Union[GraphParser, Tuple[GraphParser, List[str]]]
-UnionPostParser = Union[PostParser, Tuple[PostParser, List[str]]]
 
 
 class ParserWrapper(MetaStruct):
@@ -20,12 +18,10 @@ class ParserWrapper(MetaStruct):
             self,
             data_parser: Union[DataParser, List[DataParser], Dict[str, DataParser]] = None,
             graph_parser: Union[UnionGraphParser, List[UnionGraphParser], Dict[str, UnionGraphParser]] = None,
-            post_parser: Union[UnionPostParser, List[UnionPostParser], Dict[str, UnionPostParser]] = None
     ):
         super().__init__(initialized=True)
         self.data_parser = data_parser
         self.graph_parser = graph_parser
-        self.post_parser = post_parser
 
     @property
     def data_parser(self):
@@ -59,55 +55,20 @@ class ParserWrapper(MetaStruct):
                 parser = (parser, list(self._data_parser))
                 self._graph_parser[k] = parser
 
-    @property
-    def post_parser(self):
-        if len(self._post_parser) == 1:
-            return list(self._post_parser.values())[0][0]
-        return {k: v[0] for k, v in self._post_parser.items()}
-
-    @post_parser.setter
-    def post_parser(self, post_parser):
-        if post_parser is None:
-            self._post_parser = None
-        else:
-            if not isinstance(post_parser, (list, dict)):
-                post_parser = [post_parser]
-            if isinstance(post_parser, list):
-                post_parser = {i: parser for i, parser in enumerate(post_parser)}
-            self._post_parser: Dict[str, Tuple[PostParser, List[str]]] = {}
-            for k, parser in post_parser.items():
-                if not isinstance(parser, tuple):
-                    parser = (parser, list(self._graph_parser))
-                self._post_parser[k] = parser
-
-    def call_post_parser(self, graph: Graph, key: str = None) -> Dict[Tuple, Graph]:
-        if self._post_parser is None:
-            return {(key, ): graph}
-        output = {}
-        for key2, (parser, key3) in self._post_parser.items():
-            if key and key not in key3:
-                continue
-            output[(key, key2)] = parser(graph)
-        return output
-
-    def call_graph_parser(self, raw_graph: RawGraph, key: str = None, post=True) -> Dict[Tuple, Graph]:
+    def call_graph_parser(self, raw_graph: RawGraph, key: str = None) -> Dict[Tuple, Graph]:
         output = {}
         for key2, (parser, key3) in self._graph_parser.items():
             if key and key not in key3:
                 continue
-            if post:
-                for kk, graph in self.call_post_parser(parser(raw_graph), key=key2).items():
-                    output[(key, ) + kk] = graph
-            else:
-                output[(key, key2, )] = parser(raw_graph)
+            output[(key, key2)] = parser(raw_graph)
         return output
 
-    def __call__(self, df: pd.DataFrame, disable=True, return_df=False, sel_cols=None, drop_cols=None, post=True
+    def __call__(self, df: pd.DataFrame, disable=True, return_df=False, sel_cols=None, drop_cols=None
                  ) -> Union[Union[Graph, dict], Tuple[Union[Graph, dict], pd.DataFrame]]:
         output = {}
         for k, parser in self._data_parser.items():
             raw_graph = parser(df, disable=disable)
-            output.update(self.call_graph_parser(raw_graph, key=k, post=post))
+            output.update(self.call_graph_parser(raw_graph, key=k))
         if len(output) == 1:
             output = list(output.values())[0]
         if return_df:
@@ -144,7 +105,7 @@ class ParserWrapper(MetaStruct):
         return df
 
     def save(self, src, dst, disable=False, chunksize=64, postfix='saving graph', processes=None, sel_cols=None,
-             drop_cols=None, post=False, **kwargs):
+             drop_cols=None, **kwargs):
         """
         将原始数据加工后，存储成分片的文件
         Args:
@@ -156,7 +117,6 @@ class ParserWrapper(MetaStruct):
             processes: 多进程数量
             sel_cols: 需要返回的元数据列
             drop_cols: 需要去掉的列，只在meta_col为None时生效
-            post: post parser是否生效
             **kwargs: pd.read_csv的额外参数
 
         Returns:
@@ -169,7 +129,7 @@ class ParserWrapper(MetaStruct):
             (df, os.path.join(dst, '{}.ag.graph'.format(i)))
             for i, df in enumerate(iter_csv(src, chunksize=chunksize, **kwargs))
         )
-        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols, post=post)
+        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
         for df in mp_run(self._save, inputs, kwds=kwds, disable=disable, processes=processes, postfix=postfix):
             dfs.append(df)
         path_df = pd.concat(dfs)
@@ -206,11 +166,9 @@ class ParserWrapper(MetaStruct):
 
     def __eq__(self, other):
         return self.data_parser == other.data_parser and self.graph_parser == other.graph_parser\
-               and self.post_parser == other.post_parser
 
     def extra_repr(self) -> str:
-        return 'data_parser={}\ngraph_parser={}\npost_parser={}\n'.format(
+        return 'data_parser={}\ngraph_parser={}'.format(
             '  \n'.join(str(self.data_parser).split('\n')),
             '  \n'.join(str(self.graph_parser).split('\n')),
-            '  \n'.join(str(self.post_parser).split('\n')),
         )

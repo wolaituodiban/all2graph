@@ -1,40 +1,31 @@
 import gzip
 import pickle
+from typing import List, Dict
 
 import dgl
-import dgl.function as fn
 import torch
-import pandas as pd
 
-from .raw_graph import gen_edges_for_seq_
-from ..globals import KEY, VALUE, TOKEN, NUMBER, KEY2VALUE, EDGE, KEY2KEY, VALUE2VALUE, SAMPLE, SAMPLE2VALUE
 from ..meta_struct import MetaStruct
 
 
-def tensor2list(tensor: torch.Tensor):
-    return tensor.detach().cpu().numpy().tolist()
-
-
 class Graph(MetaStruct):
-    def __init__(self, graph: dgl.DGLHeteroGraph, **kwargs):
+    def __init__(self, graph: dgl.DGLGraph, key_mapper: Dict[str, int], key_tensor: torch.Tensor, targets: List[str],
+                 indices: List[Dict[str, torch.Tensor]], **kwargs):
+        """
+
+        Args:
+            graph:
+            key_mapper:
+            key_tensor: key对应的分词组成的张量
+            targets: 目标keys
+            **kwargs:
+        """
         super().__init__(initialized=True, **kwargs)
         self.graph = graph
-
-    @classmethod
-    def from_data(cls, edges, num_samples, key_tokens, value_tokens, numbers, **kwargs):
-        num_nodes_dict = {SAMPLE: num_samples, KEY: key_tokens.shape[0], VALUE: value_tokens.shape[0]}
-        for (_, _, vtype), (u, v) in edges.items():
-            if vtype in num_nodes_dict:
-                continue
-            num_nodes_dict[vtype] = len(v)
-        graph = dgl.heterograph(edges, num_nodes_dict=num_nodes_dict)
-        graph.nodes[KEY].data[TOKEN] = key_tokens
-        graph.nodes[VALUE].data[TOKEN] = value_tokens
-        graph.nodes[VALUE].data[NUMBER] = numbers
-        return cls(graph, **kwargs)
-
-    def __eq__(self, other, debug=False):
-        raise NotImplementedError
+        self.key_mapper = key_mapper
+        self.key_tensor = key_tensor
+        self.indices = indices
+        self.targets = targets
 
     def __repr__(self):
         return self.graph.__repr__()
@@ -44,38 +35,6 @@ class Graph(MetaStruct):
         return self.graph.device
 
     @property
-    def ntypes(self):
-        return self.graph.ntypes
-
-    @property
-    def etypes(self):
-        return self.graph.etypes
-
-    @property
-    def key_token(self):
-        return self.graph.nodes[KEY].data[TOKEN]
-
-    @property
-    def value_token(self):
-        return self.graph.nodes[VALUE].data[TOKEN]
-
-    @property
-    def number(self):
-        return self.graph.nodes[VALUE].data[NUMBER]
-
-    @property
-    def key_graph(self) -> dgl.DGLHeteroGraph:
-        return dgl.node_type_subgraph(self.graph, [KEY])
-
-    @property
-    def value_graph(self) -> dgl.DGLHeteroGraph:
-        return dgl.node_type_subgraph(self.graph, [VALUE])
-
-    @property
-    def readout_types(self):
-        return [ntype for ntype in self.graph.ntypes if ntype != KEY and ntype != VALUE and ntype != SAMPLE]
-
-    @property
     def nodes(self):
         return self.graph.nodes
 
@@ -83,127 +42,59 @@ class Graph(MetaStruct):
     def edges(self):
         return self.graph.edges
 
-    def num_nodes(self, ntype):
-        return self.graph.num_nodes(ntype)
+    @property
+    def num_nodes(self):
+        return self.graph.num_nodes()
 
-    def num_edges(self, etype):
-        return self.graph.num_edges(etype)
+    @property
+    def num_edges(self):
+        return self.graph.num_edges()
 
-    def push_key2value(self, feats: torch.Tensor) -> torch.Tensor:
-        with self.graph.local_scope():
-            self.graph.nodes[KEY].data['feat'] = feats
-            self.graph.push(
-                torch.arange(self.graph.num_nodes(KEY), device=self.graph.device),
-                message_func=fn.copy_u('feat', 'feat'),
-                reduce_func=fn.sum('feat', 'feat'),
-                etype=KEY2VALUE
-            )
-            return self.graph.nodes[VALUE].data['feat']
-
-    def push_key2readout(self, feats: torch.Tensor, ntype: str) -> torch.Tensor:
-        with self.graph.local_scope():
-            self.graph.nodes[KEY].data['feat'] = feats
-            self.graph.push(
-                torch.arange(self.graph.num_nodes(KEY), device=self.graph.device),
-                message_func=fn.copy_u('feat', 'feat'),
-                reduce_func=fn.sum('feat', 'feat'),
-                etype=(KEY, EDGE, ntype)
-            )
-            return self.graph.nodes[ntype].data['feat']
-
-    def push_value2readout(self, feats: torch.Tensor, ntype: str) -> torch.Tensor:
-        with self.graph.local_scope():
-            self.graph.nodes[VALUE].data['feat'] = feats
-            self.graph.push(
-                torch.arange(self.graph.num_nodes(VALUE), device=self.graph.device),
-                message_func=fn.copy_u('feat', 'feat'),
-                reduce_func=fn.sum('feat', 'feat'),
-                etype=(VALUE, EDGE, ntype)
-            )
-            return self.graph.nodes[ntype].data['feat']
+    def add_self_loop(self):
+        self.graph = dgl.add_self_loop(self.graph)
+        return self
 
     def to_simple(self, writeback_mapping=False, **kwargs):
         if writeback_mapping:
-            graph, wm = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
-            self.graph = graph
-            return Graph(graph), wm
+            self.graph, wm = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
+            return self, wm
         else:
-            graph = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
-            return Graph(graph)
+            self.graph = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
+            return self
 
-    def add_self_loop(self, etype=None):
-        if etype is None:
-            graph = dgl.add_self_loop(self.graph, etype=KEY2KEY)
-            graph = dgl.add_self_loop(graph, etype=VALUE2VALUE)
+    def to_bidirectied(self):
+        self.graph = dgl.to_bidirected(self.graph)
+        return self
+
+    def to(self, *args, **kwargs):
+        self.graph = self.graph.to(*args, **kwargs)
+        self.key_tensor = self.key_tensor.to(*args, **kwargs)
+        return self
+
+    def cpu(self, *args, **kwargs):
+        self.graph = self.graph.cpu()
+        self.key_tensor = self.key_tensor.cpu(*args, **kwargs)
+        return self
+
+    def pin_memory(self):
+        if dgl.__version__ >= '0.8':
+            self.graph = self.graph.pin_memory_()
         else:
-            graph = dgl.add_self_loop(self.graph, etype)
-        return Graph(graph)
+            for k, v in self.graph.ndata.items():
+                self.graph.ndata[k] = v.pin_memory()
+            for k, v in self.graph.edata.items():
+                self.graph.edata[k] = v.pin_memory()
+        self.key_tensor = self.key_tensor.pin_memory()
+        return self
 
-    def to_bidirectied(self, etype=None):
-        raise NotImplementedError
-
-    def add_edges_by_key(self, degree, r_degree, keys=None):
-        all_u, all_v = [], []
-
-        sid = self.graph.adj(transpose=True, etype=SAMPLE2VALUE).coalesce().indices()[1]
-        kid = self.graph.adj(transpose=True, etype=KEY2VALUE).coalesce().indices()[1]
-        df = pd.DataFrame({'sid': sid.cpu().detach().numpy(), 'kid': kid.cpu().detach().numpy()})
-        for (sid, kid), group in df.groupby(['sid', 'kid']):
-            if keys and kid not in keys:
-                continue
-            u, v = gen_edges_for_seq_(group.index.tolist(), degree=degree, r_degree=r_degree)
-            all_u += u
-            all_v += v
-        all_u = torch.tensor(all_u, dtype=torch.long)
-        all_v = torch.tensor(all_v, dtype=torch.long)
-
-        graph = dgl.add_edges(self.graph, all_u, all_v, etype=VALUE2VALUE)
-        return Graph(graph)
+    def local_scope(self):
+        return self.graph.local_scope()
 
     @classmethod
     def load(cls, path, **kwargs):
         with gzip.open(path, 'rb', **kwargs) as file:
             return pickle.load(file)
 
-    def save(self, path, labels=None, **kwargs):
+    def save(self, path, labels, **kwargs):
         with gzip.open(path, 'wb', **kwargs) as file:
             pickle.dump((self, labels), file)
-
-    def to(self, *args, **kwargs):
-        self.graph = self.graph.to(*args, **kwargs)
-        return self
-
-    def pin_memory(self):
-        for ntype in self.graph.ntypes:
-            for k, v in self.graph.nodes[ntype].data.items():
-                self.graph.nodes[ntype].data[k] = v.pin_memory()
-        for etype in self.graph.canonical_etypes:
-            for k, v in self.graph.edges[etype].data.items():
-                self.graph.edges[etype].data[k] = v.pin_memory()
-        return self
-
-    def sample_subgraph(self, i, **kwargs):
-        nodes = {
-            KEY: list(range(self.graph.num_nodes(KEY))),
-            SAMPLE: i
-        }
-        for etype in self.graph.canonical_etypes:
-            if etype[0] == SAMPLE:
-                nodes[etype[-1]] = self.graph.successors(i, etype=etype)
-        graph = dgl.node_subgraph(self.graph, nodes=nodes, **kwargs)
-        return Graph(graph)
-
-    def value_subgraph(self, nodes, **kwargs):
-        nodes = {VALUE: nodes}
-        for ntype in self.ntypes:
-            if ntype not in nodes:
-                nodes[ntype] = torch.arange(self.num_nodes(ntype))
-        graph = dgl.node_subgraph(self.graph, nodes, **kwargs)
-        return Graph(graph)
-
-    @classmethod
-    def batch(cls, graphs, **kwargs):
-        return cls(dgl.batch([graph.graph for graph in graphs], **kwargs))
-
-    def local_scope(self):
-        return self.graph.local_scope()

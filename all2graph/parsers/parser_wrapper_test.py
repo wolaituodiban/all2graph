@@ -6,11 +6,11 @@ def test_parse():
     data = [
         {
             'ord_no': 'CH202007281033864',
-            ('bsy', 'typ'): 'CASH',
+            'bst_typ': 'CASH',
         },
         {
             'ord_no': 'CH202007281033864',
-            ('stg', 'no'): '1',
+            'stg_no': '1',
         },
     ]
     df = pd.DataFrame(
@@ -22,7 +22,6 @@ def test_parse():
     json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', gid_keys={'ord_no'})
     meta_info = json_parser.analyse(df, processes=0)
     graph_parser = ag.GraphParser.from_data(meta_info)
-    post_parser = ag.PostParser(degree=-1, r_degree=-1)
 
     parser_wrapper = ag.ParserWrapper(
         data_parser=json_parser,
@@ -34,7 +33,6 @@ def test_parse():
     parser_wrapper = ag.ParserWrapper(
         data_parser={'a': json_parser, 'b': json_parser},
         graph_parser={'c': graph_parser, 'd': (graph_parser, ['a'])},
-        post_parser=post_parser
     )
     print(parser_wrapper)
     graphs, df2 = parser_wrapper(df, return_df=True)

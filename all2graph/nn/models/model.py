@@ -12,7 +12,7 @@ from ..train import Trainer
 from ..utils import Module, predict_csv
 from ...data import GraphDataset
 from ...info import MetaInfo
-from ...parsers import DataParser, GraphParser, PostParser, ParserWrapper
+from ...parsers import DataParser, GraphParser, ParserWrapper
 from ...graph import Graph
 
 
@@ -23,7 +23,6 @@ class Model(Module):
             parser: ParserWrapper = None,
             data_parser: DataParser = None,
             graph_parser: GraphParser = None,
-            post_parser: PostParser = None,
             meta_info: MetaInfo = None,
             meta_info_configs=None,
             graph_parser_configs=None,
@@ -31,7 +30,7 @@ class Model(Module):
     ):
         super().__init__()
         self.module = module
-        parser = parser or ParserWrapper(data_parser=data_parser, graph_parser=graph_parser, post_parser=post_parser)
+        parser = parser or ParserWrapper(data_parser=data_parser, graph_parser=graph_parser)
         self.parser = parser
 
         self.meta_info = meta_info
