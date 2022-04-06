@@ -129,7 +129,7 @@ class DFDataset(ParserDataset):
         return self._df.iloc[[item]]
 
 
-class GraphDataset(CSVDataset):
+class GraphDataset(PartitionDataset):
     def read_file(self, path):
         return Graph.load(path)
 
@@ -149,6 +149,4 @@ class GraphDataset(CSVDataset):
             graphs.append(graph)
             labels.append(label)
         graph = Graph.batch(graphs)
-        if self.parser:
-            graph = self.parser.post_parser(graph)
         return graph, default_collate(labels)

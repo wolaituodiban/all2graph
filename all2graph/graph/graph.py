@@ -24,7 +24,8 @@ class Graph(MetaStruct):
         self.graph = graph
         self.key_mapper = key_mapper
         self.key_tensor = key_tensor
-        self.indices = indices
+        # todo indices所占的空间太大了，导致多进程IO瓶颈，甚至崩溃，考虑优化
+        # self.indices = indices
         self.targets = targets
 
     def __repr__(self):
@@ -49,6 +50,10 @@ class Graph(MetaStruct):
     @property
     def num_edges(self):
         return self.graph.num_edges()
+
+    @property
+    def num_samples(self):
+        return len(self.indices)
 
     def add_self_loop(self):
         self.graph = dgl.add_self_loop(self.graph)

@@ -22,7 +22,7 @@ def test_csv_dataset():
     x, y = None, None
     for batch in ag.tqdm(data_loader):
         x, y = batch
-        num_samples += x.graph.num_samples('m3_ovd_30')
+        num_samples += x.num_samples
     print(x, y)
     assert num_samples == 1000
     shutil.rmtree('temp')
@@ -37,7 +37,7 @@ def test_df_dataset():
     x, y = None, None
     for batch in ag.tqdm(data_loader):
         x, y = batch
-        num_samples += x.graph.num_samples('m3_ovd_30')
+        num_samples += x.num_samples
     print(x, y)
     assert num_samples == 1000
 
@@ -46,13 +46,13 @@ def test_graph_dataset():
     if os.path.exists('temp'):
         shutil.rmtree('temp')
     path_df = parser_wrapper.save(df, 'temp')
-    dataset = ag.data.GraphDataset(path_df, parser_wrapper)
+    dataset = ag.data.GraphDataset(path_df)
     data_loader = dataset.dataloader(num_workers=2, shuffle=True, batch_size=16)
     num_samples = 0
     x, y = None, None
     for batch in ag.tqdm(data_loader):
         x, y = batch
-        num_samples += x.graph.num_samples('m3_ovd_30')
+        num_samples += x.num_samples
     print(x, y)
     assert num_samples == 1000
     shutil.rmtree('temp')
@@ -74,12 +74,11 @@ if __name__ == '__main__':
     df = pd.concat([df] * 1000)
     json_parser = ag.JsonParser(
         json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
-    raw_graph = json_parser(df, disable=False)
+    raw_graph = json_parser(df.iloc[:1], disable=False)
     meta_info = raw_graph.info()
     graph_parser = ag.GraphParser.from_data(meta_info)
-    post_parser = ag.PostParser()
-    parser_wrapper = ag.ParserWrapper(data_parser=json_parser, graph_parser=graph_parser, post_parser=post_parser)
+    parser_wrapper = ag.ParserWrapper(data_parser=json_parser, graph_parser=graph_parser)
 
     test_csv_dataset()
     test_df_dataset()
-    test_graph_dataset()
+    # test_graph_dataset()

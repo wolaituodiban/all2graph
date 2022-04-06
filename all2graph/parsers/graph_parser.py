@@ -103,7 +103,7 @@ class GraphParser(MetaStruct):
                 numbers[ids] = self.scale(key, numbers[ids])
                 temp[key] = torch.tensor(ids, dtype=torch.long)
             indices.append(temp)
-        numbers = torch.tensor(numbers, dtype=torch.long)
+        numbers = torch.tensor(numbers, dtype=torch.float32)
 
         graph = dgl.graph(edges, num_nodes=raw_graph.num_nodes)
         graph.ndata[TOKEN] = tokens
