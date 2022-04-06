@@ -34,4 +34,4 @@ from .info import *
 from .stats import ECDF, Discrete, Distribution
 from .utils import *
 from .globals import *
-from .meta_struct import MetaStruct
+from .meta_struct import MetaStruct, equal

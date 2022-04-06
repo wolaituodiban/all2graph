@@ -20,6 +20,7 @@ setup(
     install_requires=[
         # 'dgl>=0.6.0',
         # 'torch>=1.5.0',
+        'numpy',
         'pandas',
         'scipy',
     ],

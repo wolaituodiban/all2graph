@@ -1,43 +1,95 @@
-from typing import Dict
+from typing import Dict, List, Union, Set
 
-import numpy as np
 import pandas as pd
 
 from .meta_info import MetaInfo
-from .number_info import NumberInfo
-from .token_info import TokenInfo
+from .node_info import NodeInfo
+from .str_info import StrInfo
+from ..globals import *
 from ..stats import ECDF
-from ..utils import tqdm, mp_run
+from ..utils import tqdm
 
 
 class GraphInfo(MetaInfo):
-    def __init__(self, number_infos: Dict[str, NumberInfo], token_infos: Dict[str, TokenInfo],
-                 key_counts: Dict[str, ECDF], **kwargs):
+    def __init__(self, node_infos: Dict[str, NodeInfo], str_info: StrInfo, **kwargs):
         super().__init__(**kwargs)
-        self.number_infos = number_infos
-        self.token_infos = token_infos
-        self.key_counts = key_counts
+        self.node_infos = node_infos
+        self.str_info = str_info
 
-    def __eq__(self, other, debug=False):
-        if not super().__eq__(other):
-            if debug:
-                print('super not equal')
-            return False
-        if self.number_infos != other.number_infos:
-            if debug:
-                print('number_infos not equal')
-            return False
-        if self.token_infos != other.token_infos:
-            if debug:
-                print('token_infos not equal')
-            return False
-        if self.key_counts != other.key_counts:
-            if debug:
-                print('key_counts not equal')
-            return False
-        return True
+    @classmethod
+    def from_data(cls, indices, values: list, num_bins=None, **kwargs):
+        num_samples = len(indices)
+        df = pd.DataFrame({VALUE: values, SAMPLE: None, KEY: None})
+        df[NUMBER] = pd.to_numeric(df[VALUE], errors='coerce')
+        df.loc[pd.notna(df[NUMBER]), VALUE] = 'null'
+        df['value_copy'] = df[VALUE]
+        for i, j in enumerate(indices):
+            for key, n in j.items():
+                df.loc[n, [SAMPLE, KEY]] = i, key
 
-    def dictionary(self, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf',) -> Dict[str, int]:
+        # node infos
+        node_infos = {}
+        for key, sub_df in df.groupby(KEY):
+            # print('111111111111', key)
+            node_infos[key] = NodeInfo.from_data(num_samples, sub_df, num_bins=num_bins)
+
+        # str info
+        str_info = StrInfo.from_data(num_samples, df, num_bins=num_bins)
+        return super().from_data(node_infos=node_infos, str_info=str_info)
+
+    @classmethod
+    def batch(cls, graph_infos, num_bins=None, disable=False, postfix=None, **kwargs):
+        num_samples = 0
+        node_infos = None
+        str_info = None
+        for graph_info in tqdm(graph_infos, disable=disable, postfix=postfix):
+            num_samples += graph_info.num_samples
+            if node_infos is None:
+                node_infos = dict(graph_info.node_infos)
+                str_info = graph_info.str_info
+                continue
+            for ntype in set(node_infos).union(graph_info.node_infos):
+                node_infos[ntype] = NodeInfo.batch(
+                    [node_infos.get(ntype, NodeInfo.empty(num_samples)),
+                     graph_info.node_infos.get(ntype, NodeInfo.empty(graph_info.num_samples))],
+                    num_bins=num_bins,
+                )
+            str_info = StrInfo.batch([str_info, graph_info.str_info], num_bins=num_bins)
+        return super().from_data(node_infos=node_infos, str_info=str_info)
+
+    @property
+    def numbers(self) -> Dict[str, ECDF]:
+        return {key: info.num_ecdf for key, info in self.node_infos.items() if info.num_ecdf is not None}
+
+    @property
+    def keys(self) -> Set[str]:
+        return set(self.node_infos.keys())
+
+    @property
+    def num_samples(self):
+        return self.str_info.num_samples
+
+    @property
+    def num_keys(self):
+        return len(self.keys)
+
+    @property
+    def num_unique_str(self):
+        return self.str_info.num_unique_str
+
+    @property
+    def num_num_keys(self):
+        return len(self.numbers)
+
+    @property
+    def doc_freq(self) -> Dict[str, float]:
+        return self.str_info.doc_freq
+
+    @property
+    def tf_idf(self) -> Dict[str, ECDF]:
+        return self.str_info.tf_idf
+
+    def dictionary(self, min_df=0, max_df=1, top_k=None, top_method='mean_tfidf', tokenizer=None) -> Dict[str, int]:
         dictionary = [k for k, df in self.doc_freq.items() if min_df <= df <= max_df]
         if top_k is not None:
             if top_method == 'max_tfidf':
@@ -47,148 +99,25 @@ class GraphInfo(MetaInfo):
             elif top_method == 'max_tf':
                 dictionary = [(k, v.max) for k, v in self.tf_idf.items() if k in dictionary]
             elif top_method == 'mean_tf':
-                dictionary = [(k, v.mean) for k, v in self.tf_idf.items() if k in dictionary]
+                dictionary = [(k, v.mean) for k, v in self.str_info.freqs_ecdf.items() if k in dictionary]
             elif top_method == 'max_tc':
-                dictionary = [(k, v.max) for k, v in self.tf_idf.items() if k in dictionary]
+                dictionary = [(k, v.max) for k, v in self.str_info.freqs_ecdf.items() if k in dictionary]
             elif top_method == 'mean_tc':
-                dictionary = [(k, v.mean) for k, v in self.tf_idf.items() if k in dictionary]
+                dictionary = [(k, v.mean) for k, v in self.str_info.freqs_ecdf.items() if k in dictionary]
             else:
                 raise ValueError(
                     "top_method只能是('max_tfidf', 'mean_tfidf', 'max_tf', 'mean_tf', 'max_tc', mean_tc')其中之一"
                 )
             dictionary = sorted(dictionary, key=lambda x: x[1])
             dictionary = [k[0] for k in dictionary[:top_k]]
-
-        for key in self.key_counts:
-            if isinstance(key, str):
-                dictionary.append(key)
-            elif isinstance(key, tuple):
-                dictionary += list(key)
-
-        dictionary = set(dictionary)
+        if tokenizer is None:
+            dictionary = self.keys.union(dictionary)
+        else:
+            for ntype in self.keys:
+                dictionary += tokenizer.lcut(ntype)
+            dictionary = set(dictionary)
         return {k: i for i, k in enumerate(dictionary)}
 
-    @property
-    def numbers(self) -> Dict[str, ECDF]:
-        return {key: info.value for key, info in self.number_infos.items()}
-
-    @property
-    def num_keys(self):
-        return len(self.key_counts)
-
-    @property
-    def num_tokens(self):
-        return len(self.token_infos)
-
-    @property
-    def num_numbers(self):
-        return len(self.number_infos)
-
-    @property
-    def doc_freq(self) -> Dict[str, float]:
-        return {token: info.doc_freq for token, info in self.token_infos.items()}
-
-    @property
-    def tf_idf(self) -> Dict[str, ECDF]:
-        return {token: info.tf_idf for token, info in self.token_infos.items()}
-
-    def to_json(self) -> dict:
-        output = super().to_json()
-        output['number_infos'] = {k: v.to_json() for k, v in self.number_infos.items()}
-        output['token_infos'] = {k: v.to_json() for k, v in self.token_infos.items()}
-        return output
-
-    @classmethod
-    def from_json(cls, obj):
-        obj = dict(obj)
-        obj['number_infos'] = {k: NumberInfo.from_json(v) for k, v in obj['number_infos'].items()}
-        obj['token_infos'] = {k: TokenInfo.from_json(v) for k, v in obj['token_infos'].items()}
-        obj['key_count'] = {k: ECDF.from_json(v) for k, v in obj['key_count'].items()}
-        return super().from_json(obj)
-
-    @classmethod
-    def from_data(cls, sample_ids, keys, values, num_bins=None, disable=True):
-        data_df = pd.DataFrame({'sid': sample_ids, 'key': keys, 'token': values})
-        # 分离数值型数据和字符串数据
-        data_df['number'] = pd.to_numeric(data_df['token'], errors='coerce')
-        data_df.loc[pd.notna(data_df['number']), 'token'] = None
-        data_df['key_copy'] = data_df['key']
-        data_df['number_copy'] = data_df['number']
-        data_df['token_copy'] = data_df['token']
-
-        # 统计计数
-        count_df = pd.DataFrame({'count': data_df['sid'].value_counts()})
-        temp_df = data_df.pivot_table(values='token', index='sid', columns='token_copy', aggfunc='count')
-        count_df[[('token', x) for x in temp_df]] = temp_df
-        temp_df = data_df.pivot_table(values=['number', 'key'], index='sid', columns='key_copy', aggfunc='count')
-        count_df[temp_df.columns] = temp_df
-        count_df = count_df.loc[:, count_df.sum() > 0]
-        count_df = count_df.fillna(0)
-        del temp_df
-
-        token_infos = {}
-        number_infos = {}
-        key_counts = {}
-        for col, series in tqdm(count_df.iteritems(), disable=disable, postfix='constructing {}'.format(cls.__name__)):
-            if not isinstance(col, tuple):
-                continue
-            if col[0] == 'token':
-                token_infos[col[1]] = TokenInfo.from_data(counts=series, num_nodes=count_df['count'], num_bins=num_bins)
-            elif col[0] == 'number':
-                number_infos[col[1]] = NumberInfo.from_data(
-                    counts=series, values=data_df.loc[data_df['key'] == col[1], 'number'])
-            elif col[0] == 'key':
-                key_counts[col[1]] = ECDF.from_data(series, num_bins=num_bins)
-        return super().from_data(token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
-
-    @classmethod
-    def batch(cls, structs, weights=None, num_bins=None, processes=0, chunksize=1, disable=True):
-        if weights is None:
-            weights = np.full(len(structs), 1 / len(structs))
-        else:
-            weights = np.array(weights) / sum(weights)
-
-        # 对齐
-        number_infos = pd.DataFrame([struct.number_infos for struct in structs])
-        token_infos = pd.DataFrame([struct.token_infos for struct in structs])
-        key_counts = pd.DataFrame([struct.key_counts for struct in structs])
-
-        # 填空值
-        number_infos = number_infos.fillna(NumberInfo.from_data([0], []))
-        token_infos = token_infos.fillna(TokenInfo.from_data(np.zeros(1), np.ones(1)))
-        key_counts = key_counts.fillna(ECDF.from_data([0]))
-
-        # reduce
-        fn_kwargs = {'weights': weights, 'num_bins': num_bins}
-        number_infos = {
-            key: info for key, info in zip(
-                number_infos,
-                mp_run(NumberInfo.batch, [s for _, s in number_infos.iteritems()], processes=processes,
-                       chunksize=chunksize, disable=disable, postfix='reduce number info', total=number_infos.shape[1],
-                       kwds=fn_kwargs)
-            )
-        }
-
-        token_infos = {
-            key: info for key, info in zip(
-                token_infos,
-                mp_run(TokenInfo.batch, [s for _, s in token_infos.iteritems()], processes=processes,
-                       chunksize=chunksize, disable=disable, postfix='reduce token info', total=token_infos.shape[1],
-                       kwds=fn_kwargs)
-            )
-        }
-
-        key_counts = {
-            key: info for key, info in zip(
-                key_counts,
-                mp_run(ECDF.batch, [s for _, s in key_counts.iteritems()], processes=processes,
-                       chunksize=chunksize, disable=disable, postfix='reduce key count', total=key_counts.shape[1],
-                       kwds=fn_kwargs)
-            )
-        }
-
-        return super().batch(structs, weights=weights,
-                             token_infos=token_infos, number_infos=number_infos, key_counts=key_counts)
-
     def extra_repr(self) -> str:
-        return 'num_keys={}, num_tokens={}, num_numbers={}'.format(self.num_keys, self.num_tokens, self.num_numbers)
+        return 'num_keys={}, num_unique_str={}, num_num_keys={}'.format(
+            self.num_keys, self.num_unique_str, self.num_num_keys)

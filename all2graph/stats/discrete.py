@@ -1,9 +1,10 @@
+from typing import Dict
+
 import numpy as np
 import pandas as pd
-from typing import Dict
+
 from .distribution import Distribution
 from .ecdf import ECDF
-from ..globals import EPSILON
 
 
 class Discrete(Distribution):
@@ -12,8 +13,8 @@ class Discrete(Distribution):
         super().__init__(**kwargs)
         self.prob = prob
 
-    def __eq__(self, other):
-        if super().__eq__(other) and len(self.prob) == len(other.prob) == len(set(self.prob).union(other.prob)):
+    def __eq__(self, other, **kwargs):
+        if len(self.prob) == len(other.prob) == len(set(self.prob).union(other.prob)):
             for k in self.prob:
                 if not np.isclose(self.prob[k], other.prob[k]):
                     return False

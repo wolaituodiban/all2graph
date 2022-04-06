@@ -83,10 +83,8 @@ class ECDF(Distribution):
             output = np.clip(output, 0, 1)
         return output
 
-    def __eq__(self, other) -> bool:
-        if super().__eq__(other) \
-                and self.quantiles.shape[0] == other.quantiles.shape[0] \
-                and self.probs.shape[0] == other.probs.shape[0]:
+    def __eq__(self, other, **kwargs) -> bool:
+        if self.quantiles.shape[0] == other.quantiles.shape[0] and self.probs.shape[0] == other.probs.shape[0]:
             return np.allclose(self.quantiles, other.quantiles) and np.allclose(self.probs, other.probs)
         else:
 

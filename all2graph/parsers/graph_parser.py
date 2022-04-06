@@ -80,7 +80,7 @@ class GraphParser(MetaStruct):
         import torch
         edges = {k: (torch.tensor(u, dtype=torch.long), torch.tensor(v, dtype=torch.long))
                  for k, (u, v) in graph.edges.items()}
-        key_tokens = torch.tensor(self.encode(graph.keys), dtype=torch.long)
+        key_tokens = torch.tensor(self.encode(graph.unique_keys), dtype=torch.long)
         formatted_values = graph.formatted_values
         value_tokens = torch.tensor(self.encode(formatted_values), dtype=torch.long)
         numbers = torch.tensor(

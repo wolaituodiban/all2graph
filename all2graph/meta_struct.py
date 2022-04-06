@@ -1,6 +1,8 @@
 import sys
 from abc import ABC
 
+import numpy as np
+
 from .version import __version__
 
 
@@ -27,7 +29,7 @@ class MetaStruct(ABC):
         super().__setattr__(key, value)
 
     def __eq__(self, other) -> bool:
-        return type(self) == type(other)
+        return self.__dict__ == other.__dict__
 
     def to_json(self) -> dict:
         """将对象装化成可以被json序列化的对象"""
@@ -60,3 +62,34 @@ class MetaStruct(ABC):
         if '\n' in extra_repr:
             extra_repr = '\n  ' + '\n  '.join(extra_repr.split('\n')) + '\n'
         return '{}({})'.format(self.__class__.__name__, extra_repr)
+
+
+def equal(a, b, prefix=''):
+    for k, v in a.__dict__.items():
+        print(prefix, k)
+        if k not in b.__dict__:
+            print(prefix, 'not in b')
+            return False
+        v2 = b.__dict__[k]
+        if isinstance(v, list):
+            for i, vv in enumerate(v):
+                print(prefix, i)
+                if not equal(vv, v2[i], prefix+' '):
+                    return False
+        elif isinstance(v, dict):
+            for kk, vv in v.items():
+                print(prefix, kk)
+                if not equal(vv, v2[kk], prefix+' '):
+                    return False
+        elif isinstance(v, (float, int, bool, np.ndarray)):
+            if not np.allclose(v, v2):
+                print(prefix, 'not equal')
+                return False
+        elif isinstance(v, MetaStruct):
+            if not equal(v, v2, prefix+' '):
+                print(prefix, 'not equal')
+                return False
+        elif v != v2:
+            print(prefix, 'not equal')
+            return False
+    return True

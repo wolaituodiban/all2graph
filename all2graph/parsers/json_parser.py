@@ -7,7 +7,7 @@ import pandas as pd
 from .data_parser import DataParser
 from ..graph import RawGraph
 from ..utils import tqdm
-from ..globals import ROOT, ITEM
+from ..globals import READOUT, ITEM
 
 
 class JsonParser(DataParser):
@@ -87,7 +87,7 @@ class JsonParser(DataParser):
             graph.add_edges_([nid] * len(sub_vids), sub_vids, bidirectional=self.bidirectional)
             self.add_obj(graph, sid=sid, obj=value, vids=vids+[nid], key=key)
 
-    def add_obj(self, graph, sid, obj, key=ROOT, vids=None):
+    def add_obj(self, graph, sid, obj, key=READOUT, vids=None):
         vids = vids or [graph.add_kv_(sid, key, obj)]
         if isinstance(obj, dict):
             self._add_dict(graph, sid=sid, obj=obj, vids=vids)

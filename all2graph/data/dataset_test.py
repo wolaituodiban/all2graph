@@ -22,7 +22,7 @@ def test_csv_dataset():
     x, y = None, None
     for batch in ag.tqdm(data_loader):
         x, y = batch
-        num_samples += x.graph.num_nodes('m3_ovd_30')
+        num_samples += x.graph.num_samples('m3_ovd_30')
     print(x, y)
     assert num_samples == 1000
     shutil.rmtree('temp')
@@ -37,7 +37,7 @@ def test_df_dataset():
     x, y = None, None
     for batch in ag.tqdm(data_loader):
         x, y = batch
-        num_samples += x.graph.num_nodes('m3_ovd_30')
+        num_samples += x.graph.num_samples('m3_ovd_30')
     print(x, y)
     assert num_samples == 1000
 
@@ -52,7 +52,7 @@ def test_graph_dataset():
     x, y = None, None
     for batch in ag.tqdm(data_loader):
         x, y = batch
-        num_samples += x.graph.num_nodes('m3_ovd_30')
+        num_samples += x.graph.num_samples('m3_ovd_30')
     print(x, y)
     assert num_samples == 1000
     shutil.rmtree('temp')
