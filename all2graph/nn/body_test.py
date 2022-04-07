@@ -29,7 +29,7 @@ def test_block():
     df['m3_ovd_30'] = np.random.choice([0, 1], size=df.shape[0])
 
     json_parser = ag.JsonParser(
-        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
+        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], local_foreign_key_types={'ord_no'})
     raw_graph = json_parser(df)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     graph_parser = ag.GraphParser.from_data(meta_info)
@@ -37,9 +37,10 @@ def test_block():
 
     dim = 8
     in_feats = torch.randn((graph.num_nodes, dim))
-    module = ag.nn.Block(dgl.nn.pytorch.GATConv(dim, dim, 1), torch.nn.RNN(dim, dim, 1))
+    module = ag.nn.Block(dim, 2, conv_layer=dgl.nn.pytorch.GATConv(dim, dim, 1), dim_feedforward=dim)
     print(module)
-    pred = module(graph.graph, in_feats, graph.seq_ids)
+    pred = module(graph.graph, in_feats, *graph.seq_masks())
+    print(pred.shape)
     pred.sum().backward()
     for k, v in module.named_parameters():
         assert not torch.isnan(v.grad).any(), (k, v.grad)

@@ -14,38 +14,55 @@ from ..utils import tqdm
 class RawGraph(MetaStruct):
     def __init__(self, **kwargs):
         super().__init__(initialized=True, **kwargs)
-        self.nodes_per_sample = []
-        self.keys = []
+        # sequence中每个元素对应的图上的node
+        # 每个seq都由(sample, type)二元组进行索引
+        # 每个元素是一个list，包含node
+        self.seq2node = {}
+        # 图上每个node对应的(sample, type, loc)二元组
+        self.node2seq = []
+        # 图上的node对应的value
         self.values = []
         self.edges = [], []
         self.targets = set()
 
-        # 记录作为要被当作id的value的id
-        self._lids: List[Dict[str, Dict[str, int]]] = [{}]  # {sid: {value: vid}}
-        self._gids: Dict[str, Dict[str, int]] = {}  # {value: vid}
+        # 记录作为要被当作外键的node
+        # {sample: {type: {value: node}}}
+        self._local_foreign_keys: Dict[int, Dict[str, Dict[str, int]]] = {}
+        # {type: {value: node}}
+        self._global_foreign_keys: Dict[str, Dict[str, int]] = {}
 
     def _assert(self):
-        assert sum(self.nodes_per_sample) == len(self.keys) == len(self.values)
+        assert len(self.node2seq) == len(self.values) == sum(map(len, self.seq2node.values()))
         assert len(self.edges[0]) == len(self.edges[1])
-        if len(self.edges[0]) > 0:
-            assert len(self.keys) >= max(self.edges[1] + self.edges[0])
 
     @property
-    def unique_keys(self):
-        return set(self.keys).union(self.targets)
+    def max_seq_len(self):
+        return max(map(len, self.seq2node.values()))
 
     @property
-    def id_keys(self):
-        id_keys = list(self._gids)
-        for lids in self._lids:
-            id_keys.extend(lids)
-        return set(id_keys)
+    def unique_types(self):
+        return set(key[1] for key in self.seq2node).union(self.targets)
+
+    @property
+    def foreign_key_types(self):
+        foreign_key_types = list(self._global_foreign_keys)
+        for t in self._local_foreign_keys.values():
+            foreign_key_types.extend(t)
+        return set(foreign_key_types)
+
+    @property
+    def samples(self):
+        return [x[0] for x in self.node2seq]
+
+    @property
+    def types(self):
+        return [x[1] for x in self.node2seq]
 
     @property
     def formatted_values(self):
-        id_keys = self.id_keys
+        id_keys = self.foreign_key_types
         values = []
-        for key, value in zip(self.keys, self.values):
+        for key, value in zip(self.types, self.values):
             if key in id_keys or not isinstance(value, (str, float, int, bool)):
                 values.append(None)
             else:
@@ -54,11 +71,11 @@ class RawGraph(MetaStruct):
 
     @property
     def num_samples(self):
-        return len(self.nodes_per_sample)
+        return len(self.seq2node)
 
     @property
-    def num_keys(self):
-        return len(self.unique_keys)
+    def num_types(self):
+        return len(self.unique_types)
 
     @property
     def num_nodes(self):
@@ -74,10 +91,7 @@ class RawGraph(MetaStruct):
 
     @property
     def node_df(self) -> pd.DataFrame:
-        df = pd.DataFrame({SAMPLE: None, KEY: self.keys, STRING: self.formatted_values})
-        indices = np.cumsum([0] + self.nodes_per_sample)
-        for k, (i, j) in enumerate(zip(indices[:-1], indices[1:])):
-            df.loc[i:j, SAMPLE] = k
+        df = pd.DataFrame({SAMPLE: self.samples, TYPE: self.types, STRING: self.formatted_values})
         df[NUMBER] = pd.to_numeric(df[STRING], errors='coerce')
         df.loc[df[NUMBER].notna(), STRING] = None
         return df
@@ -97,58 +111,55 @@ class RawGraph(MetaStruct):
             self.edges[1].append(v)
             self.edges[1].append(u)
 
-    def add_split_(self):
-        self._lids.append({})
-        if len(self.nodes_per_sample) == 0:
-            self.nodes_per_sample.append(self.num_nodes)
-        else:
-            self.nodes_per_sample.append(self.num_nodes - sum(self.nodes_per_sample))
-
-    def add_kv_(self, key: str, value) -> int:
+    def add_kv_(self, sample: int, key: str, value) -> int:
         """返回新增的entity的id"""
         vid = len(self.values)
+        if (sample, key) not in self.seq2node:
+            self.seq2node[sample, key] = [vid]
+        else:
+            self.seq2node[sample, key].append(vid)
+        self.node2seq.append((sample, key, len(self.seq2node[sample, key]) - 1))
         self.values.append(value)
-        self.keys.append(key)
         return vid
 
     def add_targets_(self, keys: Set[str]):
-        assert self.unique_keys.isdisjoint(keys), '{} already exists'.format(self.unique_keys.intersection(keys))
+        assert self.unique_types.isdisjoint(keys), '{} already exists'.format(self.unique_types.intersection(keys))
         self.targets = self.targets.union(keys)
 
-    def __add_id_(self, key, value, ids):
-        if key not in ids:
-            ids[key] = {}
-        ids = ids[key]
-        if value not in ids:
-            vid = self.add_kv_(key, value)
-            ids[value] = vid
-        return ids[value]
+    def __add_foreign_key_(self, sample, key, value, fk_dict):
+        if key not in fk_dict:
+            fk_dict[key] = {}
+        fk_dict = fk_dict[key]
+        if value not in fk_dict:
+            vid = self.add_kv_(sample, key, value)
+            fk_dict[value] = vid
+        return fk_dict[value]
 
-    def add_lid_(self, key: str, value: str) -> int:
+    def add_local_foreign_key_(self, sample, key: str, value: str) -> int:
         """如果id已存在，则不会对图产生任何修改"""
-        return self.__add_id_(key, value, self._lids[-1])
+        if sample not in self._local_foreign_keys:
+            self._local_foreign_keys[sample] = {}
+        return self.__add_foreign_key_(sample, key, value, self._local_foreign_keys[sample])
 
-    def add_gid_(self, key: str, value: str) -> int:
+    def add_global_foreign_key_(self, sample, key: str, value: str) -> int:
         """如果id已存在，则不会对图产生任何修改"""
-        return self.__add_id_(key, value, self._gids)
+        return self.__add_foreign_key_(sample, key, value, self._global_foreign_keys)
 
-    def to_networkx(self, exclude_keys: Set[str] = None, include_keys: Set[str] = None, disable=True):
-        include_keys = include_keys or self.unique_keys
-        if exclude_keys:
-            include_keys = include_keys.difference(exclude_keys)
+    def to_networkx(self, exclude_types: Set[str] = None, include_types: Set[str] = None, disable=True):
+        include_types = include_types or self.unique_types
+        if exclude_types:
+            include_types = include_types.difference(exclude_types)
         from networkx import MultiDiGraph
         graph = MultiDiGraph()
         for u, v in tqdm(zip(*self.edges), disable=disable, postfix='add edges'):
             graph.add_edge(u, v)
 
-        i = 0  # sample计数器
-        for j, (key, value) in tqdm(enumerate(zip(self.keys, self.values)), disable=disable, postfix='add nodes'):
-            if sum(self.nodes_per_sample[:i + 1]) <= j:
-                i += 1
-            if key in include_keys:
-                graph.add_node(j, **{SAMPLE: i, KEY: key, VALUE: value})
+        for i, ((sample, t, _), value) in tqdm(
+                enumerate(zip(self.node2seq, self.values)), disable=disable, postfix='add nodes'):
+            if t in include_types:
+                graph.add_node(i, **{SAMPLE: sample, TYPE: t, VALUE: value})
             else:
-                graph.remove_nodes_from(j)
+                graph.remove_nodes_from(i)
         return graph
 
     def draw(
@@ -188,14 +199,14 @@ class RawGraph(MetaStruct):
             fig = None
 
         # 转成networkx
-        graph = self.to_networkx(include_keys=include_keys, exclude_keys=exclude_keys, disable=disable)
+        graph = self.to_networkx(include_types=include_keys, exclude_types=exclude_keys, disable=disable)
 
         # 位置
         if pos == 'planar':
             pos = planar_layout(graph, scale=scale, center=center, dim=dim)
         # 设置颜色
-        keys = [attr[KEY] for node, attr in graph.nodes.items()]
-        node_color = pd.factorize(keys)[0]
+        types = [attr[TYPE] for node, attr in graph.nodes.items()]
+        node_color = pd.factorize(types)[0]
         node_color = ScalarMappable(norm=norm, cmap=cmap).to_rgba(node_color)
 
         def format_value(value):
@@ -212,17 +223,17 @@ class RawGraph(MetaStruct):
 
         # 加标注
         patches = {}
-        for i, key in tqdm(enumerate(keys), disable=disable, desc='add legends'):
-            if key in patches:
+        for i, t in tqdm(enumerate(types), disable=disable, desc='add legends'):
+            if t in patches:
                 continue
-            patches[key] = mpatches.Patch(color=node_color[i], label=key)
+            patches[t] = mpatches.Patch(color=node_color[i], label=t)
         ax.legend(handles=patches.values())
 
         return fig, ax
 
     def extra_repr(self) -> str:
         return 'num_samples={}, num_keys={}, num_nodes={}, num_edges={}, num_targets={}'.format(
-            self.num_samples, self.num_keys, self.num_nodes, self.num_edges, self.num_targets
+            self.num_samples, self.num_types, self.num_nodes, self.num_edges, self.num_targets
         )
 
     @classmethod

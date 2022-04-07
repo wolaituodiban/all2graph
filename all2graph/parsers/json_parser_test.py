@@ -55,7 +55,7 @@ def test_l_degree():
 
 
 def test_lid_keys():
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', lid_keys={'ord_no'})
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', local_foreign_key_types={'ord_no'})
     graph = json_parser(pd.concat([df]))
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))
@@ -65,7 +65,7 @@ def test_lid_keys():
 
 
 def test_gid_keys():
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', gid_keys={'ord_no'})
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', global_foreign_key_types={'ord_no'})
     graph = json_parser(pd.concat([df] * 2))
     graph._assert()
     fig, ax = plt.subplots(figsize=(16, 8))
@@ -75,7 +75,7 @@ def test_gid_keys():
 
 
 def test_analyse():
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', gid_keys={'ord_no'})
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', global_foreign_key_types={'ord_no'})
     meta_info1 = json_parser.analyse(pd.concat([df] * 10000), processes=0)
     meta_info2 = json_parser.analyse(pd.concat([df] * 10000))
     assert meta_info1 == meta_info2

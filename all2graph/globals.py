@@ -1,9 +1,10 @@
 EPSILON = 2e-6
 
 SAMPLE = 'sample'
-KEY = 'key'
+TYPE = 'type'
 VALUE = 'value'
 READOUT = 'readout'
 STRING = 'string'
 NUMBER = 'number'
 ITEM = 'item'
+SEQUENCE = 'sequence'

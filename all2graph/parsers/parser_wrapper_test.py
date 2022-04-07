@@ -19,7 +19,7 @@ def test_parse():
             'crt_dte': '2020-10-09'
         }
     )
-    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', gid_keys={'ord_no'})
+    json_parser = ag.JsonParser(json_col='json', time_col='crt_dte', time_format='%y-%m-%d', global_foreign_key_types={'ord_no'})
     meta_info = json_parser.analyse(df, processes=0)
     graph_parser = ag.GraphParser.from_data(meta_info)
 

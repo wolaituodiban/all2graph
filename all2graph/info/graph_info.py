@@ -1,11 +1,8 @@
 from typing import Dict, Set
 
-import pandas as pd
-
 from .meta_info import MetaInfo
 from .node_info import NodeInfo
 from .str_info import StrInfo
-from ..globals import *
 from ..stats import ECDF
 from ..utils import tqdm
 
@@ -15,27 +12,6 @@ class GraphInfo(MetaInfo):
         super().__init__(**kwargs)
         self.node_infos = node_infos
         self.str_info = str_info
-
-    @classmethod
-    def from_data(cls, indices, values: list, num_bins=None, fast=True, **kwargs):
-        num_samples = len(indices)
-        df = pd.DataFrame({VALUE: values, SAMPLE: None, KEY: None})
-        df[NUMBER] = pd.to_numeric(df[VALUE], errors='coerce')
-        df.loc[pd.notna(df[NUMBER]), VALUE] = 'null'
-        df['value_copy'] = df[VALUE]
-        for i, j in enumerate(indices):
-            for key, n in j.items():
-                df.loc[n, [SAMPLE, KEY]] = i, key
-
-        # node infos
-        node_infos = {}
-        for key, sub_df in df.groupby(KEY):
-            # print('111111111111', key)
-            node_infos[key] = NodeInfo.from_data(num_samples, sub_df, num_bins=num_bins, fast=fast)
-
-        # str info
-        str_info = StrInfo.from_data(num_samples, df, num_bins=num_bins)
-        return super().from_data(node_infos=node_infos, str_info=str_info)
 
     @classmethod
     def batch(cls, graph_infos, num_bins=None, fast=True, disable=False, postfix=None, **kwargs):
@@ -55,7 +31,7 @@ class GraphInfo(MetaInfo):
                     num_bins=num_bins, fast=fast
                 )
             str_info = StrInfo.batch([str_info, graph_info.str_info], num_bins=num_bins)
-        return super().from_data(node_infos=node_infos, str_info=str_info)
+        return super().batch(graph_infos, node_infos=node_infos, str_info=str_info)
 
     @property
     def numbers(self) -> Dict[str, ECDF]:
@@ -70,7 +46,7 @@ class GraphInfo(MetaInfo):
         return self.str_info.num_samples
 
     @property
-    def num_keys(self):
+    def num_types(self):
         return len(self.keys)
 
     @property
@@ -120,4 +96,4 @@ class GraphInfo(MetaInfo):
 
     def extra_repr(self) -> str:
         return 'num_keys={}, num_unique_str={}, num_num_keys={}'.format(
-            self.num_keys, self.num_unique_str, self.num_num_keys)
+            self.num_types, self.num_unique_str, self.num_num_keys)

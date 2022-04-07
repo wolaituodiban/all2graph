@@ -8,11 +8,11 @@ from ..utils import tqdm
 
 
 class MetaInfo(MetaStruct):
-    def __init__(self, keys: Set[str], num_samples: int, doc_freqs: Dict[str, float],
+    def __init__(self, types: Set[str], num_samples: int, doc_freqs: Dict[str, float],
                  num_counts: Dict[str, int], num_ecdfs: Dict[str, ECDF], **kwargs):
         super().__init__(**kwargs)
         assert set(num_counts) == set(num_ecdfs)
-        self.keys = keys
+        self.types = types
         self.num_samples = num_samples
         self.doc_freqs = doc_freqs
         self.num_counts = num_counts
@@ -28,12 +28,12 @@ class MetaInfo(MetaStruct):
 
         num_counts = {}
         num_ecdfs = {}
-        for key, sub_node_df in node_df[[KEY, NUMBER]].groupby(KEY):
+        for key, sub_node_df in node_df[[TYPE, NUMBER]].groupby(TYPE):
             num_count = sub_node_df[NUMBER].count()
             if num_count > 0:
                 num_counts[key] = num_count
                 num_ecdfs[key] = ECDF.from_data(sub_node_df[NUMBER], num_bins=num_bins)
-        return super().from_data(keys=raw_graph.unique_keys, num_samples=raw_graph.num_samples,
+        return super().from_data(types=raw_graph.unique_types, num_samples=raw_graph.num_samples,
                                  doc_freqs=doc_freqs, num_counts=num_counts, num_ecdfs=num_ecdfs)
 
     @classmethod
@@ -45,13 +45,13 @@ class MetaInfo(MetaStruct):
         num_ecdfs = None
         for meta_info in tqdm(meta_infos, disable=disable, postfix=postfix):
             if keys is None:
-                keys = set(meta_info.keys)
+                keys = set(meta_info.types)
                 num_samples = meta_info.num_samples
                 doc_freqs = dict(meta_info.doc_freqs)
                 num_counts = dict(meta_info.num_counts)
                 num_ecdfs = dict(meta_info.num_ecdfs)
                 continue
-            keys = keys.union(meta_info.keys)
+            keys = keys.union(meta_info.types)
             doc_freqs = {key: doc_freq * num_samples / (num_samples + meta_info.num_samples)
                          for key, doc_freq in doc_freqs.items()}
             for key, doc_freq in meta_info.doc_freqs.items():
@@ -70,12 +70,12 @@ class MetaInfo(MetaStruct):
                 else:
                     num_ecdfs[key] = meta_info.num_ecdfs[key]
                     num_counts[key] = num_count
-        return super().batch(meta_infos, keys=keys, doc_freqs=doc_freqs, num_samples=num_samples, num_counts=num_counts,
-                             num_ecdfs=num_ecdfs)
+        return super().batch(meta_infos, types=keys, doc_freqs=doc_freqs, num_samples=num_samples,
+                             num_counts=num_counts, num_ecdfs=num_ecdfs)
 
     @property
-    def num_keys(self):
-        return len(self.keys)
+    def num_types(self):
+        return len(self.types)
 
     @property
     def num_numbers(self):
@@ -84,12 +84,12 @@ class MetaInfo(MetaStruct):
     def dictionary(self, min_df=0, max_df=1, tokenizer=None) -> Dict[str, int]:
         dictionary = [s for s, df in self.doc_freqs.items() if min_df <= df <= max_df]
         if tokenizer is None:
-            dictionary = self.keys.union(dictionary)
+            dictionary = self.types.union(dictionary)
         else:
-            for ntype in self.keys:
+            for ntype in self.types:
                 dictionary += tokenizer.lcut(ntype)
             dictionary = set(dictionary)
         return {k: i for i, k in enumerate(dictionary)}
 
     def extra_repr(self) -> str:
-        return 'num_keys={}, num_numbers={}'.format(self.num_keys, self.num_numbers)
+        return 'num_types={}, num_numbers={}'.format(self.num_types, self.num_numbers)

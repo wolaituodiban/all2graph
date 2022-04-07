@@ -27,7 +27,7 @@ def test_mask_model():
     df['m3_ovd_30'] = np.random.choice([0, 1], size=df.shape[0])
 
     json_parser = ag.JsonParser(
-        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
+        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], local_foreign_key_types={'ord_no'})
     raw_graph = json_parser(df)
     meta_info = raw_graph.info()
     graph_parser = ag.GraphParser.from_data(meta_info)

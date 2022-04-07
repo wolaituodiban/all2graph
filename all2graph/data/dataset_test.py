@@ -73,7 +73,7 @@ if __name__ == '__main__':
     df = pd.DataFrame({'json': [json.dumps(data)], 'crt_dte': '2020-10-09'})
     df = pd.concat([df] * 1000)
     json_parser = ag.JsonParser(
-        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
+        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], local_foreign_key_types={'ord_no'})
     raw_graph = json_parser(df.iloc[:1], disable=False)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     graph_parser = ag.GraphParser.from_data(meta_info)
