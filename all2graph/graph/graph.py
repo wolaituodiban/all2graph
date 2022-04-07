@@ -6,11 +6,12 @@ import dgl
 import torch
 
 from ..meta_struct import MetaStruct
+from ..globals import *
 
 
 class Graph(MetaStruct):
-    def __init__(self, graph: dgl.DGLGraph, key_tensor: torch.Tensor,
-                 key_mapper: Dict[str, int], targets: List[str], splits: List[int], **kwargs):
+    def __init__(self, graph: dgl.DGLGraph, key_tensor: torch.Tensor, key_mapper: Dict[str, int],
+                 targets: List[str], nodes_per_sample: List[int], **kwargs):
         """
 
         Args:
@@ -18,7 +19,7 @@ class Graph(MetaStruct):
             key_mapper:
             key_tensor: key对应的分词组成的张量
             targets: 目标keys
-            splits: 拆分sample，每个值代表每个sample的num of nodes
+            nodes_per_sample: 拆分sample，每个值代表每个sample的num of nodes
             **kwargs:
         """
         super().__init__(initialized=True, **kwargs)
@@ -26,7 +27,7 @@ class Graph(MetaStruct):
         self.key_tensor = key_tensor
         self.key_mapper = key_mapper
         self.targets = targets
-        self.splits = splits
+        self.nodes_per_sample = nodes_per_sample
 
     def __repr__(self):
         return self.graph.__repr__()
@@ -53,7 +54,38 @@ class Graph(MetaStruct):
 
     @property
     def num_samples(self):
-        return len(self.splits)
+        return len(self.nodes_per_sample)
+
+    @property
+    def keys(self):
+        return self.graph.ndata[KEY]
+
+    @property
+    def strings(self):
+        return self.graph.ndata[STRING]
+
+    @property
+    def numbers(self):
+        return self.graph.ndata[NUMBER]
+
+    @property
+    def seq_ids(self):
+        output = []
+        unique_keys = torch.unique(self.keys).unsqueeze(1)
+        for i, keys in enumerate(torch.split(self.keys, self.nodes_per_sample)):
+            mask = unique_keys == keys.unsqueeze(0)
+            for row in mask:
+                ids = torch.flatten(torch.nonzero(row))
+                if ids.shape[0] == 0:
+                    continue
+                if i > 0:
+                    ids += sum(self.nodes_per_sample[:i])
+                output.append(ids)
+        return output
+
+    @property
+    def readout_ids(self):
+        return torch.flatten(torch.nonzero(self.keys == self.key_mapper[READOUT]))
 
     def add_self_loop(self):
         self.graph = dgl.add_self_loop(self.graph)
@@ -67,8 +99,8 @@ class Graph(MetaStruct):
             self.graph = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
             return self
 
-    def to_bidirectied(self):
-        self.graph = dgl.to_bidirected(self.graph)
+    def to_bidirectied(self, *args, **kwargs):
+        self.graph = dgl.to_bidirected(self.graph, *args, **kwargs)
         return self
 
     def to(self, *args, **kwargs):

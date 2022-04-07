@@ -63,22 +63,23 @@ class ParserWrapper(MetaStruct):
             output[(key, key2)] = parser(raw_graph)
         return output
 
-    def __call__(self, df: pd.DataFrame, disable=True, return_df=False, sel_cols=None, drop_cols=None
-                 ) -> Union[Union[Graph, dict], Tuple[Union[Graph, dict], pd.DataFrame]]:
+    def __call__(self, df: pd.DataFrame, disable=True) -> Union[Graph, Dict[Tuple[str, str], Graph]]:
         output = {}
         for k, parser in self._data_parser.items():
             raw_graph = parser(df, disable=disable)
             output.update(self.call_graph_parser(raw_graph, key=k))
         if len(output) == 1:
             output = list(output.values())[0]
-        if return_df:
-            if sel_cols is not None:
-                df = df[sel_cols]
-            if drop_cols is not None:
-                df = df.drop(columns=drop_cols)
-            return output, df.drop(columns=[parser.data_col for parser in self._data_parser.values()])
-        else:
-            return output
+        return output
+
+    def generate(self, df: pd.DataFrame, sel_cols=None, drop_cols=None):
+        graph = self(df, disable=True)
+        if sel_cols is not None:
+            df = df[sel_cols]
+        if drop_cols is not None:
+            df = df.drop(columns=drop_cols)
+        df.drop(columns=[parser.data_col for parser in self._data_parser.values()])
+        return graph, df
 
     def labels(self, df):
         labels = {}
@@ -86,21 +87,22 @@ class ParserWrapper(MetaStruct):
             labels.update(data_parser.get_targets(df))
         return labels
 
-    def _save(self, inputs, **kwargs):
+    def _save(self, inputs, sel_cols=None, drop_cols=None):
         """
-        不执行post parser
+
         Args:
-            inputs:
-            **kwargs: __call__的额外参数
+            inputs: df, path
+            sel_cols:
+            drop_cols:
 
         Returns:
 
         """
+
         df, path = inputs
-        graph, df = self(df, return_df=True, **kwargs)
         labels = self.labels(df)
+        graph, df = self.generate(df, sel_cols=sel_cols, drop_cols=drop_cols)
         graph.save(path, labels=labels)
-        df = df.copy()
         df['path'] = path
         return df
 
@@ -157,15 +159,14 @@ class ParserWrapper(MetaStruct):
             df
         """
         data = iter_csv(src, chunksize=chunksize, **kwargs)
-        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols, return_df=True)
-        for graph, df in mp_run(self, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix):
-            if return_df:
-                yield graph, df
-            else:
-                yield graph
-
-    def __eq__(self, other):
-        return self.data_parser == other.data_parser and self.graph_parser == other.graph_parser\
+        if return_df:
+            fn = self.generate
+            kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
+        else:
+            fn = self
+            kwds = None
+        for output in mp_run(fn, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix):
+            yield output
 
     def extra_repr(self) -> str:
         return 'data_parser={}\ngraph_parser={}'.format(

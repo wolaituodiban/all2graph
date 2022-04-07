@@ -91,11 +91,12 @@ def num_parameters(module: torch.nn.Module):
 class Module(torch.nn.Module):
     def __init__(self):
         super().__init__()
+        self.register_buffer('_device_tracer', torch.ones(1))
         self.version = __version__
 
-    @abstractproperty
+    @property
     def device(self):
-        raise NotImplementedError
+        return self._device_tracer.device
 
     @property
     def num_parameters(self):

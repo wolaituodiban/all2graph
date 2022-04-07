@@ -2,6 +2,7 @@ import platform
 import os
 import json
 import torch.nn
+import dgl.nn.pytorch
 import pandas as pd
 
 import all2graph as ag
@@ -33,19 +34,25 @@ def test_framework():
     json_parser = ag.JsonParser(
         json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
     raw_graph = json_parser(df)
-    meta_info = raw_graph.info()
+    meta_info = ag.MetaInfo.from_data(raw_graph)
     graph_parser = ag.GraphParser.from_data(meta_info)
     graph = graph_parser(raw_graph).add_self_loop()
 
     d_model = 8
     module = ag.nn.Framework(
-        token_emb=torch.nn.Embedding(graph_parser.num_tokens, d_model),
-        number_emb=ag.nn.NumEmb(d_model),
-        bottle_neck=ag.nn.BottleNeck(d_model, num_inputs=3),
-        key_body=ag.nn.GATBody(d_model, num_heads=2, num_layers=2),
-        value_body=ag.nn.GATBody(d_model, num_heads=2, num_layers=6),
-        readout=ag.nn.Readout(d_model)
+        key_emb=torch.nn.RNN(d_model, d_model, 1),
+        str_emb=torch.nn.Embedding(graph_parser.num_tokens, d_model),
+        num_emb=ag.nn.NumEmb(d_model),
+        bottle_neck=ag.nn.BottleNeck(d_model),
+        body=ag.nn.Body(
+            num_layers=6,
+            conv_layer=dgl.nn.pytorch.GATConv(d_model, d_model, 1, residual=True),
+            seq_layer=torch.nn.RNN(d_model, d_model, 1),
+        ),
+        head=ag.nn.Head(d_model)
     )
+    if torch.cuda.is_available():
+        module.cuda()
     print(module)
     pred = module(graph)
     pred['m3_ovd_30'].sum().backward()

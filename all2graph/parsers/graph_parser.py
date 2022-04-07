@@ -120,7 +120,7 @@ class GraphParser(MetaStruct):
 
         graph = Graph(
             graph=graph, key_tensor=key_tensor, key_mapper=key_mapper, targets=raw_graph.targets,
-            splits=raw_graph.splits)
+            nodes_per_sample=raw_graph.nodes_per_sample)
         return graph
 
     def extra_repr(self) -> str:

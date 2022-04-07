@@ -27,7 +27,7 @@ def test_parse():
         data_parser=json_parser,
         graph_parser=graph_parser
     )
-    graphs = parser_wrapper(df, return_df=False)
+    graphs = parser_wrapper(df)
     print(graphs)
 
     parser_wrapper = ag.ParserWrapper(
@@ -35,8 +35,9 @@ def test_parse():
         graph_parser={'c': graph_parser, 'd': (graph_parser, ['a'])},
     )
     print(parser_wrapper)
-    graphs, df2 = parser_wrapper(df, return_df=True)
+    graphs, df2 = parser_wrapper.generate(df)
     print(graphs)
+    print(df2)
 
 
 if __name__ == '__main__':

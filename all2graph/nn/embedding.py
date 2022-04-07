@@ -1,4 +1,6 @@
 import math
+
+import numpy as np
 import torch
 from .utils import _get_activation, Module, _get_norm
 
@@ -19,10 +21,6 @@ class NumEmb(Module):
         self.norm = _get_norm(norm, emb_dim)
         self.reset_parameters()
 
-    @property
-    def device(self):
-        return self.weight.device
-
     def reset_parameters(self):
         bound = 1 / math.sqrt(self.weight.shape[0])
         torch.nn.init.uniform_(self.weight, -bound, bound)
@@ -38,7 +36,7 @@ class NumEmb(Module):
         output = self.norm(output)
         if self.activation:
             output = self.activation(output)
-        return output
+        return torch.masked_fill(output, mask.unsqueeze(-1), np.nan)
 
     def extra_repr(self):
         return 'emb_dim={}, bias={}'.format(

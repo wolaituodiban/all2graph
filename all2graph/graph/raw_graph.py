@@ -14,7 +14,7 @@ from ..utils import tqdm
 class RawGraph(MetaStruct):
     def __init__(self, **kwargs):
         super().__init__(initialized=True, **kwargs)
-        self.splits = []
+        self.nodes_per_sample = []
         self.keys = []
         self.values = []
         self.edges = [], []
@@ -25,7 +25,7 @@ class RawGraph(MetaStruct):
         self._gids: Dict[str, Dict[str, int]] = {}  # {value: vid}
 
     def _assert(self):
-        assert sum(self.splits) == len(self.keys) == len(self.values)
+        assert sum(self.nodes_per_sample) == len(self.keys) == len(self.values)
         assert len(self.edges[0]) == len(self.edges[1])
         if len(self.edges[0]) > 0:
             assert len(self.keys) >= max(self.edges[1] + self.edges[0])
@@ -54,7 +54,7 @@ class RawGraph(MetaStruct):
 
     @property
     def num_samples(self):
-        return len(self.splits)
+        return len(self.nodes_per_sample)
 
     @property
     def num_keys(self):
@@ -75,7 +75,7 @@ class RawGraph(MetaStruct):
     @property
     def node_df(self) -> pd.DataFrame:
         df = pd.DataFrame({SAMPLE: None, KEY: self.keys, STRING: self.formatted_values})
-        indices = np.cumsum([0] + self.splits)
+        indices = np.cumsum([0] + self.nodes_per_sample)
         for k, (i, j) in enumerate(zip(indices[:-1], indices[1:])):
             df.loc[i:j, SAMPLE] = k
         df[NUMBER] = pd.to_numeric(df[STRING], errors='coerce')
@@ -99,10 +99,10 @@ class RawGraph(MetaStruct):
 
     def add_split_(self):
         self._lids.append({})
-        if len(self.splits) == 0:
-            self.splits.append(self.num_nodes)
+        if len(self.nodes_per_sample) == 0:
+            self.nodes_per_sample.append(self.num_nodes)
         else:
-            self.splits.append(self.num_nodes - self.splits[-1])
+            self.nodes_per_sample.append(self.num_nodes - sum(self.nodes_per_sample))
 
     def add_kv_(self, key: str, value) -> int:
         """返回新增的entity的id"""
@@ -143,7 +143,7 @@ class RawGraph(MetaStruct):
 
         i = 0  # sample计数器
         for j, (key, value) in tqdm(enumerate(zip(self.keys, self.values)), disable=disable, postfix='add nodes'):
-            if sum(self.splits[:i + 1]) <= j:
+            if sum(self.nodes_per_sample[:i + 1]) <= j:
                 i += 1
             if key in include_keys:
                 graph.add_node(j, **{SAMPLE: i, KEY: key, VALUE: value})

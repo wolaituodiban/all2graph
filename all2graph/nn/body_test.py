@@ -1,6 +1,8 @@
 import platform
 import os
 import json
+
+import dgl.nn.pytorch
 import torch.nn
 import pandas as pd
 
@@ -12,7 +14,7 @@ if 'darwin' in platform.system().lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-def test_mask_model():
+def test_block():
     data = [
                {
                    'ord_no': 'CH202007281033864',
@@ -29,32 +31,19 @@ def test_mask_model():
     json_parser = ag.JsonParser(
         json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
     raw_graph = json_parser(df)
-    meta_info = raw_graph.info()
+    meta_info = ag.MetaInfo.from_data(raw_graph)
     graph_parser = ag.GraphParser.from_data(meta_info)
     graph = graph_parser(raw_graph).add_self_loop()
 
-    d_model = 8
-    module = ag.nn.Framework(
-        str_emb=torch.nn.Embedding(graph_parser.num_tokens, d_model),
-        num_emb=ag.nn.NumEmb(d_model),
-        bottle_neck=ag.nn.BottleNeck(d_model, num_inputs=3),
-        key_emb=ag.nn.Body(d_model, num_heads=2, num_layers=2),
-        body=ag.nn.Body(d_model, num_heads=2, num_layers=6),
-        head=None
-    )
-    mask_model = ag.nn.MaskModel(module, 8, num_tokens=graph_parser.num_tokens, mask_token=graph_parser.mask_code)
-    print(mask_model.cuda())
-    pred = mask_model(graph)
-    print(pred)
-    loss = mask_model.loss(pred)
-    loss.backward()
+    dim = 8
+    in_feats = torch.randn((graph.num_nodes, dim))
+    module = ag.nn.Block(dgl.nn.pytorch.GATConv(dim, dim, 1), torch.nn.RNN(dim, dim, 1))
+    print(module)
+    pred = module(graph.graph, in_feats, graph.seq_ids)
+    pred.sum().backward()
     for k, v in module.named_parameters():
-        assert v.grad is not None, (k, v)
         assert not torch.isnan(v.grad).any(), (k, v.grad)
-    pred = ag.nn.to_numpy(pred)
-    for k, v in mask_model.metrics.items():
-        print(k, v(None, pred))
 
 
 if __name__ == '__main__':
-    test_mask_model()
+    test_block()

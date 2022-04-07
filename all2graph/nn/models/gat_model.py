@@ -1,11 +1,11 @@
 import torch
 
 from .model import Model
-from ..body import GATBody
+from ..body import Body
 from ..bottle_neck import BottleNeck
 from ..embedding import NumEmb
 from ..framework import Framework
-from ..readout import Readout
+from ..head import Head
 
 
 class GATModel(Model):
@@ -37,18 +37,18 @@ class GATModel(Model):
 
     def build_module(self, num_tokens) -> torch.nn.Module:
         module = Framework(
-            token_emb=torch.nn.Embedding(num_tokens, self.d_model),
-            number_emb=NumEmb(self.d_model, activation=self.activation, norm=self.norm),
+            str_emb=torch.nn.Embedding(num_tokens, self.d_model),
+            num_emb=NumEmb(self.d_model, activation=self.activation, norm=self.norm),
             bottle_neck=BottleNeck(
                 self.d_model, num_inputs=3, dropout=self.dropout, activation=self.activation,
                 norm_first=self.norm_first, norm=self.norm),
-            key_body=GATBody(
+            key_emb=Body(
                 self.d_model, num_heads=self.num_heads, num_layers=self.num_key_layers, dropout=self.dropout,
                 activation=self.activation, norm_first=self.norm_first, norm=self.norm, **self.gat_kwds),
-            value_body=GATBody(
+            body=Body(
                 self.d_model, num_heads=self.num_heads, num_layers=self.num_value_layers, dropout=self.dropout,
                 activation=self.activation, norm_first=self.norm_first, norm=self.norm, **self.gat_kwds),
-            readout=Readout(
+            head=Head(
                 self.d_model, dropout=self.dropout, activation=self.activation, norm_first=self.norm_first,
                 out_feats=self.out_feats)
         )
