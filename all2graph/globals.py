@@ -3,13 +3,7 @@ EPSILON = 2e-6
 SAMPLE = 'sample'
 KEY = 'key'
 VALUE = 'value'
-EDGE = 'edge'
 READOUT = 'readout'
-TOKEN = 'token'
+STRING = 'string'
 NUMBER = 'number'
 ITEM = 'item'
-
-KEY2KEY = (KEY, EDGE, KEY)
-KEY2VALUE = (KEY, EDGE, VALUE)
-VALUE2VALUE = (VALUE, EDGE, VALUE)
-SAMPLE2VALUE = (SAMPLE, EDGE, VALUE)

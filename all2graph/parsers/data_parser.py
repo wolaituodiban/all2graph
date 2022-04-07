@@ -1,12 +1,12 @@
 from abc import abstractmethod
 from inspect import ismethod
-from typing import List
+from typing import List, Type
 
 import numpy as np
 import pandas as pd
 
 from ..graph import RawGraph
-from ..info import GraphInfo
+from ..info import MetaInfo
 from ..meta_struct import MetaStruct
 from ..utils import iter_csv, mp_run
 
@@ -35,13 +35,13 @@ class DataParser(MetaStruct):
         else:
             return {}
 
-    def _analyse(self, df, **kwargs) -> GraphInfo:
+    def _analyse(self, df, info_cls: Type[MetaInfo], **configs):
         graph = self(df, disable=True)
-        info = graph.info(**kwargs)
+        info = info_cls.from_data(graph, **configs)
         return info
 
-    def analyse(self, data, chunksize=64, disable=False, postfix='analysing', processes=None, configs=None,
-                **kwargs):
+    def analyse(self, data, chunksize=64, disable=False, postfix='analysing', processes=None, info_cls=MetaInfo,
+                configs=None, **kwargs):
         """
         返回数据的元信息
         Args:
@@ -56,9 +56,11 @@ class DataParser(MetaStruct):
         Returns:
 
         """
+        configs = configs or {}
+        configs['info_cls'] = info_cls
         data = iter_csv(data, chunksize=chunksize, **kwargs)
-        infos = mp_run(self._analyse, data, kwds=configs or {}, processes=processes, disable=True)
-        return GraphInfo.batch(infos, disable=disable, postfix=postfix, **configs or {})
+        infos = mp_run(self._analyse, data, kwds=configs, processes=processes, disable=True)
+        return info_cls.batch(infos, disable=disable, postfix=postfix, **configs or {})
 
     @abstractmethod
     def __call__(self, data: pd.DataFrame, disable: bool = True) -> RawGraph:

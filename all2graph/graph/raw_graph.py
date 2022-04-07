@@ -7,7 +7,6 @@ import numpy as np
 import pandas as pd
 
 from ..globals import *
-from ..info import GraphInfo
 from ..meta_struct import MetaStruct
 from ..utils import tqdm
 
@@ -15,27 +14,25 @@ from ..utils import tqdm
 class RawGraph(MetaStruct):
     def __init__(self, **kwargs):
         super().__init__(initialized=True, **kwargs)
-        self.indices: List[Dict[str, List[int]]] = []  # [{key1: [1, ...], key2: [...]}, {...}, ...]
+        self.splits = []
+        self.keys = []
         self.values = []
         self.edges = [], []
         self.targets = set()
 
         # 记录作为要被当作id的value的id
-        self._lids: List[Dict[str, Dict[str, int]]] = []  # {sid: {value: vid}}
+        self._lids: List[Dict[str, Dict[str, int]]] = [{}]  # {sid: {value: vid}}
         self._gids: Dict[str, Dict[str, int]] = {}  # {value: vid}
 
     def _assert(self):
-        num_indices = 0
-        for indices in self.indices:
-            num_indices += sum(map(len, indices.values()))
-        assert num_indices == self.num_nodes
+        assert sum(self.splits) == len(self.keys) == len(self.values)
+        assert len(self.edges[0]) == len(self.edges[1])
+        if len(self.edges[0]) > 0:
+            assert len(self.keys) >= max(self.edges[1] + self.edges[0])
 
     @property
     def unique_keys(self):
-        keys = list(self.targets)
-        for indices in self.indices:
-            keys += list(indices)
-        return set(keys)
+        return set(self.keys).union(self.targets)
 
     @property
     def id_keys(self):
@@ -47,17 +44,17 @@ class RawGraph(MetaStruct):
     @property
     def formatted_values(self):
         id_keys = self.id_keys
-        values = [value if isinstance(value, (str, float, int, bool)) else None for value in self.values]
-        for indices in self.indices:
-            for key, nodes in indices.items():
-                if key in id_keys:
-                    for i in nodes:
-                        values[i] = None
+        values = []
+        for key, value in zip(self.keys, self.values):
+            if key in id_keys or not isinstance(value, (str, float, int, bool)):
+                values.append(None)
+            else:
+                values.append(value)
         return values
 
     @property
     def num_samples(self):
-        return len(self.indices)
+        return len(self.splits)
 
     @property
     def num_keys(self):
@@ -75,6 +72,16 @@ class RawGraph(MetaStruct):
     def num_targets(self):
         return len(self.targets)
 
+    @property
+    def node_df(self) -> pd.DataFrame:
+        df = pd.DataFrame({SAMPLE: None, KEY: self.keys, STRING: self.formatted_values})
+        indices = np.cumsum([0] + self.splits)
+        for k, (i, j) in enumerate(zip(indices[:-1], indices[1:])):
+            df.loc[i:j, SAMPLE] = k
+        df[NUMBER] = pd.to_numeric(df[STRING], errors='coerce')
+        df.loc[df[NUMBER].notna(), STRING] = None
+        return df
+
     def add_edge_(self, u, v):
         self.edges[0].append(u)
         self.edges[1].append(v)
@@ -90,18 +97,18 @@ class RawGraph(MetaStruct):
             self.edges[1].append(v)
             self.edges[1].append(u)
 
-    def add_sample_(self):
-        self.indices.append({})
+    def add_split_(self):
         self._lids.append({})
+        if len(self.splits) == 0:
+            self.splits.append(self.num_nodes)
+        else:
+            self.splits.append(self.num_nodes - self.splits[-1])
 
     def add_kv_(self, key: str, value) -> int:
         """返回新增的entity的id"""
         vid = len(self.values)
         self.values.append(value)
-        if key not in self.indices[-1]:
-            self.indices[-1][key] = [vid]
-        else:
-            self.indices[-1][key].append(vid)
+        self.keys.append(key)
         return vid
 
     def add_targets_(self, keys: Set[str]):
@@ -133,13 +140,15 @@ class RawGraph(MetaStruct):
         graph = MultiDiGraph()
         for u, v in tqdm(zip(*self.edges), disable=disable, postfix='add edges'):
             graph.add_edge(u, v)
-        for sample, indices in tqdm(enumerate(self.indices), disable=disable, postfix='add nodes'):
-            for key, nodes in indices.items():
-                if key in include_keys:
-                    for node in nodes:
-                        graph.add_node(node, **{SAMPLE: sample, KEY: key, VALUE: self.values[node]})
-                else:
-                    graph.remove_nodes_from(nodes)
+
+        i = 0  # sample计数器
+        for j, (key, value) in tqdm(enumerate(zip(self.keys, self.values)), disable=disable, postfix='add nodes'):
+            if sum(self.splits[:i + 1]) <= j:
+                i += 1
+            if key in include_keys:
+                graph.add_node(j, **{SAMPLE: i, KEY: key, VALUE: value})
+            else:
+                graph.remove_nodes_from(j)
         return graph
 
     def draw(
@@ -210,9 +219,6 @@ class RawGraph(MetaStruct):
         ax.legend(handles=patches.values())
 
         return fig, ax
-
-    def info(self, **kwargs) -> GraphInfo:
-        return GraphInfo.from_data(self.indices, self.formatted_values, **kwargs)
 
     def extra_repr(self) -> str:
         return 'num_samples={}, num_keys={}, num_nodes={}, num_edges={}, num_targets={}'.format(

@@ -65,31 +65,23 @@ class MetaStruct(ABC):
 
 
 def equal(a, b, prefix=''):
-    for k, v in a.__dict__.items():
-        print(prefix, k)
-        if k not in b.__dict__:
-            print(prefix, 'not in b')
-            return False
-        v2 = b.__dict__[k]
-        if isinstance(v, list):
-            for i, vv in enumerate(v):
-                print(prefix, i)
-                if not equal(vv, v2[i], prefix+' '):
-                    return False
-        elif isinstance(v, dict):
-            for kk, vv in v.items():
-                print(prefix, kk)
-                if not equal(vv, v2[kk], prefix+' '):
-                    return False
-        elif isinstance(v, (float, int, bool, np.ndarray)):
-            if not np.allclose(v, v2):
-                print(prefix, 'not equal')
+    if isinstance(a, list):
+        for i, v in enumerate(a):
+            print(prefix, i)
+            if not equal(v, b[i], prefix + ' '):
                 return False
-        elif isinstance(v, MetaStruct):
-            if not equal(v, v2, prefix+' '):
-                print(prefix, 'not equal')
+    elif isinstance(a, dict):
+        for k, v in a.items():
+            print(prefix, k)
+            if not equal(v, b[k], prefix + ' '):
                 return False
-        elif v != v2:
-            print(prefix, 'not equal')
+    elif isinstance(a, (float, int, bool, np.ndarray)):
+        if not np.allclose(a, b):
+            print(prefix, '{} and {} not equal'.format(a, b))
             return False
+    elif isinstance(a, MetaStruct):
+        return equal(a.__dict__, b.__dict__, prefix + ' ')
+    elif a != b:
+        print(prefix, '{} and {} not equal'.format(a, b))
+        return False
     return True

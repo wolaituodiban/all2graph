@@ -75,7 +75,7 @@ if __name__ == '__main__':
     json_parser = ag.JsonParser(
         json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], lid_keys={'ord_no'})
     raw_graph = json_parser(df.iloc[:1], disable=False)
-    meta_info = raw_graph.info()
+    meta_info = ag.MetaInfo.from_data(raw_graph)
     graph_parser = ag.GraphParser.from_data(meta_info)
     parser_wrapper = ag.ParserWrapper(data_parser=json_parser, graph_parser=graph_parser)
 

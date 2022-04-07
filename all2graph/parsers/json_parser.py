@@ -110,8 +110,8 @@ class JsonParser(DataParser):
         cols = [self.data_col, self.time_col]
         for row in tqdm(df[cols].itertuples(), disable=disable, postfix='parsing json'):
             obj = self.process_json(row[1], now=row[2])
-            graph.add_sample_()
             self.add_obj(graph, obj=obj)
+            graph.add_split_()
         graph.add_targets_(self.targets)
         return graph
 

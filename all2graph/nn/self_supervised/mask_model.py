@@ -8,7 +8,7 @@ from ..feedforward import FeedForward
 from ..framework import Framework
 from ..utils import Module
 from ...graph import Graph
-from ...globals import VALUE, EDGE, TOKEN, NUMBER
+from ...globals import VALUE, STRING, NUMBER
 
 
 class SGP(Module):
@@ -89,9 +89,9 @@ class MaskModel(Module):
         graph = graph.to(self.device, non_blocking=True)
         with graph.local_scope():
             # mask原始数据
-            token_label = graph.nodes[VALUE].data[TOKEN][mask1]
+            token_label = graph.nodes[VALUE].data[STRING][mask1]
             num_label = graph.nodes[VALUE].data[NUMBER][mask1]
-            graph.nodes[VALUE].data[TOKEN] = torch.masked_fill(graph.nodes[VALUE].data[TOKEN], mask1, self.mask_token)
+            graph.nodes[VALUE].data[STRING] = torch.masked_fill(graph.nodes[VALUE].data[STRING], mask1, self.mask_token)
             graph.nodes[VALUE].data[NUMBER] = torch.masked_fill(graph.nodes[VALUE].data[NUMBER], mask1, np.nan)
 
             # 提取特征

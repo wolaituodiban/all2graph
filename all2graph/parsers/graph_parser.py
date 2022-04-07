@@ -13,24 +13,39 @@ from ..globals import *
 
 class GraphParser(MetaStruct):
     def __init__(
-            self, dictionary: Dict[str, int], numbers: Dict[str, ECDF], tokenizer=None, scale_method=None,
+            self, dictionary: Dict[str, int], num_ecdfs: Dict[str, ECDF], tokenizer=None, scale_method=None,
             **scale_kwargs
     ):
         """
 
         Args:
             dictionary: 字典
-            numbers: 数值型的分布
+            num_ecdfs: 数值型的分布
             tokenizer: lcut
             scale_method: 归一化方法
             scale_kwargs: 归一化的参数
         """
         super().__init__(initialized=True)
         self.dictionary = dictionary
-        self.numbers = numbers
+        self.num_ecdfs = num_ecdfs
         self.tokenizer = tokenizer
         self.scale_method = scale_method
         self.scale_kwargs = scale_kwargs
+
+    @classmethod
+    def from_data(cls, meta_info: MetaInfo, scale_method='prob', scale_kwargs=None, **kwargs):
+        """
+
+        Args:
+            meta_info:
+            scale_method:
+            scale_kwargs:
+            kwargs: MetaInfo.dictionary的参数
+        Returns:
+
+        """
+        return cls(dictionary=meta_info.dictionary(**kwargs), num_ecdfs=meta_info.num_ecdfs, scale_method=scale_method,
+                   **(scale_kwargs or {}))
 
     @property
     def default_code(self):
@@ -47,7 +62,7 @@ class GraphParser(MetaStruct):
 
     @property
     def num_numbers(self):
-        return len(self.numbers)
+        return len(self.num_ecdfs)
 
     def encode(self, inputs: list) -> List[int]:
         output = [self.dictionary.get(str(x), self.default_code) for x in inputs]
@@ -61,12 +76,12 @@ class GraphParser(MetaStruct):
 
     def scale(self, key, values) -> np.ndarray:
         """归一化"""
-        if key not in self.numbers:
+        if key not in self.num_ecdfs:
             return np.full_like(values, np.nan)
         elif self.scale_method == 'prob':
-            return self.numbers[key].get_probs(values, **self.scale_kwargs)
+            return self.num_ecdfs[key].get_probs(values, **self.scale_kwargs)
         elif self.scale_method == 'minmax':
-            return self.numbers[key].minmax_scale(values, **self.scale_kwargs)
+            return self.num_ecdfs[key].minmax_scale(values, **self.scale_kwargs)
         else:
             raise KeyError('unknown scale_method {}'.format(self.scale_method))
 
@@ -93,27 +108,19 @@ class GraphParser(MetaStruct):
         """
         import torch
         edges = torch.tensor(raw_graph.edges[0], dtype=torch.long), torch.tensor(raw_graph.edges[1], dtype=torch.long)
-        formatted_values = raw_graph.formatted_values
-        tokens = torch.tensor(self.encode(formatted_values), dtype=torch.long)
-        numbers = pd.to_numeric(formatted_values, errors='coerce')
-        indices = []
-        for inds in raw_graph.indices:
-            temp = {}
-            for key, ids in inds.items():
-                numbers[ids] = self.scale(key, numbers[ids])
-                temp[key] = torch.tensor(ids, dtype=torch.long)
-            indices.append(temp)
-        numbers = torch.tensor(numbers, dtype=torch.float32)
-
         graph = dgl.graph(edges, num_nodes=raw_graph.num_nodes)
-        graph.ndata[TOKEN] = tokens
-        graph.ndata[NUMBER] = numbers
 
-        keys = list(raw_graph.unique_keys)
-        key_tensor = self.encode_keys(keys)
-        key_mapper = {key: i for i, key in enumerate(keys)}
+        key_mapper = {key: i for i, key in enumerate(raw_graph.unique_keys)}
+        key_tensor = self.encode_keys(key_mapper)
+
+        node_df = raw_graph.node_df
+        graph.ndata[STRING] = torch.tensor(self.encode(node_df[STRING]), dtype=torch.long)
+        graph.ndata[NUMBER] = torch.tensor(node_df[NUMBER], dtype=torch.float32)
+        graph.ndata[KEY] = torch.tensor(node_df[KEY].map(key_mapper), dtype=torch.long)
+
         graph = Graph(
-            graph=graph, targets=raw_graph.targets, key_tensor=key_tensor, key_mapper=key_mapper, indices=indices)
+            graph=graph, key_tensor=key_tensor, key_mapper=key_mapper, targets=raw_graph.targets,
+            splits=raw_graph.splits)
         return graph
 
     def extra_repr(self) -> str:
@@ -121,17 +128,3 @@ class GraphParser(MetaStruct):
             self.num_tokens, self.num_numbers, self.scale_method, self.scale_kwargs
         )
 
-    @classmethod
-    def from_data(cls, meta_info: MetaInfo, scale_method='prob', scale_kwargs=None, **kwargs):
-        """
-
-        Args:
-            meta_info:
-            scale_method:
-            scale_kwargs:
-            kwargs: MetaInfo.dictionary的参数
-        Returns:
-
-        """
-        return cls(dictionary=meta_info.dictionary(**kwargs), numbers=meta_info.numbers, scale_method=scale_method,
-                   **(scale_kwargs or {}))

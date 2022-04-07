@@ -9,8 +9,8 @@ from ..meta_struct import MetaStruct
 
 
 class Graph(MetaStruct):
-    def __init__(self, graph: dgl.DGLGraph, key_mapper: Dict[str, int], key_tensor: torch.Tensor, targets: List[str],
-                 indices: List[Dict[str, torch.Tensor]], **kwargs):
+    def __init__(self, graph: dgl.DGLGraph, key_tensor: torch.Tensor,
+                 key_mapper: Dict[str, int], targets: List[str], splits: List[int], **kwargs):
         """
 
         Args:
@@ -18,15 +18,15 @@ class Graph(MetaStruct):
             key_mapper:
             key_tensor: key对应的分词组成的张量
             targets: 目标keys
+            splits: 拆分sample，每个值代表每个sample的num of nodes
             **kwargs:
         """
         super().__init__(initialized=True, **kwargs)
         self.graph = graph
-        self.key_mapper = key_mapper
         self.key_tensor = key_tensor
-        # todo indices所占的空间太大了，导致多进程IO瓶颈，甚至崩溃，考虑优化
-        # self.indices = indices
+        self.key_mapper = key_mapper
         self.targets = targets
+        self.splits = splits
 
     def __repr__(self):
         return self.graph.__repr__()
@@ -53,7 +53,7 @@ class Graph(MetaStruct):
 
     @property
     def num_samples(self):
-        return len(self.indices)
+        return len(self.splits)
 
     def add_self_loop(self):
         self.graph = dgl.add_self_loop(self.graph)
