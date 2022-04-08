@@ -11,7 +11,7 @@ from ..meta_struct import MetaStruct
 
 class Graph(MetaStruct):
     def __init__(self, graph: dgl.DGLGraph, node2seq: torch.Tensor, seq_type: torch.Tensor, seq_sample: torch.Tensor,
-                 type_string: torch.Tensor, targets: Dict[str, int], readout: int, type_mapper: Dict[str, int],
+                 type_string: torch.Tensor, targets: List[str], readout: int, type_mapper: Dict[str, int],
                  **kwargs):
         """
 
@@ -143,7 +143,7 @@ class Graph(MetaStruct):
         return self
 
     def cpu(self, *args, **kwargs):
-        self.graph = self.graph.cpu(*args, **kwargs)
+        self.graph = self.graph.cpu()
         self.node2seq = self.node2seq.cpu(*args, **kwargs)
         self.seq_type = self.seq_type.cpu(*args, **kwargs)
         self.seq_sample = self.seq_sample.cpu(*args, **kwargs)

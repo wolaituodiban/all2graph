@@ -57,8 +57,12 @@ class GraphParser(MetaStruct):
         return len(self.dictionary) + 1
 
     @property
-    def num_tokens(self):
+    def padding_code(self):
         return len(self.dictionary) + 2
+
+    @property
+    def num_tokens(self):
+        return len(self.dictionary) + 3
 
     @property
     def num_numbers(self):
@@ -95,11 +99,11 @@ class GraphParser(MetaStruct):
             max_len = max(map(len, keys))
             output = []
             for key in keys:
+                # encoding
+                key = self.encode(key)
                 # pre padding
                 if len(key) < max_len:
-                    key = [None] * (max_len - len(key)) + key
-                # encoding
-                key = self.encode(key)[VALUE]
+                    key = [self.padding_code] * (max_len - len(key)) + key
                 output.append(key)
             return torch.tensor(output, dtype=torch.long)
 
@@ -126,11 +130,10 @@ class GraphParser(MetaStruct):
         graph.ndata[STRING] = torch.tensor(self.encode(node_df[STRING]), dtype=torch.long)
         graph.ndata[NUMBER] = torch.tensor(node_df[NUMBER].tolist(), dtype=torch.float32)
 
-        # parsing type and targets
+        # parsing type
         unique_types = list(raw_graph.unique_types)
         type_string = self.encode_keys(unique_types)
         type_mapper = {t: i for i, t in enumerate(unique_types)}
-        targets = {target: type_mapper[target] for target in raw_graph.targets}
 
         # parsing seq2node
         max_seq_len = raw_graph.max_seq_len
@@ -161,7 +164,7 @@ class GraphParser(MetaStruct):
             seq2node.append((seq_mapper[sample, t], loc))
         graph.ndata[SEQ2NODE] = torch.tensor(seq2node, dtype=torch.long)
         return Graph(graph=graph, node2seq=node2seq, seq_type=seq_type, seq_sample=seq_sample, type_string=type_string,
-                     targets=targets, readout=type_mapper[READOUT], type_mapper=type_mapper)
+                     targets=raw_graph.targets, readout=type_mapper[READOUT], type_mapper=type_mapper)
 
     def extra_repr(self) -> str:
         return 'num_tokens={}, num_numbers={}, scale_method={}, scale_kwargs={}'.format(

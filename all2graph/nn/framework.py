@@ -60,7 +60,7 @@ class Framework(Module):
         if self.head is None:
             output = readout_feats
         else:
-            target_feats = {target: key_emb_ori[i] for target, i in graph.targets.items()}
+            target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
             output = self.head(readout_feats, target_feats)
         if details:
             graph.ndata['key_emb'] = key_emb
