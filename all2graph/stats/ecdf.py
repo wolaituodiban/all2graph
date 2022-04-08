@@ -177,3 +177,7 @@ class ECDF(Distribution):
         p = np.arange(0, 1, 0.25)[1:]
         q = self.get_quantiles(p)
         return ', '.join('{:.3}({:.3})'.format(x, y) for x, y in zip(q, p))
+
+    def plot(self):
+        import matplotlib.pyplot as plt
+        return plt.plot(self.quantiles, self.probs)

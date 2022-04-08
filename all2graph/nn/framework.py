@@ -43,24 +43,17 @@ class Framework(Module):
         if isinstance(key_emb_ori, tuple):
             key_emb_ori = key_emb_ori[0]
         key_emb_ori = key_emb_ori[:, -1]
-        key_emb = key_emb_ori[graph.types]
 
         # 计算in_feats
+        key_emb = key_emb_ori[graph.types]
         str_emb = self.str_emb(graph.strings)
         num_emb = self.num_emb(graph.numbers)
         bottle_neck = self.bottle_neck(key_emb, str_emb, num_emb)
 
         # 卷积
-        ind1, ind2 = graph.seq2node
-        ind1 = ind1.unsqueeze(-1).expand(-1, bottle_neck.shape[1])
-        ind2 = ind2.unsqueeze(-1).expand(-1, bottle_neck.shape[1])
-        ind3 = torch.arange(bottle_neck.shape[1], device=self.device).expand(graph.num_nodes, -1)
-        if self.seq_types is None:
-            seq_mask = None
-        else:
-            seq_mask = graph.seq_mask(self.seq_types)
         feats = self.body(
-            graph.graph, bottle_neck, node2seq=graph.node2seq, seq2node=(ind1, ind2, ind3), seq_mask=seq_mask)
+            graph.graph, bottle_neck, node2seq=graph.node2seq, seq2node=graph.seq2node(bottle_neck.shape[1]),
+            seq_mask=graph.seq_mask(self.seq_types))
 
         # 输出
         readout_feats = feats[-1][graph.readout_mask]

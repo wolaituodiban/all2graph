@@ -80,12 +80,8 @@ class Graph(MetaStruct):
         return self.graph.ndata[NUMBER]
 
     @property
-    def seq2node(self):
-        return self.graph.ndata[SEQ2NODE][:, 0], self.graph.ndata[SEQ2NODE][:, 1]
-
-    @property
     def types(self):
-        return self.seq_type[self.seq2node[0]]
+        return self.seq_type[self.seq2node()[0]]
 
     @property
     def readout_mask(self):
@@ -95,10 +91,23 @@ class Graph(MetaStruct):
     def num_seqs(self):
         return self.seq_type.shape[0]
 
+    def seq2node(self, dim=None):
+        ind1, ind2 = self.graph.ndata[SEQ2NODE][:, 0], self.graph.ndata[SEQ2NODE][:, 1]
+        if dim is None:
+            return ind1, ind2
+        else:
+            ind1 = ind1.unsqueeze(-1).expand(-1, dim)
+            ind2 = ind2.unsqueeze(-1).expand(-1, dim)
+            ind3 = torch.arange(dim, device=self.device).expand(self.num_nodes, -1)
+            return ind1, ind2, ind3
+
     def seq_mask(self, types: List[str]):
-        types = [self.type_mapper[t] for t in types if t in self.type_mapper]
-        types = torch.tensor(types, dtype=torch.long, device=self.device)
-        return (self.seq_type.unsqueeze(1) == types.unsqueeze(0)).any(1)
+        if types:
+            types = [self.type_mapper[t] for t in types if t in self.type_mapper]
+            types = torch.tensor(types, dtype=torch.long, device=self.device)
+            return (self.seq_type.unsqueeze(1) == types.unsqueeze(0)).any(1)
+        else:
+            return None
 
     def add_self_loop(self):
         graph = dgl.add_self_loop(self.graph)

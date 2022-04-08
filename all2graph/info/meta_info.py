@@ -24,7 +24,7 @@ class MetaInfo(MetaStruct):
         node_df['copy'] = node_df[STRING]
 
         str_counts_df = node_df.pivot_table(values='copy', index=SAMPLE, columns=STRING, aggfunc='count', fill_value=0)
-        doc_freqs = (str_counts_df.sum() / raw_graph.num_samples).to_dict()
+        doc_freqs = ((str_counts_df > 0).sum() / raw_graph.num_samples).to_dict()
 
         num_counts = {}
         num_ecdfs = {}

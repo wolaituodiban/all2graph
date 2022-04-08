@@ -71,7 +71,7 @@ class RawGraph(MetaStruct):
 
     @property
     def num_samples(self):
-        return len(self.seqs)
+        return len(set(x[0] for x in self.nodes))
 
     @property
     def num_types(self):

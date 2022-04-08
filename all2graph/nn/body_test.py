@@ -44,11 +44,8 @@ def test_body():
         ff2=ag.nn.FeedForward(d_model)
     )
     print(module)
-    ind1, ind2 = graph.seq2node
-    ind1 = ind1.unsqueeze(-1).expand(-1, d_model)
-    ind2 = ind2.unsqueeze(-1).expand(-1, d_model)
-    ind3 = torch.arange(d_model).expand(graph.num_nodes, -1)
-    pred = module(graph.graph, in_feats, node2seq=graph.node2seq, seq2node=(ind1, ind2, ind3), seq_mask=torch.ones(graph.num_seqs, dtype=torch.bool))
+    pred = module(graph.graph, in_feats, node2seq=graph.node2seq, seq2node=graph.seq2node(d_model),
+                  seq_mask=torch.ones(graph.num_seqs, dtype=torch.bool))
     print(pred[-1].shape)
     pred[-1].sum().backward()
     for k, v in module.named_parameters():

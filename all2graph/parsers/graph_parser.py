@@ -32,19 +32,20 @@ class GraphParser(MetaStruct):
         self.scale_kwargs = scale_kwargs
 
     @classmethod
-    def from_data(cls, meta_info: MetaInfo, scale_method='prob', scale_kwargs=None, **kwargs):
+    def from_data(cls, meta_info: MetaInfo, tokenizer=None, scale_method='prob', scale_kwargs=None, **kwargs):
         """
 
         Args:
             meta_info:
+            tokenizer:
             scale_method:
             scale_kwargs:
             kwargs: MetaInfo.dictionary的参数
         Returns:
 
         """
-        return cls(dictionary=meta_info.dictionary(**kwargs), num_ecdfs=meta_info.num_ecdfs,
-                   scale_method=scale_method, **(scale_kwargs or {}))
+        return cls(dictionary=meta_info.dictionary(tokenizer=tokenizer, **kwargs), num_ecdfs=meta_info.num_ecdfs,
+                   tokenizer=tokenizer, scale_method=scale_method, **(scale_kwargs or {}))
 
     @property
     def default_code(self):
@@ -166,4 +167,3 @@ class GraphParser(MetaStruct):
         return 'num_tokens={}, num_numbers={}, scale_method={}, scale_kwargs={}'.format(
             self.num_tokens, self.num_numbers, self.scale_method, self.scale_kwargs
         )
-

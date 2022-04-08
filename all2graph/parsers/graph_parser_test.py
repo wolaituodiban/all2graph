@@ -1,3 +1,5 @@
+import jieba
+
 import all2graph as ag
 import torch
 
@@ -14,7 +16,7 @@ def test_parse():
     raw_graph.add_kv_(1, 'a', 0)
     raw_graph.add_kv_(1, 'a', 1)
     raw_graph.add_kv_(2, 'c', 2)
-    raw_graph.add_kv_(2, 'd', 'haha')
+    raw_graph.add_kv_(2, 'dar Tank', 'haha')
     raw_graph._assert()
     print(raw_graph)
     meta_info = ag.MetaInfo.from_data(raw_graph)
@@ -22,7 +24,7 @@ def test_parse():
     graph = graph_parser(raw_graph)
     print(graph)
     assert graph.num_nodes == raw_graph.num_nodes
-    assert torch.equal(graph.node2seq[graph.seq2node].flatten(), torch.arange(graph.num_nodes))
+    assert torch.equal(graph.node2seq[graph.seq2node()].flatten(), torch.arange(graph.num_nodes))
     print(graph.add_self_loop())
     print(graph.to_bidirectied(copy_ndata=True))
     print(graph.to_simple(copy_ndata=True))
