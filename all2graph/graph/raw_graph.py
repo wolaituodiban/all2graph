@@ -1,7 +1,7 @@
 import gzip
 import pickle
 from itertools import combinations
-from typing import List, Set, Dict
+from typing import List, Set, Dict, Tuple
 
 import numpy as np
 import pandas as pd
@@ -11,15 +11,33 @@ from ..meta_struct import MetaStruct
 from ..utils import tqdm
 
 
+class SeqInfo(MetaStruct):
+    def __init__(self,
+                 seq_mapper: Dict[Tuple[int, str], int],
+                 seq_sample: List[int],
+                 seq_type: List[str],
+                 type2node: Dict[str, List[int]],
+                 node2seq: List[List[int]],
+                 seq2node: List[Tuple[int, int]],
+                 **kwargs):
+        super().__init__(initialized=True, **kwargs)
+        self.seq_sample = seq_mapper
+        self.seq_type = seq_type
+        self.seq_sample = seq_sample
+        self.type2node = type2node
+        self.node2seq = node2seq
+        self.seq2node = seq2node
+
+
 class RawGraph(MetaStruct):
     def __init__(self, **kwargs):
         super().__init__(initialized=True, **kwargs)
         # sequence中每个元素对应的图上的node
         # 每个seq都由(sample, type)二元组进行索引
         # 每个元素是一个list，包含node
-        self.seqs = {}
+        self.seqs: Dict[Tuple[int, str], List[int]] = {}
         # 图上每个node对应的(sample, type, loc)二元组
-        self.nodes = []
+        self.nodes: List[Tuple[int, str, int]] = []
         # 图上的node对应的value
         self.values = []
         self.edges = [], []
@@ -34,44 +52,6 @@ class RawGraph(MetaStruct):
     def _assert(self):
         assert len(self.nodes) == len(self.values) == sum(map(len, self.seqs.values()))
         assert len(self.edges[0]) == len(self.edges[1])
-
-    @property
-    def max_seq_len(self):
-        return max(map(len, self.seqs.values()))
-
-    @property
-    def unique_types(self):
-        return set(key[1] for key in self.seqs).union(self.targets)
-
-    @property
-    def foreign_key_types(self):
-        foreign_key_types = list(self._global_foreign_keys)
-        for t in self._local_foreign_keys.values():
-            foreign_key_types.extend(t)
-        return set(foreign_key_types)
-
-    @property
-    def samples(self):
-        return [x[0] for x in self.nodes]
-
-    @property
-    def types(self):
-        return [x[1] for x in self.nodes]
-
-    @property
-    def formatted_values(self):
-        id_keys = self.foreign_key_types
-        values = []
-        for key, value in zip(self.types, self.values):
-            if key in id_keys or not isinstance(value, (str, float, int, bool)):
-                values.append(None)
-            else:
-                values.append(value)
-        return values
-
-    @property
-    def num_samples(self):
-        return len(set(x[0] for x in self.nodes))
 
     @property
     def num_types(self):
@@ -90,10 +70,95 @@ class RawGraph(MetaStruct):
         return len(self.targets)
 
     @property
+    def samples(self):
+        return [x[0] for x in self.nodes]
+
+    @property
+    def types(self):
+        return [x[1] for x in self.nodes]
+
+    @property
+    def num_samples(self):
+        return len(set(x[0] for x in self.nodes))
+
+    @property
+    def max_seq_len(self):
+        return max(map(len, self.seqs.values()))
+
+    @property
+    def unique_types(self) -> Set[str]:
+        return set(key[1] for key in self.seqs).union(self.targets)
+
+    @property
+    def foreign_key_types(self) -> Set[str]:
+        foreign_key_types = list(self._global_foreign_keys)
+        for t in self._local_foreign_keys.values():
+            foreign_key_types.extend(t)
+        return set(foreign_key_types)
+
+    @property
+    def formatted_values(self) -> Tuple[np.ndarray, np.ndarray]:
+        id_keys = self.foreign_key_types
+        values = []
+        for key, value in zip(self.types, self.values):
+            if key in id_keys or not isinstance(value, (str, float, int, bool)):
+                values.append(None)
+            else:
+                values.append(value)
+
+        numbers = pd.to_numeric(values, errors='coerce')
+        mask = np.bitwise_not(np.isnan(numbers))
+        strings = np.array(values, dtype=object)
+        strings[mask] = None
+        return strings, numbers
+
+    @property
+    def seq_info(self) -> SeqInfo:
+        # parsing seq2node
+        # 序列和图需要保证双向映射
+        # 然而序列需要padding
+        # 实验显示，如果padding同一个值，会导致backward在同一个位置多次叠加梯度，进而降低速度
+        # 因此做了随机padding的优化，并设置为负数，方便后续mask
+        # 然而生成随机数的开销很大
+        # 并且padding并不需要非常随机，只需要分布均匀就可以了
+        # 因此，事先生成一列不相同的负数，每次随机取连续的一段作为padding
+        neg_nums = list(range(-self.num_nodes, 0))
+        max_seq_len = self.max_seq_len
+        seq_mapper = {}
+        seq_type = []
+        seq_sample = []
+        type2node = {}
+        node2seq = []
+
+        for (sample, t), nodes in self.seqs.items():
+            seq_mapper[(sample, t)] = len(seq_mapper)
+            seq_type.append(t)
+            seq_sample.append(sample)
+
+            if t not in type2node:
+                type2node[t] = list(nodes)
+            else:
+                type2node[t] += nodes
+
+            padding_len = max_seq_len - len(nodes)
+            if padding_len > 0:
+                # padding
+                rnd_num = np.random.randint(0, self.num_nodes - padding_len)
+                nodes = nodes + neg_nums[rnd_num: rnd_num + padding_len]
+            node2seq.append(nodes)
+
+        # parsing node2seq
+        seq2node = []
+        for sample, t, loc in self.nodes:
+            seq2node.append((seq_mapper[sample, t], loc))
+        return SeqInfo(
+            seq_mapper=seq_mapper, seq_type=seq_type, seq_sample=seq_sample, type2node=type2node, node2seq=node2seq,
+            seq2node=seq2node)
+
+    @property
     def node_df(self) -> pd.DataFrame:
-        df = pd.DataFrame({SAMPLE: self.samples, TYPE: self.types, STRING: self.formatted_values})
-        df[NUMBER] = pd.to_numeric(df[STRING], errors='coerce')
-        df.loc[df[NUMBER].notna(), STRING] = None
+        strings, numbers = self.formatted_values
+        df = pd.DataFrame({SAMPLE: self.samples, TYPE: self.types, STRING: strings, NUMBER: numbers})
         return df
 
     def add_edge_(self, u, v):

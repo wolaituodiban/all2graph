@@ -1,7 +1,8 @@
-from typing import Dict, List
+from typing import Dict, List, Iterable
 
 import dgl
 import numpy as np
+import torch
 
 from ..globals import *
 from ..graph import RawGraph, Graph
@@ -30,6 +31,8 @@ class GraphParser(MetaStruct):
         self.tokenizer = tokenizer
         self.scale_method = scale_method
         self.scale_kwargs = scale_kwargs
+
+
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, tokenizer=None, scale_method='prob', scale_kwargs=None, **kwargs):
@@ -68,15 +71,15 @@ class GraphParser(MetaStruct):
     def num_numbers(self):
         return len(self.num_ecdfs)
 
-    def encode(self, inputs: list) -> List[int]:
-        output = [self.dictionary.get(str(x), self.default_code) for x in inputs]
-        return output
-
-    def decode(self, inputs):
+    def decode(self, inputs) -> np.ndarray:
         rd = {v: k for k, v in self.dictionary.items()}
         rd[self.default_code] = 'default'
         rd[self.mask_code] = 'mask'
-        return [rd[x] for x in inputs]
+
+        def decode(x):
+            return rd[x]
+        decode = np.vectorize(decode, otypes=[object])
+        return decode(inputs)
 
     def scale(self, key, values) -> np.ndarray:
         """归一化"""
@@ -89,7 +92,10 @@ class GraphParser(MetaStruct):
         else:
             raise KeyError('unknown scale_method {}'.format(self.scale_method))
 
-    def encode_keys(self, keys):
+    def encode(self, inputs: Iterable[str]) -> List[int]:
+        return [self.dictionary.get(x, self.default_code) for x in inputs]
+
+    def encode_keys(self, keys: List[str]) -> torch.Tensor:
         import torch
         if self.tokenizer is None:
             return torch.tensor(self.encode(keys), dtype=torch.long).unsqueeze(dim=-1)
@@ -114,57 +120,30 @@ class GraphParser(MetaStruct):
         :return:
         """
         import torch
-        # 序列和图需要保证双向映射
-        # 然而序列中包含图中不存在的padding
-        # 所以在图中增加一个作为padding的孤立点
-
         # parsing edges
         edges = torch.tensor(raw_graph.edges[0], dtype=torch.long), torch.tensor(raw_graph.edges[1], dtype=torch.long)
-
-        # parsing values
-
         graph = dgl.graph(edges, num_nodes=raw_graph.num_nodes)
-        node_df = raw_graph.node_df.set_index(TYPE)
-        for t in node_df.index.unique():
-            node_df.loc[t, NUMBER] = self.scale(t, node_df.loc[t, NUMBER])
-        graph.ndata[STRING] = torch.tensor(self.encode(node_df[STRING]), dtype=torch.long)
-        graph.ndata[NUMBER] = torch.tensor(node_df[NUMBER].tolist(), dtype=torch.float32)
+
+        # parsing ndata
+        seq_info = raw_graph.seq_info
+        strings, numbers = raw_graph.formatted_values
+        for t, nodes in seq_info.type2node.items():
+            numbers[nodes] = self.scale(t, numbers[nodes])
+        graph.ndata[STRING] = torch.as_tensor(self.encode(strings), dtype=torch.long)
+        graph.ndata[NUMBER] = torch.as_tensor(numbers, dtype=torch.float32)
+        graph.ndata[SEQ2NODE] = torch.tensor(seq_info.seq2node, dtype=torch.long)
 
         # parsing type
         unique_types = list(raw_graph.unique_types)
         type_string = self.encode_keys(unique_types)
         type_mapper = {t: i for i, t in enumerate(unique_types)}
 
-        # parsing seq2node
-        max_seq_len = raw_graph.max_seq_len
-        seq_mapper = {}
-        node2seq = []
-        seq_type = []
-        seq_sample = []
-        for (sample, t), nodes in raw_graph.seqs.items():
-            if len(nodes) < max_seq_len:
-                # 序列和图需要保证双向映射
-                # 然而序列中包含图中不存在的padding
-                # 实验显示，如果padding同一个值，会导致backward很慢
-                # 因此随机padding，并设置为负数，方便后续发现
-                nodes = nodes+np.random.randint(low=-raw_graph.num_nodes, high=0, size=max_seq_len-len(nodes)).tolist()
-                node2seq.append(nodes)
-            else:
-                node2seq.append(nodes)
-            seq_mapper[(sample, t)] = len(seq_mapper)
-            seq_type.append(type_mapper[t])
-            seq_sample.append(sample)
-        node2seq = torch.tensor(node2seq, dtype=torch.long)
-        seq_type = torch.tensor(seq_type, dtype=torch.long)
-        seq_sample = torch.tensor(seq_sample, dtype=torch.long)
-
-        # parsing node2seq
-        seq2node = []
-        for sample, t, loc in raw_graph.nodes:
-            seq2node.append((seq_mapper[sample, t], loc))
-        graph.ndata[SEQ2NODE] = torch.tensor(seq2node, dtype=torch.long)
+        # parsing seq
+        seq_type = torch.tensor([type_mapper[t] for t in seq_info.seq_type], dtype=torch.long)
+        seq_sample = torch.tensor(seq_info.seq_sample, dtype=torch.long)
+        node2seq = torch.tensor(seq_info.node2seq, dtype=torch.long)
         return Graph(graph=graph, node2seq=node2seq, seq_type=seq_type, seq_sample=seq_sample, type_string=type_string,
-                     targets=raw_graph.targets, readout=type_mapper[READOUT], type_mapper=type_mapper)
+                     targets=raw_graph.targets, type_mapper=type_mapper)
 
     def extra_repr(self) -> str:
         return 'num_tokens={}, num_numbers={}, scale_method={}, scale_kwargs={}'.format(

@@ -11,8 +11,7 @@ from ..meta_struct import MetaStruct
 
 class Graph(MetaStruct):
     def __init__(self, graph: dgl.DGLGraph, node2seq: torch.Tensor, seq_type: torch.Tensor, seq_sample: torch.Tensor,
-                 type_string: torch.Tensor, targets: List[str], readout: int, type_mapper: Dict[str, int],
-                 **kwargs):
+                 type_string: torch.Tensor, targets: List[str], type_mapper: Dict[str, int], **kwargs):
         """
 
         Args:
@@ -26,7 +25,6 @@ class Graph(MetaStruct):
             seq_sample: 序列对应的样本编号
             type_string: 类型对应的字符串编码
             targets: 目标对应的类型
-            readout: 对应的类型
             type_mapper:
             **kwargs:
         """
@@ -37,11 +35,14 @@ class Graph(MetaStruct):
         self.seq_sample = seq_sample
         self.type_string = type_string
         self.targets = targets
-        self.readout = readout
         self.type_mapper = type_mapper
 
     def __repr__(self):
         return self.graph.__repr__()
+
+    @property
+    def readout(self):
+        return self.type_mapper[READOUT]
 
     @property
     def device(self):
@@ -112,27 +113,24 @@ class Graph(MetaStruct):
     def add_self_loop(self):
         graph = dgl.add_self_loop(self.graph)
         return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
-                     type_string=self.type_string, targets=self.targets, readout=self.readout,
+                     type_string=self.type_string, targets=self.targets,
                      type_mapper=self.type_mapper)
 
     def to_simple(self, writeback_mapping=False, **kwargs):
         if writeback_mapping:
             graph, wm = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
             graph = Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
-                          type_string=self.type_string, targets=self.targets, readout=self.readout,
-                          type_mapper=self.type_mapper)
+                          type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
             return graph, wm
         else:
             graph = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
             return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
-                         type_string=self.type_string, targets=self.targets, readout=self.readout,
-                         type_mapper=self.type_mapper)
+                         type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
 
     def to_bidirectied(self, *args, **kwargs):
         graph = dgl.to_bidirected(self.graph, *args, **kwargs)
         return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
-                     type_string=self.type_string, targets=self.targets, readout=self.readout,
-                     type_mapper=self.type_mapper)
+                     type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
 
     def to(self, *args, **kwargs):
         self.graph = self.graph.to(*args, **kwargs)

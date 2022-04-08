@@ -5,7 +5,7 @@ from .utils import Module, _get_activation, _get_norm
 
 class FeedForward(Module):
     def __init__(self, num_feats, middle_feats=None, out_feats=None,
-                 dropout=0, activation='prelu', norm='batch1d', norm_first=True, residual=True):
+                 dropout=0, activation='prelu', norm='batch1d', norm_first=True, residual=True, pre_norm=True):
         super().__init__()
         middle_feats = middle_feats or num_feats
         out_feats = out_feats or num_feats
@@ -15,9 +15,12 @@ class FeedForward(Module):
         activation = _get_activation(activation)
         linear2 = torch.nn.Linear(middle_feats, out_feats)
         if norm_first:
-            self.layers = torch.nn.Sequential(dropout, linear1, norm1, activation, linear2)
+            layers = [dropout, linear1, norm1, activation, linear2]
         else:
-            self.layers = torch.nn.Sequential(dropout, linear1, activation, norm1, linear2)
+            layers = [dropout, linear1, activation, norm1, linear2]
+        if pre_norm:
+            layers = [_get_norm(norm, num_feats)] + layers
+        self.layers = torch.nn.Sequential(*layers)
         if residual:
             self.norm = _get_norm(norm, out_feats)
 
