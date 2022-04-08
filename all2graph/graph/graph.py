@@ -1,5 +1,6 @@
 import gzip
 import pickle
+from typing import Dict, List
 
 import dgl
 import torch
@@ -9,8 +10,9 @@ from ..meta_struct import MetaStruct
 
 
 class Graph(MetaStruct):
-    def __init__(self, graph: dgl.DGLGraph, seq2node: torch.Tensor, seq_type: torch.Tensor, seq_sample: torch.Tensor,
-                 type_string: torch.Tensor, targets: torch.Tensor, readout: int, **kwargs):
+    def __init__(self, graph: dgl.DGLGraph, node2seq: torch.Tensor, seq_type: torch.Tensor, seq_sample: torch.Tensor,
+                 type_string: torch.Tensor, targets: Dict[str, int], readout: int, type_mapper: Dict[str, int],
+                 **kwargs):
         """
 
         Args:
@@ -19,22 +21,24 @@ class Graph(MetaStruct):
                     string: long (*, )
                     number: float32 (*, )
                     sequence: long (*, 2)
-            seq2node: 序列到图的映射关系
+            node2seq: 节点到序列的映射关系
             seq_type: 序列类型
             seq_sample: 序列对应的样本编号
             type_string: 类型对应的字符串编码
             targets: 目标对应的类型
             readout: 对应的类型
+            type_mapper:
             **kwargs:
         """
         super().__init__(initialized=True, **kwargs)
         self.graph = graph
-        self.seq2node = seq2node
+        self.node2seq = node2seq
         self.seq_type = seq_type
         self.seq_sample = seq_sample
         self.type_string = type_string
         self.targets = targets
         self.readout = readout
+        self.type_mapper = type_mapper
 
     def __repr__(self):
         return self.graph.__repr__()
@@ -50,6 +54,10 @@ class Graph(MetaStruct):
     @property
     def edges(self):
         return self.graph.edges
+
+    @property
+    def ndata(self):
+        return self.graph.ndata
 
     @property
     def num_nodes(self):
@@ -72,50 +80,65 @@ class Graph(MetaStruct):
         return self.graph.ndata[NUMBER]
 
     @property
-    def node2seq(self):
-        return self.graph.ndata[SEQUENCE]
+    def seq2node(self):
+        return self.graph.ndata[SEQ2NODE][:, 0], self.graph.ndata[SEQ2NODE][:, 1]
 
     @property
     def types(self):
-        return self.seq_sample[self.node2seq[:, 0]]
+        return self.seq_type[self.seq2node[0]]
 
     @property
     def readout_mask(self):
         return self.types == self.readout
 
+    @property
+    def num_seqs(self):
+        return self.seq_type.shape[0]
+
+    def seq_mask(self, types: List[str]):
+        types = [self.type_mapper[t] for t in types if t in self.type_mapper]
+        types = torch.tensor(types, dtype=torch.long, device=self.device)
+        return (self.seq_type.unsqueeze(1) == types.unsqueeze(0)).any(1)
+
     def add_self_loop(self):
         graph = dgl.add_self_loop(self.graph)
-        return Graph(graph, seq2node=self.seq2node, seq_type=self.seq_type, seq_sample=self.seq_sample,
-                     type_string=self.type_string, targets=self.targets, readout=self.readout)
+        return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
+                     type_string=self.type_string, targets=self.targets, readout=self.readout,
+                     type_mapper=self.type_mapper)
 
     def to_simple(self, writeback_mapping=False, **kwargs):
         if writeback_mapping:
             graph, wm = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
-            graph = Graph(graph, seq2node=self.seq2node, seq_type=self.seq_type, seq_sample=self.seq_sample,
-                          type_string=self.type_string, targets=self.targets, readout=self.readout)
+            graph = Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
+                          type_string=self.type_string, targets=self.targets, readout=self.readout,
+                          type_mapper=self.type_mapper)
             return graph, wm
         else:
             graph = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
-            return Graph(graph, seq2node=self.seq2node, seq_type=self.seq_type, seq_sample=self.seq_sample,
-                         type_string=self.type_string, targets=self.targets, readout=self.readout)
+            return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
+                         type_string=self.type_string, targets=self.targets, readout=self.readout,
+                         type_mapper=self.type_mapper)
 
     def to_bidirectied(self, *args, **kwargs):
         graph = dgl.to_bidirected(self.graph, *args, **kwargs)
-        return Graph(graph, seq2node=self.seq2node, seq_type=self.seq_type, seq_sample=self.seq_sample,
-                     type_string=self.type_string, targets=self.targets, readout=self.readout)
+        return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
+                     type_string=self.type_string, targets=self.targets, readout=self.readout,
+                     type_mapper=self.type_mapper)
 
     def to(self, *args, **kwargs):
-        self.graph.to(*args, **kwargs)
-        for k, v in self.__dict__.items():
-            if isinstance(v, torch.Tensor):
-                v.to(*args, **kwargs)
+        self.graph = self.graph.to(*args, **kwargs)
+        self.node2seq = self.node2seq.to(*args, **kwargs)
+        self.seq_type = self.seq_type.to(*args, **kwargs)
+        self.seq_sample = self.seq_sample.to(*args, **kwargs)
+        self.type_string = self.type_string.to(*args, **kwargs)
         return self
 
     def cpu(self, *args, **kwargs):
-        self.graph.cpu()
-        for k, v in self.__dict__.items():
-            if isinstance(v, torch.Tensor):
-                v.cpu(*args, **kwargs)
+        self.graph = self.graph.cpu(*args, **kwargs)
+        self.node2seq = self.node2seq.cpu(*args, **kwargs)
+        self.seq_type = self.seq_type.cpu(*args, **kwargs)
+        self.seq_sample = self.seq_sample.cpu(*args, **kwargs)
+        self.type_string = self.type_string.cpu(*args, **kwargs)
         return self
 
     def pin_memory(self):
@@ -123,12 +146,13 @@ class Graph(MetaStruct):
             self.graph.pin_memory_()
         else:
             for k, v in self.graph.ndata.items():
-                v.pin_memory()
+                self.graph.ndata[k] = v.pin_memory()
             for k, v in self.graph.edata.items():
-                v.pin_memory()
-        for k, v in self.__dict__.items():
-            if isinstance(v, torch.Tensor):
-                v.pin_memory()
+                self.graph.edata[k] = v.pin_memory()
+        self.node2seq = self.node2seq.pin_memory()
+        self.seq_type = self.seq_type.pin_memory()
+        self.seq_sample = self.seq_sample.pin_memory()
+        self.type_string = self.type_string.pin_memory()
         return self
 
     def local_scope(self):

@@ -17,9 +17,9 @@ class RawGraph(MetaStruct):
         # sequence中每个元素对应的图上的node
         # 每个seq都由(sample, type)二元组进行索引
         # 每个元素是一个list，包含node
-        self.seq2node = {}
+        self.seqs = {}
         # 图上每个node对应的(sample, type, loc)二元组
-        self.node2seq = []
+        self.nodes = []
         # 图上的node对应的value
         self.values = []
         self.edges = [], []
@@ -32,16 +32,16 @@ class RawGraph(MetaStruct):
         self._global_foreign_keys: Dict[str, Dict[str, int]] = {}
 
     def _assert(self):
-        assert len(self.node2seq) == len(self.values) == sum(map(len, self.seq2node.values()))
+        assert len(self.nodes) == len(self.values) == sum(map(len, self.seqs.values()))
         assert len(self.edges[0]) == len(self.edges[1])
 
     @property
     def max_seq_len(self):
-        return max(map(len, self.seq2node.values()))
+        return max(map(len, self.seqs.values()))
 
     @property
     def unique_types(self):
-        return set(key[1] for key in self.seq2node).union(self.targets)
+        return set(key[1] for key in self.seqs).union(self.targets)
 
     @property
     def foreign_key_types(self):
@@ -52,11 +52,11 @@ class RawGraph(MetaStruct):
 
     @property
     def samples(self):
-        return [x[0] for x in self.node2seq]
+        return [x[0] for x in self.nodes]
 
     @property
     def types(self):
-        return [x[1] for x in self.node2seq]
+        return [x[1] for x in self.nodes]
 
     @property
     def formatted_values(self):
@@ -71,7 +71,7 @@ class RawGraph(MetaStruct):
 
     @property
     def num_samples(self):
-        return len(self.seq2node)
+        return len(self.seqs)
 
     @property
     def num_types(self):
@@ -114,11 +114,11 @@ class RawGraph(MetaStruct):
     def add_kv_(self, sample: int, key: str, value) -> int:
         """返回新增的entity的id"""
         vid = len(self.values)
-        if (sample, key) not in self.seq2node:
-            self.seq2node[sample, key] = [vid]
+        if (sample, key) not in self.seqs:
+            self.seqs[sample, key] = [vid]
         else:
-            self.seq2node[sample, key].append(vid)
-        self.node2seq.append((sample, key, len(self.seq2node[sample, key]) - 1))
+            self.seqs[sample, key].append(vid)
+        self.nodes.append((sample, key, len(self.seqs[sample, key]) - 1))
         self.values.append(value)
         return vid
 
@@ -155,7 +155,7 @@ class RawGraph(MetaStruct):
             graph.add_edge(u, v)
 
         for i, ((sample, t, _), value) in tqdm(
-                enumerate(zip(self.node2seq, self.values)), disable=disable, postfix='add nodes'):
+                enumerate(zip(self.nodes, self.values)), disable=disable, postfix='add nodes'):
             if t in include_types:
                 graph.add_node(i, **{SAMPLE: sample, TYPE: t, VALUE: value})
             else:

@@ -14,7 +14,7 @@ if 'darwin' in platform.system().lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
-def test_block():
+def test_body():
     data = [
                {
                    'ord_no': 'CH202007281033864',
@@ -35,16 +35,25 @@ def test_block():
     graph_parser = ag.GraphParser.from_data(meta_info)
     graph = graph_parser(raw_graph).add_self_loop()
 
-    dim = 8
-    in_feats = torch.randn((graph.num_nodes, dim))
-    module = ag.nn.Block(dim, 2, conv_layer=dgl.nn.pytorch.GATConv(dim, dim, 1), dim_feedforward=dim)
+    d_model = 8
+    in_feats = torch.randn((graph.num_nodes, d_model))
+    module = ag.nn.Body(
+        2,
+        conv_layer=dgl.nn.pytorch.GATConv(d_model, d_model, 1),
+        seq_layer=torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=2, dim_feedforward=d_model, batch_first=True),
+        ff2=ag.nn.FeedForward(d_model)
+    )
     print(module)
-    pred = module(graph.graph, in_feats, *graph.seq_masks())
-    print(pred.shape)
-    pred.sum().backward()
+    ind1, ind2 = graph.seq2node
+    ind1 = ind1.unsqueeze(-1).expand(-1, d_model)
+    ind2 = ind2.unsqueeze(-1).expand(-1, d_model)
+    ind3 = torch.arange(d_model).expand(graph.num_nodes, -1)
+    pred = module(graph.graph, in_feats, node2seq=graph.node2seq, seq2node=(ind1, ind2, ind3), seq_mask=torch.ones(graph.num_seqs, dtype=torch.bool))
+    print(pred[-1].shape)
+    pred[-1].sum().backward()
     for k, v in module.named_parameters():
         assert not torch.isnan(v.grad).any(), (k, v.grad)
 
 
 if __name__ == '__main__':
-    test_block()
+    test_body()

@@ -56,12 +56,8 @@ class GraphParser(MetaStruct):
         return len(self.dictionary) + 1
 
     @property
-    def padding_code(self):
-        return len(self.dictionary) + 2
-
-    @property
     def num_tokens(self):
-        return len(self.dictionary) + 3
+        return len(self.dictionary) + 2
 
     @property
     def num_numbers(self):
@@ -121,51 +117,50 @@ class GraphParser(MetaStruct):
         edges = torch.tensor(raw_graph.edges[0], dtype=torch.long), torch.tensor(raw_graph.edges[1], dtype=torch.long)
 
         # parsing values
-        # 序列和图需要保证双向映射
-        # 然而序列中包含图中不存在的padding
-        # 所以在图中增加一个作为padding的孤立点
-        graph = dgl.graph(edges, num_nodes=raw_graph.num_nodes + 1)
+
+        graph = dgl.graph(edges, num_nodes=raw_graph.num_nodes)
         node_df = raw_graph.node_df.set_index(TYPE)
         for t in node_df.index.unique():
             node_df.loc[t, NUMBER] = self.scale(t, node_df.loc[t, NUMBER])
-        graph.ndata[STRING] = torch.tensor(self.encode(node_df[STRING]) + [self.padding_code], dtype=torch.long)
-        graph.ndata[NUMBER] = torch.tensor(node_df[NUMBER].tolist() + [np.nan], dtype=torch.float32)
+        graph.ndata[STRING] = torch.tensor(self.encode(node_df[STRING]), dtype=torch.long)
+        graph.ndata[NUMBER] = torch.tensor(node_df[NUMBER].tolist(), dtype=torch.float32)
 
         # parsing type and targets
         unique_types = list(raw_graph.unique_types)
         type_string = self.encode_keys(unique_types)
-        type_ids = {t: i for i, t in enumerate(unique_types)}
-        targets = torch.tensor([type_ids[target] for target in raw_graph.targets], dtype=torch.long)
+        type_mapper = {t: i for i, t in enumerate(unique_types)}
+        targets = {target: type_mapper[target] for target in raw_graph.targets}
 
         # parsing seq2node
         max_seq_len = raw_graph.max_seq_len
-        seq_ids = {}
-        seq2node = []
+        seq_mapper = {}
+        node2seq = []
         seq_type = []
         seq_sample = []
-        pad_loc = None  # 确保孤立点和序列的对应关系
-        for (sample, t), nodes in raw_graph.seq2node.items():
+        for (sample, t), nodes in raw_graph.seqs.items():
             if len(nodes) < max_seq_len:
-                seq2node.append(nodes + [-1] * (max_seq_len - len(nodes)))
-                pad_loc = len(seq_ids), -1
+                # 序列和图需要保证双向映射
+                # 然而序列中包含图中不存在的padding
+                # 实验显示，如果padding同一个值，会导致backward很慢
+                # 因此随机padding，并设置为负数，方便后续发现
+                nodes = nodes+np.random.randint(low=-raw_graph.num_nodes, high=0, size=max_seq_len-len(nodes)).tolist()
+                node2seq.append(nodes)
             else:
-                seq2node.append(nodes)
-            seq_ids[(sample, t)] = len(seq_ids)
-            seq_type.append(type_ids[t])
+                node2seq.append(nodes)
+            seq_mapper[(sample, t)] = len(seq_mapper)
+            seq_type.append(type_mapper[t])
             seq_sample.append(sample)
-        seq2node = torch.tensor(seq2node, dtype=torch.long)
+        node2seq = torch.tensor(node2seq, dtype=torch.long)
         seq_type = torch.tensor(seq_type, dtype=torch.long)
         seq_sample = torch.tensor(seq_sample, dtype=torch.long)
 
         # parsing node2seq
-        node2seq = []
-        for sample, t, loc in raw_graph.node2seq:
-            node2seq.append((seq_ids[sample, t], loc))
-        node2seq.append(pad_loc)  # 确保孤立点和序列的对应关系
-        graph.ndata[SEQUENCE] = torch.tensor(node2seq, dtype=torch.long)
-
-        return Graph(graph=graph, seq2node=seq2node, seq_type=seq_type, seq_sample=seq_sample, type_string=type_string,
-                     targets=targets, readout=self.dictionary[READOUT])
+        seq2node = []
+        for sample, t, loc in raw_graph.nodes:
+            seq2node.append((seq_mapper[sample, t], loc))
+        graph.ndata[SEQ2NODE] = torch.tensor(seq2node, dtype=torch.long)
+        return Graph(graph=graph, node2seq=node2seq, seq_type=seq_type, seq_sample=seq_sample, type_string=type_string,
+                     targets=targets, readout=type_mapper[READOUT], type_mapper=type_mapper)
 
     def extra_repr(self) -> str:
         return 'num_tokens={}, num_numbers={}, scale_method={}, scale_kwargs={}'.format(

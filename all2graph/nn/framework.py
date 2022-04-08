@@ -11,7 +11,7 @@ from ..graph import Graph
 class Framework(Module):
     def __init__(self, str_emb: torch.nn.Embedding, key_emb, num_emb: NumEmb, bottle_neck: BottleNeck,
                  body: Body, head: Head = None, add_self_loop=True, to_bidirectied=False, to_simple=False,
-                 split_sample=False, include_keys=None, exclude_keys=None):
+                 seq_types=None):
         super().__init__()
         self.str_emb = str_emb
         self.key_emb = key_emb
@@ -22,9 +22,7 @@ class Framework(Module):
         self.add_self_loop = add_self_loop
         self.to_bidirectied = to_bidirectied
         self.to_simple = to_simple
-        self.split_sample = split_sample
-        self.include_keys = include_keys
-        self.exclude_keys = exclude_keys
+        self.seq_types = seq_types
 
     def reset_parameters(self):
         super().reset_parameters()
@@ -39,7 +37,7 @@ class Framework(Module):
             graph = graph.to_simple(copy_ndata=True)
 
         # 计算key emb
-        key_emb_ori = self.str_emb(graph.types)
+        key_emb_ori = self.str_emb(graph.type_string)
         key_emb_ori = self.key_emb(key_emb_ori)
         # 兼容pytorch的recurrent layers和transformer layers
         if isinstance(key_emb_ori, tuple):
@@ -53,16 +51,23 @@ class Framework(Module):
         bottle_neck = self.bottle_neck(key_emb, str_emb, num_emb)
 
         # 卷积
-        node_masks, src_masks = graph.seq_masks(
-            split_sample=self.split_sample, include_keys=self.include_keys, exclude_keys=self.exclude_keys)
-        feats = self.body(graph.graph, bottle_neck, node_masks, src_masks)
+        ind1, ind2 = graph.seq2node
+        ind1 = ind1.unsqueeze(-1).expand(-1, bottle_neck.shape[1])
+        ind2 = ind2.unsqueeze(-1).expand(-1, bottle_neck.shape[1])
+        ind3 = torch.arange(bottle_neck.shape[1], device=self.device).expand(graph.num_nodes, -1)
+        if self.seq_types is None:
+            seq_mask = None
+        else:
+            seq_mask = graph.seq_mask(self.seq_types)
+        feats = self.body(
+            graph.graph, bottle_neck, node2seq=graph.node2seq, seq2node=(ind1, ind2, ind3), seq_mask=seq_mask)
 
         # 输出
         readout_feats = feats[-1][graph.readout_mask]
         if self.head is None:
             output = readout_feats
         else:
-            target_feats = {target: key_emb_ori[graph.key_mapper[target]] for target in graph.targets}
+            target_feats = {target: key_emb_ori[i] for target, i in graph.targets.items()}
             output = self.head(readout_feats, target_feats)
         if details:
             graph.ndata['key_emb'] = key_emb

@@ -45,16 +45,19 @@ def test_framework():
         num_emb=ag.nn.NumEmb(d_model),
         bottle_neck=ag.nn.BottleNeck(d_model),
         body=ag.nn.Body(
-            6, d_model, 2, conv_layer=dgl.nn.pytorch.GATConv(d_model, d_model, 1), dim_feedforward=d_model
+            6,
+            conv_layer=dgl.nn.pytorch.GATConv(d_model, d_model, 1),
+            seq_layer=torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=2, dim_feedforward=d_model, batch_first=True),
+            ff2=ag.nn.FeedForward(d_model)
         ),
         head=ag.nn.Head(d_model),
-        split_sample=True,
-        include_keys=['stg_no']
+        seq_types=['stg_no']
     )
     if torch.cuda.is_available():
         module.cuda()
     print(module)
     pred = module(graph)
+    print(pred)
     pred['m3_ovd_30'].sum().backward()
     for k, v in module.named_parameters():
         assert not torch.isnan(v.grad).any(), (k, v.grad)
