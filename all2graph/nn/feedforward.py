@@ -5,7 +5,7 @@ from .utils import Module, _get_activation, _get_norm
 
 class FeedForward(Module):
     def __init__(self, num_feats, middle_feats=None, out_feats=None,
-                 dropout=0, activation='prelu', norm='batch1d', norm_first=True, residual=True, pre_norm=True):
+                 dropout=0, activation='prelu', norm='batch1d', norm_first=True, residual=True, pre_norm=False):
         super().__init__()
         middle_feats = middle_feats or num_feats
         out_feats = out_feats or num_feats
