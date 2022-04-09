@@ -158,7 +158,7 @@ def _get_norm(norm, *args, **kwargs):
 
 
 class Residual(Module):
-    def __init__(self, module, num_feats=None, middle_feats=None, norm=None):
+    def __init__(self, module, num_feats=None, middle_feats=None, norm=None, linear_dim=None):
         super().__init__()
         self.module = module
         if middle_feats is not None:
@@ -166,6 +166,7 @@ class Residual(Module):
         else:
             self.linear = None
         self.norm = _get_norm(norm, num_feats)
+        self.linear_dim = linear_dim
 
     def reset_parameters(self):
         if hasattr(self.module, 'reset_parameters'):
@@ -178,7 +179,11 @@ class Residual(Module):
     def forward(self, inputs):
         outputs = self.module(inputs)
         if self.linear is not None:
+            if self.linear_dim:
+                outputs = torch.transpose(outputs, self.linear_dim, -1)
             outputs = self.linear(outputs)
+            if self.linear:
+                outputs = torch.transpose(outputs, self.linear_dim, -1)
         if self.norm:
             outputs = self.norm(outputs)
         return outputs

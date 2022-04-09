@@ -49,12 +49,16 @@ def test_framework():
             conv_layer=dgl.nn.pytorch.GATConv(d_model, d_model, 1, residual=True),
             ff=ag.nn.FeedForward(d_model, pre_norm=True),
             seq_layer=ag.nn.Residual(
-                torch.nn.Conv1d(d_model, d_model, kernel_size=(20,), padding='same'),
+                torch.nn.Conv1d(d_model, 2*d_model, kernel_size=(20,), padding='same'),
                 num_feats=d_model,
+                middle_feats=2*d_model,
                 norm='batch1d',
+                linear_dim=-2
             ),
             ff2=ag.nn.FeedForward(d_model),
-            transpose_dim=(1, 2)
+            transpose_dim=(1, 2),
+            conv_first=True,
+            conv_last=True
         ),
         head=ag.nn.Head(d_model),
         seq_types=['stg_no']
