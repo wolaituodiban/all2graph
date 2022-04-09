@@ -40,8 +40,8 @@ def test_body():
     module = ag.nn.Body(
         2,
         conv_layer=dgl.nn.pytorch.GATConv(d_model, d_model, 1),
+        ff=ag.nn.FeedForward(d_model),
         seq_layer=torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=2, dim_feedforward=d_model, batch_first=True),
-        ff2=ag.nn.FeedForward(d_model)
     )
     print(module)
     pred = module(graph.graph, in_feats, node2seq=graph.node2seq, seq2node=graph.seq2node(d_model),

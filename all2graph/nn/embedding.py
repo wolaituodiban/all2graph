@@ -36,7 +36,7 @@ class NumEmb(Module):
         output = self.norm(output)
         if self.activation:
             output = self.activation(output)
-        return torch.masked_fill(output, mask.unsqueeze(-1), np.nan)
+        return torch.masked_fill(output, mask.unsqueeze(-1), 0)
 
     def extra_repr(self):
         return 'emb_dim={}, bias={}'.format(

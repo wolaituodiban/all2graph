@@ -155,3 +155,30 @@ def _get_norm(norm, *args, **kwargs):
         return torch.nn.BatchNorm3d(*args, **kwargs)
     else:
         return copy.deepcopy(norm)
+
+
+class Residual(Module):
+    def __init__(self, module, num_feats=None, middle_feats=None, norm=None):
+        super().__init__()
+        self.module = module
+        if middle_feats is not None:
+            self.linear = torch.nn.Linear(middle_feats, num_feats)
+        else:
+            self.linear = None
+        self.norm = _get_norm(norm, num_feats)
+
+    def reset_parameters(self):
+        if hasattr(self.module, 'reset_parameters'):
+            self.module.reset_parameters()
+        if self.linear is not None:
+            self.linear.reset_parameters()
+        if hasattr(self.norm, 'reset_parameters'):
+            self.norm.reset_parameters()
+
+    def forward(self, inputs):
+        outputs = self.module(inputs)
+        if self.linear is not None:
+            outputs = self.linear(outputs)
+        if self.norm:
+            outputs = self.norm(outputs)
+        return outputs
