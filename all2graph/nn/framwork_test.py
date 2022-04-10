@@ -43,17 +43,14 @@ def test_framework():
         key_emb=torch.nn.RNN(d_model, d_model, 1, batch_first=True),
         str_emb=torch.nn.Embedding(graph_parser.num_tokens, d_model),
         num_emb=ag.nn.NumEmb(d_model),
-        bottle_neck=ag.nn.BottleNeck(d_model, num_inputs=3),
+        bottle_neck=ag.nn.BottleNeck(d_model),
         body=ag.nn.Body(
             6,
             conv_layer=dgl.nn.pytorch.GATConv(d_model, d_model, 1, residual=True),
             ff=ag.nn.FeedForward(d_model, pre_norm=True),
             seq_layer=ag.nn.Residual(
-                torch.nn.Conv1d(d_model, 2*d_model, kernel_size=(20,), padding='same'),
-                num_feats=d_model,
-                middle_feats=2*d_model,
-                norm='batch1d',
-                linear_dim=-2
+                torch.nn.Conv1d(d_model, d_model, kernel_size=(20,), padding='same'),
+                post=torch.nn.BatchNorm1d(d_model)
             ),
             ff2=ag.nn.FeedForward(d_model),
             transpose_dim=(1, 2),

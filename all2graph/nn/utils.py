@@ -158,32 +158,24 @@ def _get_norm(norm, *args, **kwargs):
 
 
 class Residual(Module):
-    def __init__(self, module, num_feats=None, middle_feats=None, norm=None, linear_dim=None):
+    def __init__(self, module, pre=None, post=None):
         super().__init__()
         self.module = module
-        if middle_feats is not None:
-            self.linear = torch.nn.Linear(middle_feats, num_feats)
-        else:
-            self.linear = None
-        self.norm = _get_norm(norm, num_feats)
-        self.linear_dim = linear_dim
+        self.pre = pre
+        self.post = post
 
     def reset_parameters(self):
         if hasattr(self.module, 'reset_parameters'):
             self.module.reset_parameters()
-        if self.linear is not None:
-            self.linear.reset_parameters()
-        if hasattr(self.norm, 'reset_parameters'):
-            self.norm.reset_parameters()
+        if hasattr(self.pre, 'reset_parameters'):
+            self.pre.reset_parameters()
+        if hasattr(self.post, 'reset_parameters'):
+            self.post.reset_parameters()
 
     def forward(self, inputs):
-        outputs = self.module(inputs)
-        if self.linear is not None:
-            if self.linear_dim:
-                outputs = torch.transpose(outputs, self.linear_dim, -1)
-            outputs = self.linear(outputs)
-            if self.linear:
-                outputs = torch.transpose(outputs, self.linear_dim, -1)
-        if self.norm:
-            outputs = self.norm(outputs)
+        if self.pre is not None:
+            inputs = self.pre(inputs)
+        outputs = self.module(inputs) + inputs
+        if self.post is not None:
+            outputs = self.post(outputs)
         return outputs

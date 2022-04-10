@@ -4,13 +4,10 @@ from .utils import Module, _get_activation, _get_norm
 
 
 class BottleNeck(Module):
-    def __init__(self, d_model, num_inputs, dropout=0, activation='relu', norm='batch1d', norm_first=True):
+    def __init__(self, d_model, dropout=0, activation='prelu', norm='batch1d', norm_first=True):
         super().__init__()
-        self.pre_norm = torch.nn.ModuleList(
-            [_get_norm(norm, d_model) for _ in range(num_inputs)]
-        )
         dropout = torch.nn.Dropout(dropout)
-        linear = torch.nn.Linear(num_inputs * d_model, d_model)
+        linear = torch.nn.Linear(2 * d_model, d_model)
         norm = _get_norm(norm, d_model)
         activation = _get_activation(activation)
         if norm_first:
@@ -23,7 +20,10 @@ class BottleNeck(Module):
             if hasattr(layer, 'reset_parameters'):
                 layer.reset_parameters()
 
-    def forward(self, *inputs: torch.Tensor) -> torch.Tensor:
-        inputs = [norm(x) for norm, x in zip(self.pre_norm, inputs)]
-        kv_emb = torch.cat(inputs, dim=-1)
-        return self.layers(kv_emb)
+    def forward(self, key_emb, str_emb, num_emb) -> torch.Tensor:
+        mask = torch.isnan(num_emb)
+        num_emb = torch.masked_fill(num_emb, mask, 0)
+        mask = torch.bitwise_not(mask)
+        str_emb = torch.masked_fill(str_emb, mask, 0)
+        value_emb = num_emb + str_emb
+        return self.layers(torch.cat([key_emb, value_emb], dim=-1))
