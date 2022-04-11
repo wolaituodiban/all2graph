@@ -1,8 +1,8 @@
 import subprocess
 import os
+from .globals import __version__
 
 
-__version__ = '0.4.0'
 old_dir = os.getcwd()
 os.chdir(os.path.dirname(os.path.dirname(__file__)))
 try:

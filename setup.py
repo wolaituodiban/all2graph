@@ -1,7 +1,7 @@
 import os
 from setuptools import setup, find_packages
 
-VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/version.py')
+VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/globals.py')
 
 
 def get_version():
