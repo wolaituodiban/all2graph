@@ -58,7 +58,8 @@ def test_framework():
             conv_last=True
         ),
         head=ag.nn.Head(d_model),
-        seq_types=['stg_no']
+        seq_types=['stg_no'],
+        num_heads=None
     )
     if torch.cuda.is_available():
         module.cuda()
