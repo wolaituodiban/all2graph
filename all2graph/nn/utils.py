@@ -1,5 +1,5 @@
 import copy
-from abc import abstractproperty, abstractmethod
+from abc import abstractmethod
 
 import numpy as np
 import pandas as pd

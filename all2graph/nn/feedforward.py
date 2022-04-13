@@ -5,8 +5,10 @@ from .utils import Module, _get_activation, _get_norm
 
 class FeedForward(Module):
     def __init__(self, num_feats, middle_feats=None, out_feats=None,
-                 dropout=0, activation='prelu', norm='batch1d', norm_first=True, residual=True, pre_norm=False):
+                 dropout=0, activation='prelu', norm='batch1d', norm_first=True, residual=True, pre=None):
         super().__init__()
+        if pre is not None:
+            self.pre = pre
         middle_feats = middle_feats or num_feats
         out_feats = out_feats or num_feats
         dropout = torch.nn.Dropout(dropout)
@@ -18,8 +20,6 @@ class FeedForward(Module):
             layers = [dropout, linear1, norm1, activation, linear2]
         else:
             layers = [dropout, linear1, activation, norm1, linear2]
-        if pre_norm:
-            layers = [_get_norm(norm, num_feats)] + layers
         self.layers = torch.nn.Sequential(*layers)
         if residual:
             self.norm = _get_norm(norm, out_feats)
@@ -29,12 +29,17 @@ class FeedForward(Module):
         return self.norm.weight
 
     def reset_parameters(self):
+        if hasattr(self, 'pre') and hasattr(self.pre, 'reset_parameters'):
+            self.pre.reset_parameters()
         for module in self.layers:
             if hasattr(module, 'reset_parameters'):
                 module.reset_parameters()
-        self.norm.reset_parameters()
+        if hasattr(self, 'norm'):
+            self.norm.reset_parameters()
 
     def forward(self, in_feats: torch.Tensor) -> torch.Tensor:
+        if hasattr(self, 'pre'):
+            in_feats = self.pre(in_feats)
         out_feats = self.layers(in_feats)
         if hasattr(self, 'norm'):
             out_feats = self.norm(out_feats + in_feats)

@@ -64,6 +64,7 @@ class Framework(Module):
         # 输出
         readout_mask = graph.readout_mask
         if self.head is None:  # 没有head时，输出embedding
+            target_feats = None
             output = torch.stack([feat[readout_mask] for feat in feats], dim=1)
         else:
             target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
@@ -84,6 +85,7 @@ class Framework(Module):
             graph.ndata['bottle_neck'] = bottle_neck
             graph.ndata['feats'] = torch.stack(feats, dim=1)
             graph.output = output
+            graph.target_feats = target_feats
             return graph
         else:
             return output

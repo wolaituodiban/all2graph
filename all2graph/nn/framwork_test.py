@@ -32,7 +32,8 @@ def test_framework():
     df['m3_ovd_30'] = np.random.choice([0, 1], size=df.shape[0])
 
     json_parser = ag.JsonParser(
-        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], local_foreign_key_types={'ord_no'})
+        json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'],
+        local_foreign_key_types={'ord_no'})
     raw_graph = json_parser(df)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     graph_parser = ag.GraphParser.from_data(meta_info)
@@ -47,7 +48,7 @@ def test_framework():
         body=ag.nn.Body(
             6,
             conv_layer=dgl.nn.pytorch.GATConv(d_model, d_model, 1, residual=True),
-            ff=ag.nn.FeedForward(d_model, pre_norm=True),
+            ff=ag.nn.FeedForward(d_model, pre=torch.nn.BatchNorm1d(d_model)),
             seq_layer=ag.nn.Residual(
                 torch.nn.Conv1d(d_model, d_model, kernel_size=(20,), padding='same'),
                 post=torch.nn.BatchNorm1d(d_model)
