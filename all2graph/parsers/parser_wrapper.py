@@ -76,9 +76,9 @@ class ParserWrapper(MetaStruct):
         graph = self(df, disable=True)
         if sel_cols is not None:
             df = df[sel_cols]
-        if drop_cols is not None:
-            df = df.drop(columns=drop_cols)
-        df.drop(columns=[parser.data_col for parser in self._data_parser.values()])
+        drop_cols = drop_cols or set()
+        drop_cols = drop_cols.union([parser.data_col for parser in self._data_parser.values()])
+        df = df.drop(columns=drop_cols)
         return graph, df
 
     def labels(self, df):
@@ -139,7 +139,7 @@ class ParserWrapper(MetaStruct):
         return pd.concat(dfs)
 
     def generator(
-            self, src, disable=False, chunksize=64, processes=None, postfix='parsing', return_df=False, sel_cols=None,
+            self, src, disable=False, chunksize=64, processes=None, postfix='parsing', sel_cols=None,
             drop_cols=None, **kwargs):
         """
         返回一个graph生成器
@@ -149,7 +149,6 @@ class ParserWrapper(MetaStruct):
             chunksize: 批次处理的大小
             processes: 多进程数量
             postfix: 进度条后缀
-            return_df: 是否返回graph之外的东西
             sel_cols: 需要返回的元数据列
             drop_cols: 需要去掉的列，只在meta_col为None时生效
             **kwargs: pd.read_csv的额外参数
@@ -159,13 +158,8 @@ class ParserWrapper(MetaStruct):
             df
         """
         data = iter_csv(src, chunksize=chunksize, **kwargs)
-        if return_df:
-            fn = self.generate
-            kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
-        else:
-            fn = self
-            kwds = None
-        for output in mp_run(fn, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix):
+        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
+        for output in mp_run(self.generate, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix):
             yield output
 
     def extra_repr(self) -> str:

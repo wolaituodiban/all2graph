@@ -17,7 +17,6 @@ class SeqInfo(MetaStruct):
                  seq_sample: List[int],
                  seq_type: List[str],
                  type2node: Dict[str, List[int]],
-                 node2seq: List[List[int]],
                  seq2node: List[Tuple[int, int]],
                  **kwargs):
         super().__init__(initialized=True, **kwargs)
@@ -25,7 +24,6 @@ class SeqInfo(MetaStruct):
         self.seq_type = seq_type
         self.seq_sample = seq_sample
         self.type2node = type2node
-        self.node2seq = node2seq
         self.seq2node = seq2node
 
 
@@ -35,7 +33,7 @@ class RawGraph(MetaStruct):
         # sequence中每个元素对应的图上的node
         # 每个seq都由(sample, type)二元组进行索引
         # 每个元素是一个list，包含node
-        self.seqs: Dict[Tuple[int, str], List[int]] = {}
+        self.seq_len: Dict[Tuple[int, str], int] = {}
         # 图上每个node对应的(sample, type, loc)二元组
         self.nodes: List[Tuple[int, str, int]] = []
         # 图上的node对应的value
@@ -50,7 +48,7 @@ class RawGraph(MetaStruct):
         self._global_foreign_keys: Dict[str, Dict[str, int]] = {}
 
     def _assert(self):
-        assert len(self.nodes) == len(self.values) == sum(map(len, self.seqs.values()))
+        assert len(self.nodes) == len(self.values) == sum(self.seq_len.values())
         assert len(self.edges[0]) == len(self.edges[1])
 
     @property
@@ -83,11 +81,11 @@ class RawGraph(MetaStruct):
 
     @property
     def max_seq_len(self):
-        return max(map(len, self.seqs.values()))
+        return max(self.seq_len.values())
 
     @property
     def unique_types(self) -> Set[str]:
-        return set(key[1] for key in self.seqs).union(self.targets)
+        return set(key[1] for key in self.seq_len).union(self.targets)
 
     @property
     def foreign_key_types(self) -> Set[str]:
@@ -113,46 +111,37 @@ class RawGraph(MetaStruct):
         return strings, numbers
 
     @property
+    def seq(self) -> Dict[Tuple[int, str], List[int]]:
+        seq = {}
+        for sample, t, loc in self.nodes:
+            if (sample, t) not in seq:
+                seq[sample, t] = [loc]
+            else:
+                seq[sample, t].append(loc)
+        return seq
+
+    @property
     def seq_info(self) -> SeqInfo:
         # parsing seq2node
-        # 序列和图需要保证双向映射
-        # 然而序列需要padding
-        # 实验显示，如果padding同一个值，会导致backward在同一个位置多次叠加梯度，进而降低速度
-        # 因此做了随机padding的优化，并设置为负数，方便后续mask
-        # 然而生成随机数的开销很大
-        # 并且padding并不需要非常随机，只需要分布均匀就可以了
-        # 因此，事先生成一列不相同的负数，每次随机取连续的一段作为padding
-        neg_nums = list(range(-self.num_nodes, 0))
-        max_seq_len = self.max_seq_len
         seq_mapper = {}
         seq_type = []
         seq_sample = []
         type2node = {}
-        node2seq = []
 
-        for (sample, t), nodes in self.seqs.items():
+        for (sample, t), nodes in self.seq_len.items():
             seq_mapper[(sample, t)] = len(seq_mapper)
             seq_type.append(t)
             seq_sample.append(sample)
-
             if t not in type2node:
-                type2node[t] = list(nodes)
-            else:
-                type2node[t] += nodes
-
-            padding_len = max_seq_len - len(nodes)
-            if padding_len > 0:
-                # padding
-                rnd_num = np.random.randint(0, self.num_nodes - padding_len)
-                nodes = nodes + neg_nums[rnd_num: rnd_num + padding_len]
-            node2seq.append(nodes)
+                type2node[t] = []
 
         # parsing node2seq
         seq2node = []
-        for sample, t, loc in self.nodes:
+        for i, (sample, t, loc) in enumerate(self.nodes):
             seq2node.append((seq_mapper[sample, t], loc))
+            type2node[t].append(i)
         return SeqInfo(
-            seq_mapper=seq_mapper, seq_type=seq_type, seq_sample=seq_sample, type2node=type2node, node2seq=node2seq,
+            seq_mapper=seq_mapper, seq_type=seq_type, seq_sample=seq_sample, type2node=type2node,
             seq2node=seq2node)
 
     @property
@@ -179,11 +168,11 @@ class RawGraph(MetaStruct):
     def add_kv_(self, sample: int, key: str, value) -> int:
         """返回新增的entity的id"""
         vid = len(self.values)
-        if (sample, key) not in self.seqs:
-            self.seqs[sample, key] = [vid]
+        if (sample, key) not in self.seq_len:
+            self.seq_len[sample, key] = 1
         else:
-            self.seqs[sample, key].append(vid)
-        self.nodes.append((sample, key, len(self.seqs[sample, key]) - 1))
+            self.seq_len[sample, key] += 1
+        self.nodes.append((sample, key, self.seq_len[sample, key] - 1))
         self.values.append(value)
         return vid
 

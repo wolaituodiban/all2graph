@@ -1,5 +1,5 @@
 from copy import deepcopy
-from typing import Union, Dict
+from typing import Union, Dict, Tuple
 
 import torch
 
@@ -14,7 +14,7 @@ from ..graph import Graph
 class Framework(Module):
     def __init__(self, str_emb: torch.nn.Embedding, key_emb, num_emb: NumEmb, bottle_neck: BottleNeck,
                  body: Body, head: Head = None, add_self_loop=True, to_bidirectied=False, to_simple=False,
-                 seq_types=None, num_heads=None):
+                 seq_types=None, num_heads=None, seq_degree: Tuple[int, int] = None):
         super().__init__()
         self.str_emb = str_emb
         self.key_emb = key_emb
@@ -29,16 +29,19 @@ class Framework(Module):
         self.to_bidirectied = to_bidirectied
         self.to_simple = to_simple
         self.seq_types = seq_types
+        self.seq_degree = seq_degree
 
     def reset_parameters(self):
         super().reset_parameters()
 
-    def forward(self, graph: Graph, details=False) -> Union[Dict[str, torch.Tensor], Graph]:
+    def forward(self, graph: Graph, details=False) -> Union[Dict[str, torch.Tensor], torch.Tensor, Graph]:
         graph = graph.to(self.device, non_blocking=True)
         if self.add_self_loop:
             graph = graph.add_self_loop()
         if self.to_bidirectied:
             graph = graph.to_bidirectied(copy_ndata=True)
+        if self.seq_degree:
+            graph = graph.add_edges_by_seq(*self.seq_degree)
         if self.to_simple:
             graph = graph.to_simple(copy_ndata=True)
 

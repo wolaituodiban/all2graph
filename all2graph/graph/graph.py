@@ -10,7 +10,7 @@ from ..meta_struct import MetaStruct
 
 
 class Graph(MetaStruct):
-    def __init__(self, graph: dgl.DGLGraph, node2seq: torch.Tensor, seq_type: torch.Tensor, seq_sample: torch.Tensor,
+    def __init__(self, graph: dgl.DGLGraph, seq_type: torch.Tensor, seq_sample: torch.Tensor,
                  type_string: torch.Tensor, targets: List[str], type_mapper: Dict[str, int], **kwargs):
         """
 
@@ -30,7 +30,6 @@ class Graph(MetaStruct):
         """
         super().__init__(initialized=True, **kwargs)
         self.graph = graph
-        self.node2seq = node2seq
         self.seq_type = seq_type
         self.seq_sample = seq_sample
         self.type_string = type_string
@@ -92,6 +91,18 @@ class Graph(MetaStruct):
     def num_seqs(self):
         return self.seq_type.shape[0]
 
+    @property
+    def node2seq(self) -> torch.Tensor:
+        # 序列和图需要保证双向映射
+        # 然而序列需要padding
+        # 实验显示，如果padding同一个值，会导致backward在同一个位置多次叠加梯度，进而降低速度
+        # 因此做了随机padding的优化，并设置为负数，方便后续mask
+        ind1, ind2 = self.seq2node()
+        node2seq = torch.randint(
+            low=-self.num_nodes, high=0, size=(ind1.max() + 1, ind2.max() + 1), device=self.device)
+        node2seq[ind1, ind2] = torch.arange(self.num_nodes, device=self.device)
+        return node2seq
+
     def seq2node(self, dim=None):
         ind1, ind2 = self.graph.ndata[SEQ2NODE][:, 0], self.graph.ndata[SEQ2NODE][:, 1]
         if dim is None:
@@ -112,29 +123,49 @@ class Graph(MetaStruct):
 
     def add_self_loop(self):
         graph = dgl.add_self_loop(self.graph)
-        return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
+        return Graph(graph,  seq_type=self.seq_type, seq_sample=self.seq_sample,
                      type_string=self.type_string, targets=self.targets,
                      type_mapper=self.type_mapper)
 
     def to_simple(self, writeback_mapping=False, **kwargs):
         if writeback_mapping:
             graph, wm = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
-            graph = Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
+            graph = Graph(graph,  seq_type=self.seq_type, seq_sample=self.seq_sample,
                           type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
             return graph, wm
         else:
             graph = dgl.to_simple(self.graph, writeback_mapping=writeback_mapping, **kwargs)
-            return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
+            return Graph(graph, seq_type=self.seq_type, seq_sample=self.seq_sample,
                          type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
 
     def to_bidirectied(self, *args, **kwargs):
         graph = dgl.to_bidirected(self.graph, *args, **kwargs)
-        return Graph(graph, node2seq=self.node2seq, seq_type=self.seq_type, seq_sample=self.seq_sample,
+        return Graph(graph, seq_type=self.seq_type, seq_sample=self.seq_sample,
+                     type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
+
+    def add_edges_by_seq(self, degree, r_degree):
+        all_u, all_v = [], []
+        seq, node = torch.sort(self.seq2node()[0], stable=True)
+        for d in range(1, max(degree, r_degree) + 1):
+            u = torch.nonzero(seq[:-d] == seq[d:]).squeeze(-1)
+            v = u + d
+            u = node[u]
+            v = node[v]
+            if d <= degree:
+                all_u.append(u)
+                all_v.append(v)
+            if d <= r_degree:
+                all_u.append(v)
+                all_v.append(u)
+        all_u = torch.cat(all_u)
+        all_v = torch.cat(all_v)
+        #     assert (self.seq2node()[0][all_u] == self.seq2node()[0][all_v]).all()
+        graph = dgl.add_edges(self.graph, all_u, all_v)
+        return Graph(graph, seq_type=self.seq_type, seq_sample=self.seq_sample,
                      type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
 
     def to(self, *args, **kwargs):
         self.graph = self.graph.to(*args, **kwargs)
-        self.node2seq = self.node2seq.to(*args, **kwargs)
         self.seq_type = self.seq_type.to(*args, **kwargs)
         self.seq_sample = self.seq_sample.to(*args, **kwargs)
         self.type_string = self.type_string.to(*args, **kwargs)
@@ -142,7 +173,6 @@ class Graph(MetaStruct):
 
     def cpu(self, *args, **kwargs):
         self.graph = self.graph.cpu()
-        self.node2seq = self.node2seq.cpu(*args, **kwargs)
         self.seq_type = self.seq_type.cpu(*args, **kwargs)
         self.seq_sample = self.seq_sample.cpu(*args, **kwargs)
         self.type_string = self.type_string.cpu(*args, **kwargs)
@@ -156,7 +186,6 @@ class Graph(MetaStruct):
                 self.graph.ndata[k] = v.pin_memory()
             for k, v in self.graph.edata.items():
                 self.graph.edata[k] = v.pin_memory()
-        self.node2seq = self.node2seq.pin_memory()
         self.seq_type = self.seq_type.pin_memory()
         self.seq_sample = self.seq_sample.pin_memory()
         self.type_string = self.type_string.pin_memory()

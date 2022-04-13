@@ -29,6 +29,8 @@ def test_parse():
     print(graph.to_bidirectied(copy_ndata=True))
     print(graph.to_simple(copy_ndata=True))
     print(graph.seq_mask('a'))
+    for t, nodes in raw_graph.seq_info.type2node.items():
+        assert (graph.types[nodes] == graph.type_mapper[t]).all()
 
 
 if __name__ == '__main__':

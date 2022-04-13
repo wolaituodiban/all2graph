@@ -119,7 +119,7 @@ class Module(torch.nn.Module):
 def predict_csv(parser: ParserWrapper, module: torch.nn.Module, src, **kwargs):
     module.eval()
     dfs = []
-    for graphs, df in parser.generator(src, return_df=True, **kwargs):
+    for graphs, df in parser.generator(src, **kwargs):
         if isinstance(graphs, dict):
             for k, graph in graphs.items():
                 for kk, pred in module(graph).items():

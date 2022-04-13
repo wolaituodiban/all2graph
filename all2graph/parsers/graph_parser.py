@@ -141,8 +141,7 @@ class GraphParser(MetaStruct):
         # parsing seq
         seq_type = torch.tensor([type_mapper[t] for t in seq_info.seq_type], dtype=torch.long)
         seq_sample = torch.tensor(seq_info.seq_sample, dtype=torch.long)
-        node2seq = torch.tensor(seq_info.node2seq, dtype=torch.long)
-        return Graph(graph=graph, node2seq=node2seq, seq_type=seq_type, seq_sample=seq_sample, type_string=type_string,
+        return Graph(graph=graph, seq_type=seq_type, seq_sample=seq_sample, type_string=type_string,
                      targets=raw_graph.targets, type_mapper=type_mapper)
 
     def extra_repr(self) -> str:
