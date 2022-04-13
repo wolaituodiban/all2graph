@@ -175,7 +175,10 @@ class Residual(Module):
     def forward(self, inputs):
         if self.pre is not None:
             inputs = self.pre(inputs)
-        outputs = self.module(inputs) + inputs
+        outputs = self.module(inputs)
+        if isinstance(outputs, tuple):
+            outputs = outputs[0]
+        outputs = outputs + inputs
         if self.post is not None:
             outputs = self.post(outputs)
         return outputs
