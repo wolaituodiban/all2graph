@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import List
 
 import dgl
@@ -78,8 +79,8 @@ class Body(Module):
     def __init__(self, num_layers, conv_layer=None, ff=None, seq_layer=None, ff2=None, transpose_dim=None,
                  conv_first=True, conv_last=True):
         super().__init__()
-        blocks = [Block(conv_layer=conv_layer, ff=ff, seq_layer=seq_layer, ff2=ff2, transpose_dim=transpose_dim)
-                  for _ in range(num_layers)]
+        block = Block(conv_layer=conv_layer, ff=ff, seq_layer=seq_layer, ff2=ff2, transpose_dim=transpose_dim)
+        blocks = [deepcopy(block) for _ in range(num_layers)]
         if not conv_first:
             blocks[0].conv_layer = None
             blocks[0].ff = None
