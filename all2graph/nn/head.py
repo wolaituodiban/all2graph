@@ -6,11 +6,9 @@ from .feedforward import FeedForward
 
 
 class Head(FeedForward):
-    # todo
-    # 需要解决的问题：batchnorm会让target_feats的消失
-    def __init__(self, in_feats, out_feats=1, dropout=0, activation='prelu', norm_first=True):
-        super().__init__(2 * in_feats, middle_feats=in_feats, out_feats=out_feats, dropout=dropout,
-                         activation=activation, norm_first=norm_first, residual=False)
+    def __init__(self, in_feats, out_feats=1, **kwargs):
+        # 如果使用norm，会让target feats的差异消失，因此不能用norm
+        super().__init__(2 * in_feats, out_feats=out_feats, norm=torch.nn.Identity(), residual=False, **kwargs)
 
     def forward(self, readout_feats: torch.Tensor,
                 target_feats: Dict[str, torch.Tensor] = None) -> Dict[str, torch.Tensor]:
