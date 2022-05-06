@@ -8,7 +8,7 @@ from .feedforward import FeedForward
 class Head(FeedForward):
     def __init__(self, in_feats, out_feats=1, **kwargs):
         # 如果使用norm，会让target feats的差异消失，因此不能用norm
-        super().__init__(2 * in_feats, out_feats=out_feats, norm=torch.nn.Identity(), residual=False, **kwargs)
+        super().__init__(in_feats, out_feats=out_feats, norm=torch.nn.Identity(), residual=False, **kwargs)
 
     def forward(self, readout_feats: torch.Tensor,
                 target_feats: Dict[str, torch.Tensor] = None) -> Dict[str, torch.Tensor]:

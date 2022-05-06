@@ -1,4 +1,3 @@
-from copy import deepcopy
 from typing import Union, Dict, Tuple
 
 import torch
@@ -13,18 +12,16 @@ from ..graph import Graph
 
 class Framework(Module):
     def __init__(self, str_emb: torch.nn.Embedding, key_emb, num_emb: NumEmb, bottle_neck: BottleNeck,
-                 body: Body, head: Head = None, add_self_loop=True, to_bidirectied=False, to_simple=False,
-                 seq_types=None, num_heads=None, seq_degree: Tuple[int, int] = None):
+                 body: Body, head: Head = None, num_featmaps=0, add_self_loop=True, to_bidirectied=False, to_simple=False,
+                 seq_types=None, seq_degree: Tuple[int, int] = None):
         super().__init__()
         self.str_emb = str_emb
         self.key_emb = key_emb
         self.num_emb = num_emb
         self.bottle_neck = bottle_neck
         self.body = body
-        if head is not None and num_heads is not None:
-            self.head = torch.nn.ModuleList([deepcopy(head) for _ in range(num_heads)])
-        else:
-            self.head = head
+        self.head = head
+        self.num_featmaps = num_featmaps
         self.add_self_loop = add_self_loop
         self.to_bidirectied = to_bidirectied
         self.to_simple = to_simple
@@ -63,24 +60,20 @@ class Framework(Module):
         feats = self.body(
             graph.graph, bottle_neck, node2seq=graph.node2seq, seq2node=graph.seq2node(bottle_neck.shape[1]),
             seq_mask=graph.seq_mask(self.seq_types))
+        feats = feats[-self.num_featmaps:]
+        if len(feats) > 1:
+            feats = torch.cat(feats, dim=1)
+        else:
+            feats = feats[0]
 
         # 输出
-        readout_mask = graph.readout_mask
+        readout_feats = feats[graph.readout_mask]
         if self.head is None:  # 没有head时，输出embedding
             target_feats = None
-            output = torch.stack([feat[readout_mask] for feat in feats], dim=1)
+            output = readout_feats
         else:
             target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
-            if isinstance(self.head, torch.nn.ModuleList):  # 多个head时，输出均值
-                output = {target: [] for target in target_feats}
-                for feat, head in zip(feats, self.head):
-                    readout_feat = feat[readout_mask]
-                    for target, pred in head(readout_feat, target_feats).items():
-                        output[target].append(pred)
-                output = {target: torch.stack(pred, dim=1).mean(dim=1) for target, pred in output.items()}
-            else:  # 一个head时，输出head结果
-                readout_feats = feats[-1][readout_mask]
-                output = self.head(readout_feats, target_feats)
+            output = self.head(readout_feats, target_feats)
         if details:  # 将详细信息赋值给graph
             graph.ndata['key_emb'] = key_emb
             graph.ndata['str_emb'] = str_emb

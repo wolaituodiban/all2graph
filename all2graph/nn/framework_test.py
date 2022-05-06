@@ -55,11 +55,11 @@ def test_framework():
             ff2=ag.nn.FeedForward(d_model),
             # transpose_dim=(1, 2),
             conv_first=True,
-            conv_last=True
+            conv_last=True,
         ),
-        head=ag.nn.Head(d_model),
+        head=ag.nn.Head(3*d_model),
         seq_types=['stg_no'],
-        num_heads=None
+        num_featmaps=2
     )
     if torch.cuda.is_available():
         module.cuda()
