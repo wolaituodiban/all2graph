@@ -120,15 +120,26 @@ def predict_csv(parser: ParserWrapper, module: torch.nn.Module, src, **kwargs):
     module.eval()
     dfs = []
     for graphs, df in parser.generator(src, **kwargs):
-        if isinstance(graphs, dict):
-            for k, graph in graphs.items():
-                for kk, pred in module(graph).items():
-                    df['{}_{}'.format(kk, k)] = pred.cpu().numpy()
-        else:
-            for kk, pred in module(graphs).items():
-                while kk in df:
-                    kk = '{}_{}'.format(kk, 'pred')
-                df[kk] = pred.cpu().numpy()
+        # 将graphs的类型全都转成dict
+        if not isinstance(graphs, dict):
+            graphs = {'pred': graphs}
+        for parser_key, graph in graphs.items():
+            # pred的类型全都转成dict
+            pred = module(graph)
+            if isinstance(pred, list):
+                pred = {'output_{}'.format(i): v for i, v in enumerate(pred)}
+            elif isinstance(pred, torch.Tensor):
+                pred = {'output': pred}
+            # 判断value的维度
+            for target_key, value in pred.items():
+                value = value.view(df.shape[0], -1).squeeze(-1).cpu().numpy()
+                if len(value.shape) == 0:
+                    continue
+                elif len(value.shape) == 1:
+                    df['{}_{}'.format(target_key, parser_key)] = value
+                else:
+                    for j in range(value.shape[1]):
+                        df['{}_dim{}_{}'.format(target_key, j, parser_key)] = value[:, j]
         dfs.append(df)
     return pd.concat(dfs)
 
