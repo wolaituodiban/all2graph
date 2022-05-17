@@ -4,10 +4,14 @@ from typing import Tuple, List, Dict, Union
 import pandas as pd
 
 from .data_parser import DataParser
+from .json_parser import JsonParser
 from .graph_parser import GraphParser
 from ..graph import Graph, RawGraph
 from ..meta_struct import MetaStruct
 from ..utils import iter_csv, mp_run
+
+
+DataParserCls = {'JsonParser': JsonParser}
 
 
 UnionGraphParser = Union[GraphParser, Tuple[GraphParser, List[str]]]
@@ -18,8 +22,9 @@ class ParserWrapper(MetaStruct):
             self,
             data_parser: Union[DataParser, List[DataParser], Dict[str, DataParser]] = None,
             graph_parser: Union[UnionGraphParser, List[UnionGraphParser], Dict[str, UnionGraphParser]] = None,
+            **kwargs
     ):
-        super().__init__(initialized=True)
+        super().__init__(**kwargs)
         self.data_parser = data_parser
         self.graph_parser = graph_parser
 
@@ -41,7 +46,7 @@ class ParserWrapper(MetaStruct):
     def graph_parser(self):
         if len(self._graph_parser) == 1:
             return list(self._graph_parser.values())[0][0]
-        return {k: v[0] for k, v in self.graph_parser.items()}
+        return {k: v[0] for k, v in self._graph_parser.items()}
 
     @graph_parser.setter
     def graph_parser(self, graph_parser):
@@ -51,9 +56,25 @@ class ParserWrapper(MetaStruct):
             graph_parser = {i: parser for i, parser in enumerate(graph_parser)}
         self._graph_parser: Dict[str, Tuple[GraphParser, List[str]]] = {}
         for k, parser in graph_parser.items():
-            if not isinstance(parser, tuple):
+            if not isinstance(parser, (tuple, list)):
                 parser = (parser, list(self._data_parser))
                 self._graph_parser[k] = parser
+            else:
+                self._graph_parser[k] = parser
+
+    def to_json(self) -> dict:
+        outputs = super().to_json()
+        outputs['data_parser'] = {k: v.to_json() for k, v in self._data_parser.items()}
+        outputs['graph_parser'] = {k: [v[0].to_json(), v[1]] for k, v in self._graph_parser.items()}
+        return outputs
+
+    @classmethod
+    def from_json(cls, obj: dict, data_parser_cls=None):
+        data_parser_cls = data_parser_cls or DataParserCls
+        obj = dict(obj)
+        obj['data_parser'] = {k: data_parser_cls[v['type']].from_json(v) for k, v in obj['data_parser'].items()}
+        obj['graph_parser'] = {k: (GraphParser.from_json(v[0]), v[1]) for k, v in obj['graph_parser'].items()}
+        return cls(**obj)
 
     def call_graph_parser(self, raw_graph: RawGraph, key: str = None) -> Dict[Tuple, Graph]:
         output = {}

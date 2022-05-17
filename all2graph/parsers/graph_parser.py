@@ -2,7 +2,6 @@ from typing import Dict, List, Iterable
 
 import dgl
 import numpy as np
-import torch
 
 from ..globals import *
 from ..graph import RawGraph, Graph
@@ -14,7 +13,7 @@ from ..stats import ECDF
 class GraphParser(MetaStruct):
     def __init__(
             self, dictionary: Dict[str, int], num_ecdfs: Dict[str, ECDF], tokenizer=None, scale_method=None,
-            **scale_kwargs
+            scale_kwargs=None, **kwargs
     ):
         """
 
@@ -25,14 +24,26 @@ class GraphParser(MetaStruct):
             scale_method: 归一化方法
             scale_kwargs: 归一化的参数
         """
-        super().__init__(initialized=True)
+        super().__init__(**kwargs)
         self.dictionary = dictionary
         self.num_ecdfs = num_ecdfs
         self.tokenizer = tokenizer
         self.scale_method = scale_method
-        self.scale_kwargs = scale_kwargs
+        self.scale_kwargs = scale_kwargs or {}
 
+    def to_json(self) -> dict:
+        outputs = super().to_json()
+        outputs['dictionary'] = self.dictionary
+        outputs['num_ecdfs'] = {k: v.to_json() for k, v in self.num_ecdfs.items()}
+        outputs['scale_method'] = self.scale_method
+        outputs['scale_kwargs'] = self.scale_kwargs
+        return outputs
 
+    @classmethod
+    def from_json(cls, obj: dict):
+        obj = dict(obj)
+        obj['num_ecdfs'] = {k: ECDF.from_json(v) for k, v in obj['num_ecdfs'].items()}
+        return cls(**obj)
 
     @classmethod
     def from_data(cls, meta_info: MetaInfo, tokenizer=None, scale_method='prob', scale_kwargs=None, **kwargs):
@@ -48,7 +59,7 @@ class GraphParser(MetaStruct):
 
         """
         return cls(dictionary=meta_info.dictionary(tokenizer=tokenizer, **kwargs), num_ecdfs=meta_info.num_ecdfs,
-                   tokenizer=tokenizer, scale_method=scale_method, **(scale_kwargs or {}))
+                   tokenizer=tokenizer, scale_method=scale_method, scale_kwargs=scale_kwargs)
 
     @property
     def default_code(self):
@@ -95,7 +106,7 @@ class GraphParser(MetaStruct):
     def encode(self, inputs: Iterable[str]) -> List[int]:
         return [self.dictionary.get(x, self.default_code) for x in inputs]
 
-    def encode_keys(self, keys: List[str]) -> torch.Tensor:
+    def encode_keys(self, keys: List[str]):
         import torch
         if self.tokenizer is None:
             return torch.tensor(self.encode(keys), dtype=torch.long).unsqueeze(dim=-1)

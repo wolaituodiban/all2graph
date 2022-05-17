@@ -1,5 +1,6 @@
 import all2graph as ag
 import pandas as pd
+import json
 
 
 def test_parse():
@@ -38,6 +39,11 @@ def test_parse():
     graphs, df2 = parser_wrapper.generate(df)
     print(graphs)
     print(df2)
+
+    parser_json = parser_wrapper.to_json()
+    # print(json.dumps(parser_json, indent=1))
+    parser_wrapper = ag.ParserWrapper.from_json(parser_json)
+    print(parser_wrapper)
 
 
 if __name__ == '__main__':

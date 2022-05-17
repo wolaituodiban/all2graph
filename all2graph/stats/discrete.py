@@ -42,7 +42,7 @@ class Discrete(Distribution):
         num_samples = int(sum(value_counts))
         value_counts /= num_samples
         prob = value_counts.to_dict()
-        return super().from_data(prob=prob, num_samples=num_samples, **kwargs)
+        return super().from_data(prob=prob, **kwargs)
 
     @classmethod
     def batch(cls, discretes, weights=None, **kwargs):

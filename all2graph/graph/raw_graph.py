@@ -12,15 +12,13 @@ from ..meta_struct import MetaStruct
 from ..utils import tqdm
 
 
-class SeqInfo(MetaStruct):
+class SeqInfo:
     def __init__(self,
                  seq_mapper: Dict[Tuple[int, str], int],
                  seq_sample: List[int],
                  seq_type: List[str],
                  type2node: Dict[str, List[int]],
-                 seq2node: List[Tuple[int, int]],
-                 **kwargs):
-        super().__init__(initialized=True, **kwargs)
+                 seq2node: List[Tuple[int, int]]):
         self.seq_sample = seq_mapper
         self.seq_type = seq_type
         self.seq_sample = seq_sample
@@ -30,7 +28,7 @@ class SeqInfo(MetaStruct):
 
 class RawGraph(MetaStruct):
     def __init__(self, **kwargs):
-        super().__init__(initialized=True, **kwargs)
+        super().__init__(**kwargs)
         self.samples = []
         self.types = []
         self.values = []

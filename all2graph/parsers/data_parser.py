@@ -19,11 +19,17 @@ class DataParser(MetaStruct):
             time_format,
             targets,
             **kwargs):
-        super().__init__(initialized=True, **kwargs)
+        super().__init__(**kwargs)
         self.data_col = data_col
         self.time_col = time_col
         self.time_format = time_format
         self.targets = targets or []
+
+    def to_json(self) -> dict:
+        outputs = super().to_json()
+        for attr_name in ['data_col', 'time_col', 'time_format', 'targets']:
+            outputs[attr_name] = getattr(self, attr_name)
+        return outputs
 
     def get_targets(self, df: pd.DataFrame):
         if self.targets:
@@ -67,7 +73,7 @@ class DataParser(MetaStruct):
         raise NotImplementedError
 
     def extra_repr(self) -> str:
-        s = '\n,'.join(
+        s = ',\n'.join(
             '{}={}'.format(k, v) for k, v in self.__dict__.items() if not ismethod(v) and not k.startswith('_')
         )
         return s
@@ -75,7 +81,7 @@ class DataParser(MetaStruct):
 
 class DataAugmenter(DataParser):
     def __init__(self, parsers: List[DataParser], weights: List[float] = None):
-        super(DataParser, self).__init__(initialized=True)
+        super(DataParser, self).__init__()
         self.parsers = parsers
         if weights is None:
             self.weights = np.ones(len(self.parsers)) / len(self.parsers)

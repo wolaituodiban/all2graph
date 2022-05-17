@@ -28,7 +28,7 @@ class Graph(MetaStruct):
             type_mapper:
             **kwargs:
         """
-        super().__init__(initialized=True, **kwargs)
+        super().__init__(**kwargs)
         self.graph = graph
         self.seq_type = seq_type
         self.seq_sample = seq_sample

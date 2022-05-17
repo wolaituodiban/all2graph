@@ -167,32 +167,9 @@ def test_minmax_scale():
     assert np.isclose(f, [0, 1]).all(), f
 
 
-def speed():
-    path = os.path.dirname(__file__)
-    path = os.path.dirname(path)
-    path = os.path.dirname(path)
-    path = os.path.join(path, 'test_data', 'MensShoePrices', 'archive', 'train.csv')
-    df = pd.read_csv(path, low_memory=False)
-    for col in df:
-        df[col] = pd.to_numeric(df[col], errors='coerce')
-    df = df.dropna(axis=1, how='all')
-
-    start_time = time.time()
-    ecdfs = [
-        ECDF.from_data(series, num_bins=30) for col, series in df.iteritems()
-    ]
-    use_time = time.time() - start_time
-
-    start_time = time.time()
-    ECDF.batch(ecdfs, num_bins=100)
-    use_time2 = time.time() - start_time
-    assert use_time2 < use_time
-
-
 if __name__ == '__main__':
     test_one_sample()
     test_not_eq()
     test_ecdf()
     test_compress()
     test_minmax_scale()
-    speed()

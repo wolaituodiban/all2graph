@@ -1,5 +1,7 @@
 import os
 from setuptools import setup, find_packages
+# from Cython.Build import cythonize
+
 
 VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/globals.py')
 
@@ -24,4 +26,9 @@ setup(
         'pandas',
         'scipy',
     ],
+    # ext_modules=cythonize([
+    #     'all2graph/meta_struct.py',
+    #     'all2graph/graph/raw_graph.py',
+    #     'all2graph/parsers/json_parser.py',
+    # ])
 )

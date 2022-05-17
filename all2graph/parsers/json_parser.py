@@ -54,6 +54,19 @@ class JsonParser(DataParser):
         self.global_foreign_key_types = global_foreign_key_types
         self.processor = processor
 
+    def to_json(self) -> dict:
+        outputs = super().to_json()
+        outputs['json_col'] = outputs['data_col']
+        del outputs['data_col']
+        outputs['dense_dict'] = self.dense_dict
+        outputs['dict_degree'] = self.dict_degree
+        outputs['list_degree'] = self.list_degree
+        if self.local_foreign_key_types is not None:
+            outputs['local_foreign_key_types'] = list(self.local_foreign_key_types)
+        if self.global_foreign_key_types is not None:
+            outputs['global_foreign_key_types'] = list(self.global_foreign_key_types)
+        return outputs
+
     def _add_dict(self, graph: RawGraph, sample: int, obj: dict, vids: List[int]):
         sub_vids = vids[-self.dict_degree:]
         nids = []

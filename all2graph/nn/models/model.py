@@ -148,6 +148,7 @@ class Model(Module):
         shutil.rmtree(self.check_point)
 
     def predict(self, src, **kwargs):
+        self.module.eval()
         return predict_csv(self.parser, self.module, src, **kwargs)
 
     @torch.no_grad()

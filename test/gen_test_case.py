@@ -14,7 +14,8 @@ if __name__ == '__main__':
     if not os.path.exists(dir_path):
         os.mkdir(dir_path)
     data_path = os.path.join(dir_path, 'test_data.csv.zip')
-    model_path = os.path.join(dir_path, 'model.th')
+    parser_wrapper_path = os.path.join(dir_path, 'parser_wrapper.json')
+    framework_path = os.path.join(dir_path, 'framework.th')
     data = []
     for _ in range(100):
         one_sample = []
@@ -54,4 +55,6 @@ if __name__ == '__main__':
     model = ag.nn.Model(parser=parser_wrapper, module=framework)
     print(model(df))
     model.predict(df, processes=0, drop_data_cols=False).to_csv(data_path, index=False)
-    torch.save(model, model_path)
+    with open(parser_wrapper_path, 'w') as file:
+        json.dump(parser_wrapper.to_json(), file)
+    torch.save(model.module, framework_path)
