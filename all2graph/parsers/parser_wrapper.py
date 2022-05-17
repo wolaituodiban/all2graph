@@ -72,12 +72,13 @@ class ParserWrapper(MetaStruct):
             output = list(output.values())[0]
         return output
 
-    def generate(self, df: pd.DataFrame, sel_cols=None, drop_cols=None):
+    def generate(self, df: pd.DataFrame, sel_cols=None, drop_cols=None, drop_data_cols=True):
         graph = self(df, disable=True)
         if sel_cols is not None:
             df = df[sel_cols]
         drop_cols = drop_cols or set()
-        drop_cols = drop_cols.union([parser.data_col for parser in self._data_parser.values()])
+        if drop_data_cols:
+            drop_cols = drop_cols.union([parser.data_col for parser in self._data_parser.values()])
         df = df.drop(columns=drop_cols)
         return graph, df
 
@@ -140,7 +141,7 @@ class ParserWrapper(MetaStruct):
 
     def generator(
             self, src, disable=False, chunksize=64, processes=None, postfix='parsing', sel_cols=None,
-            drop_cols=None, **kwargs):
+            drop_cols=None, drop_data_cols=True, **kwargs):
         """
         返回一个graph生成器
         Args:
@@ -151,6 +152,7 @@ class ParserWrapper(MetaStruct):
             postfix: 进度条后缀
             sel_cols: 需要返回的元数据列
             drop_cols: 需要去掉的列，只在meta_col为None时生效
+            drop_data_cols: 去掉data列
             **kwargs: pd.read_csv的额外参数
 
         Returns:
@@ -158,7 +160,7 @@ class ParserWrapper(MetaStruct):
             df
         """
         data = iter_csv(src, chunksize=chunksize, **kwargs)
-        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
+        kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols, drop_data_cols=drop_data_cols)
         for output in mp_run(self.generate, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix):
             yield output
 

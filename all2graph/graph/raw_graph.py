@@ -1,3 +1,4 @@
+# cython: profile=True
 import gzip
 import pickle
 from itertools import combinations
@@ -30,13 +31,8 @@ class SeqInfo(MetaStruct):
 class RawGraph(MetaStruct):
     def __init__(self, **kwargs):
         super().__init__(initialized=True, **kwargs)
-        # sequence中每个元素对应的图上的node
-        # 每个seq都由(sample, type)二元组进行索引
-        # 每个元素是一个list，包含node
-        self.seq_len: Dict[Tuple[int, str], int] = {}
-        # 图上每个node对应的(sample, type, loc)二元组
-        self.nodes: List[Tuple[int, str, int]] = []
-        # 图上的node对应的value
+        self.samples = []
+        self.types = []
         self.values = []
         self.edges = [], []
         self.targets = set()
@@ -68,24 +64,12 @@ class RawGraph(MetaStruct):
         return len(self.targets)
 
     @property
-    def samples(self):
-        return [x[0] for x in self.nodes]
-
-    @property
-    def types(self):
-        return [x[1] for x in self.nodes]
-
-    @property
     def num_samples(self):
-        return len(set(x[0] for x in self.nodes))
-
-    @property
-    def max_seq_len(self):
-        return max(self.seq_len.values())
+        return len(set(self.samples))
 
     @property
     def unique_types(self) -> Set[str]:
-        return set(key[1] for key in self.seq_len).union(self.targets)
+        return self.targets.union(self.types)
 
     @property
     def foreign_key_types(self) -> Set[str]:
@@ -111,35 +95,28 @@ class RawGraph(MetaStruct):
         return strings, numbers
 
     @property
-    def seq(self) -> Dict[Tuple[int, str], List[int]]:
-        seq = {}
-        for sample, t, loc in self.nodes:
-            if (sample, t) not in seq:
-                seq[sample, t] = [loc]
-            else:
-                seq[sample, t].append(loc)
-        return seq
-
-    @property
     def seq_info(self) -> SeqInfo:
         # parsing seq2node
+        seq_len = {}
         seq_mapper = {}
         seq_type = []
         seq_sample = []
         type2node = {}
-
-        for (sample, t), nodes in self.seq_len.items():
-            seq_mapper[(sample, t)] = len(seq_mapper)
-            seq_type.append(t)
-            seq_sample.append(sample)
-            if t not in type2node:
-                type2node[t] = []
-
-        # parsing node2seq
         seq2node = []
-        for i, (sample, t, loc) in enumerate(self.nodes):
-            seq2node.append((seq_mapper[sample, t], loc))
-            type2node[t].append(i)
+
+        for i, (sample_id, _type) in enumerate(zip(self.samples, self.types)):
+            if _type not in type2node:
+                type2node[_type] = [i]
+            else:
+                type2node[_type].append(i)
+            if (sample_id, _type) not in seq_mapper:
+                seq_mapper[sample_id, _type] = len(seq_mapper)
+                seq_len[sample_id, _type] = 0
+                seq_type.append(_type)
+                seq_sample.append(sample_id)
+            seq2node.append((seq_mapper[sample_id, _type], seq_len[sample_id, _type]))
+            seq_len[sample_id, _type] += 1
+
         return SeqInfo(
             seq_mapper=seq_mapper, seq_type=seq_type, seq_sample=seq_sample, type2node=type2node,
             seq2node=seq2node)
@@ -168,11 +145,8 @@ class RawGraph(MetaStruct):
     def add_kv_(self, sample: int, key: str, value) -> int:
         """返回新增的entity的id"""
         vid = len(self.values)
-        if (sample, key) not in self.seq_len:
-            self.seq_len[sample, key] = 1
-        else:
-            self.seq_len[sample, key] += 1
-        self.nodes.append((sample, key, self.seq_len[sample, key] - 1))
+        self.samples.append(sample)
+        self.types.append(key)
         self.values.append(value)
         return vid
 

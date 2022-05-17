@@ -19,30 +19,23 @@ from ...graph import Graph
 class Model(Module):
     def __init__(
             self,
-            module: Framework = None,
-            parser: ParserWrapper = None,
             data_parser: DataParser = None,
-            graph_parser: GraphParser = None,
-            meta_info: MetaInfo = None,
             meta_info_configs=None,
+            meta_info: MetaInfo = None,
             graph_parser_configs=None,
+            graph_parser: GraphParser = None,
+            parser: ParserWrapper = None,
+            module: Framework = None,
             check_point=None,
     ):
         super().__init__()
-        self.module = module
+        self.meta_info_configs = meta_info_configs or {}
+        self.meta_info = meta_info
+        self.graph_parser_configs = graph_parser_configs or {}
         parser = parser or ParserWrapper(data_parser=data_parser, graph_parser=graph_parser)
         self.parser = parser
-
-        self.meta_info = meta_info
-        self.meta_info_configs = meta_info_configs or {}
-        self.graph_parser_configs = graph_parser_configs or {}
+        self.module = module
         self.check_point = check_point
-
-        self._encoder_mode = False
-
-    def encoder_mode(self, mode: bool):
-        assert isinstance(mode, bool)
-        self._encoder_mode = mode
 
     @property
     def data_parser(self):
@@ -61,20 +54,8 @@ class Model(Module):
         self.parser.graph_parser = graph_parser
 
     @property
-    def post_parser(self):
-        return self.parser.post_parser
-
-    @post_parser.setter
-    def post_parser(self, post_parser):
-        self.parser.post_parser = post_parser
-
-    @property
     def device(self):
         return self.module.device
-
-    @abstractmethod
-    def build_module(self, num_tokens) -> torch.nn.Module:
-        raise NotImplementedError
 
     def build_data(self, train_data, batch_size, valid_data=None, processes=None, **kwargs):
         # MetaInfo
@@ -167,23 +148,13 @@ class Model(Module):
         shutil.rmtree(self.check_point)
 
     def predict(self, src, **kwargs):
-        self.encoder_mode(False)
-        return predict_csv(self.parser, self, src, **kwargs)
-
-    def encode(self, src, **kwargs):
-        self.encoder_mode(True)
-        return predict_csv(self.parser, self, src, **kwargs)
+        return predict_csv(self.parser, self.module, src, **kwargs)
 
     @torch.no_grad()
-    def forward(self, inputs: Union[pd.DataFrame, Graph]) -> Dict[str, torch.Tensor]:
+    def forward(self, inputs: pd.DataFrame):
         self.eval()
-        if isinstance(inputs, pd.DataFrame):
-            inputs = self.parser(inputs)
-        if self._encoder_mode:
-            emb = self.module(inputs, ret_graph_emb=True)
-            output = {}
-            for i in range(emb.shape[1]):
-                output['emb_{}'.format(i)] = emb[:, i]
-            return output
+        inputs = self.parser(inputs)
+        if isinstance(inputs, dict):
+            return {k: self.module(v) for k, v in inputs.items()}
         else:
             return self.module(inputs)
