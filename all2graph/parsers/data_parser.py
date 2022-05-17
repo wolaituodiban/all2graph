@@ -26,8 +26,10 @@ class DataParser(MetaStruct):
 
     def to_json(self) -> dict:
         outputs = super().to_json()
-        for attr_name in ['data_col', 'time_col', 'time_format', 'targets']:
-            outputs[attr_name] = getattr(self, attr_name)
+        outputs['data_col'] = self.data_col
+        outputs['time_col'] = self.time_col
+        outputs['time_format'] = self.time_format
+        outputs['targets'] = list(self.targets)
         return outputs
 
     def get_targets(self, df: pd.DataFrame):
