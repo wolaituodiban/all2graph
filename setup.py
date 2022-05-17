@@ -1,6 +1,6 @@
 import os
 from setuptools import setup, find_packages
-# from Cython.Build import cythonize
+from Cython.Build import cythonize
 
 
 VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/globals.py')
@@ -22,13 +22,22 @@ setup(
     install_requires=[
         # 'dgl>=0.6.0',
         # 'torch>=1.5.0',
+        'cython',
         'numpy',
         'pandas',
         'scipy',
     ],
-    # ext_modules=cythonize([
-    #     'all2graph/meta_struct.py',
-    #     'all2graph/graph/raw_graph.py',
-    #     'all2graph/parsers/json_parser.py',
-    # ])
+    ext_modules=cythonize(
+        [
+            'all2graph/meta_struct.py',
+            'all2graph/graph/raw_graph.py',
+            'all2graph/parsers/*parser*.py',
+        ],
+        exclude=[
+            'all2graph/parsers/*test*.py',
+        ],
+        compiler_directives={
+            'profile': False
+        }
+    )
 )

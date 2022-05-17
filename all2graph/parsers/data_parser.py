@@ -1,11 +1,10 @@
-from abc import abstractmethod
 from inspect import ismethod
 from typing import List, Type
 
 import numpy as np
 import pandas as pd
 
-from ..graph import RawGraph
+from ..graph.raw_graph import RawGraph
 from ..info import MetaInfo
 from ..meta_struct import MetaStruct
 from ..utils import iter_csv, mp_run
@@ -23,7 +22,7 @@ class DataParser(MetaStruct):
         self.data_col = data_col
         self.time_col = time_col
         self.time_format = time_format
-        self.targets = targets or []
+        self.targets = set(targets or set())
 
     def to_json(self) -> dict:
         outputs = super().to_json()
@@ -68,7 +67,6 @@ class DataParser(MetaStruct):
         infos = mp_run(self._analyse, data, kwds=configs, processes=processes, disable=True)
         return info_cls.batch(infos, disable=disable, postfix=postfix, **configs or {})
 
-    @abstractmethod
     def __call__(self, data: pd.DataFrame, disable: bool = True) -> RawGraph:
         raise NotImplementedError
 

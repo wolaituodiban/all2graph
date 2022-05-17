@@ -21,7 +21,7 @@ def test_parse():
     print(raw_graph)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     graph_parser = ag.GraphParser.from_data(meta_info)
-    graph = graph_parser(raw_graph)
+    graph = graph_parser.call(raw_graph)
     print(graph)
     assert graph.num_nodes == raw_graph.num_nodes
     assert torch.equal(graph.node2seq[graph.seq2node()].flatten(), torch.arange(graph.num_nodes))
@@ -29,7 +29,7 @@ def test_parse():
     print(graph.to_bidirectied(copy_ndata=True))
     print(graph.to_simple(copy_ndata=True))
     print(graph.seq_mask('a'))
-    for t, nodes in raw_graph.seq_info.type2node.items():
+    for t, nodes in raw_graph.seq_info().type2node.items():
         assert (graph.types[nodes] == graph.type_mapper[t]).all()
 
 

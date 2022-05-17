@@ -6,7 +6,7 @@ import pandas as pd
 from .data_parser import DataParser
 from .json_parser import JsonParser
 from .graph_parser import GraphParser
-from ..graph import Graph, RawGraph
+from ..graph import Graph
 from ..meta_struct import MetaStruct
 from ..utils import iter_csv, mp_run
 
@@ -76,12 +76,12 @@ class ParserWrapper(MetaStruct):
         obj['graph_parser'] = {k: (GraphParser.from_json(v[0]), v[1]) for k, v in obj['graph_parser'].items()}
         return cls(**obj)
 
-    def call_graph_parser(self, raw_graph: RawGraph, key: str = None) -> Dict[Tuple, Graph]:
+    def call_graph_parser(self, raw_graph, key=None):
         output = {}
         for key2, (parser, key3) in self._graph_parser.items():
             if key and key not in key3:
                 continue
-            output[(key, key2)] = parser(raw_graph)
+            output[(key, key2)] = parser.call(raw_graph)
         return output
 
     def __call__(self, df: pd.DataFrame, disable=True) -> Union[Graph, Dict[Tuple[str, str], Graph]]:

@@ -1,5 +1,3 @@
-import sys
-
 import numpy as np
 
 from .version import __version__
@@ -16,9 +14,9 @@ class MetaStruct:
         """
         if type is not None:
             assert type == self.__class__.__name__, 'type不匹配'
-        if version is not None and version != __version__:
-            print('{}.__init__ current version is {}, but got version {}'.format(
-                self.__class__.__name__, __version__, version))
+        # if version is not None and version != __version__:
+        #     print('{}.__init__ current version is {}, but got version {}'.format(
+        #         self.__class__.__name__, __version__, version))
         self.version = __version__
 
     def __eq__(self, other) -> bool:

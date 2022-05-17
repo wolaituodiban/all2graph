@@ -1,10 +1,9 @@
 from typing import Dict, List, Iterable
 
-import dgl
 import numpy as np
 
 from ..globals import *
-from ..graph import RawGraph, Graph
+from ..graph import Graph
 from ..info import MetaInfo
 from ..meta_struct import MetaStruct
 from ..stats import ECDF
@@ -104,7 +103,8 @@ class GraphParser(MetaStruct):
             raise KeyError('unknown scale_method {}'.format(self.scale_method))
 
     def encode(self, inputs: Iterable[str]) -> List[int]:
-        return [self.dictionary.get(x, self.default_code) for x in inputs]
+        default_code = self.default_code
+        return [self.dictionary.get(x, default_code) for x in inputs]
 
     def encode_keys(self, keys: List[str]):
         import torch
@@ -124,20 +124,21 @@ class GraphParser(MetaStruct):
                 output.append(key)
             return torch.tensor(output, dtype=torch.long)
 
-    def __call__(self, raw_graph: RawGraph) -> Graph:
+    def call(self, raw_graph):
         """
 
         :param raw_graph:
         :return:
         """
+        import dgl
         import torch
         # parsing edges
         edges = torch.tensor(raw_graph.edges[0], dtype=torch.long), torch.tensor(raw_graph.edges[1], dtype=torch.long)
         graph = dgl.graph(edges, num_nodes=raw_graph.num_nodes)
 
         # parsing ndata
-        seq_info = raw_graph.seq_info
-        strings, numbers = raw_graph.formatted_values
+        seq_info = raw_graph.seq_info()
+        strings, numbers = raw_graph.formatted_values()
         for t, nodes in seq_info.type2node.items():
             numbers[nodes] = self.scale(t, numbers[nodes])
         graph.ndata[STRING] = torch.as_tensor(self.encode(strings), dtype=torch.long)

@@ -5,7 +5,7 @@ from typing import List, Union, Dict, Set, Tuple
 import pandas as pd
 
 from .data_parser import DataParser
-from ..graph import RawGraph
+from ..graph.raw_graph import RawGraph
 from ..utils import tqdm
 from ..globals import READOUT, ITEM
 
@@ -67,7 +67,18 @@ class JsonParser(DataParser):
             outputs['global_foreign_key_types'] = list(self.global_foreign_key_types)
         return outputs
 
-    def _add_dict(self, graph: RawGraph, sample: int, obj: dict, vids: List[int]):
+    def _add_dict(self, graph, sample, obj, vids):
+        """
+
+        Args:
+            graph: RawGraph
+            sample: int
+            obj: dict
+            vids: List[int]
+
+        Returns:
+
+        """
         sub_vids = vids[-self.dict_degree:]
         nids = []
         for key, value in obj.items():
@@ -89,14 +100,38 @@ class JsonParser(DataParser):
         if self.dense_dict:
             graph.add_dense_edges_(nids)
 
-    def _add_list(self, graph: RawGraph, sample: int, key: str, obj: list, vids: List[int]):
+    def _add_list(self, graph, sample, key, obj, vids):
+        """
+
+        Args:
+            graph: RawGraph
+            sample: int
+            key: str
+            obj: list
+            vids: List[int]
+
+        Returns:
+
+        """
         sub_vids = vids[-self.dict_degree:]
         for value in obj:
             nid = graph.add_kv_(sample, key, value)
             graph.add_edges_([nid] * len(sub_vids), sub_vids)
             self.add_obj(graph, sample, obj=value, vids=vids+[nid], key=key)
 
-    def add_obj(self, graph: RawGraph, sample: int, obj, key=READOUT, vids=None):
+    def add_obj(self, graph, sample, obj, key=READOUT, vids=None):
+        """
+
+        Args:
+            graph: RawGraph
+            sample: int
+            obj:
+            key:
+            vids:
+
+        Returns:
+
+        """
         vids = vids or [graph.add_kv_(sample, key, obj)]
         if isinstance(obj, dict):
             self._add_dict(graph, sample, obj=obj, vids=vids)
@@ -123,5 +158,3 @@ class JsonParser(DataParser):
             self.add_obj(graph, i, obj=obj)
         graph.add_targets_(self.targets)
         return graph
-
-

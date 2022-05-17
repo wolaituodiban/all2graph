@@ -1,4 +1,3 @@
-# cython: profile=True
 import gzip
 import pickle
 from itertools import combinations
@@ -32,7 +31,8 @@ class RawGraph(MetaStruct):
         self.samples = []
         self.types = []
         self.values = []
-        self.edges = [], []
+        self.srcs = []
+        self.dsts = []
         self.targets = set()
 
         # 记录作为要被当作外键的node
@@ -44,6 +44,10 @@ class RawGraph(MetaStruct):
     def _assert(self):
         assert len(self.nodes) == len(self.values) == sum(self.seq_len.values())
         assert len(self.edges[0]) == len(self.edges[1])
+
+    @property
+    def edges(self):
+        return self.srcs, self.dsts
 
     @property
     def num_types(self):
@@ -76,23 +80,30 @@ class RawGraph(MetaStruct):
             foreign_key_types.extend(t)
         return set(foreign_key_types)
 
-    @property
-    def formatted_values(self) -> Tuple[np.ndarray, np.ndarray]:
+    def formatted_values(self):
         id_keys = self.foreign_key_types
-        values = []
+        numbers = []
+        strings = []
         for key, value in zip(self.types, self.values):
-            if key in id_keys or not isinstance(value, (str, float, int, bool)):
-                values.append(None)
+            if key in id_keys:
+                numbers.append(np.nan)
+                strings.append(None)
+            elif isinstance(value, str):
+                try:
+                    number = float(value)
+                    numbers.append(number)
+                    strings.append(None)
+                except:
+                    numbers.append(np.nan)
+                    strings.append(value)
+            elif isinstance(value, (float, int, bool)):
+                numbers.append(value)
+                strings.append(None)
             else:
-                values.append(value)
+                numbers.append(np.nan)
+                strings.append(None)
+        return strings, np.array(numbers, dtype='float')
 
-        numbers = pd.to_numeric(values, errors='coerce')
-        mask = np.bitwise_not(np.isnan(numbers))
-        strings = np.array(values, dtype=object)
-        strings[mask] = None
-        return strings, numbers
-
-    @property
     def seq_info(self) -> SeqInfo:
         # parsing seq2node
         seq_len = {}
@@ -121,27 +132,61 @@ class RawGraph(MetaStruct):
 
     @property
     def node_df(self) -> pd.DataFrame:
-        strings, numbers = self.formatted_values
+        strings, numbers = self.formatted_values()
         df = pd.DataFrame({SAMPLE: self.samples, TYPE: self.types, STRING: strings, NUMBER: numbers})
         return df
 
     def add_edge_(self, u, v):
-        self.edges[0].append(u)
-        self.edges[1].append(v)
+        """
 
-    def add_edges_(self, u: List[int], v: List[int]):
-        self.edges[0].extend(u)
-        self.edges[1].extend(v)
+        Args:
+            u: int
+            v: int
+
+        Returns:
+
+        """
+        self.srcs.append(u)
+        self.dsts.append(v)
+
+    def add_edges_(self, u, v):
+        """
+
+        Args:
+            u: List[int]
+            v: List[int]
+
+        Returns:
+
+        """
+        self.srcs.extend(u)
+        self.dsts.extend(v)
 
     def add_dense_edges_(self, x):
-        for u, v in combinations(x, 2):
-            self.edges[0].append(u)
-            self.edges[0].append(v)
-            self.edges[1].append(v)
-            self.edges[1].append(u)
+        """
 
-    def add_kv_(self, sample: int, key: str, value) -> int:
-        """返回新增的entity的id"""
+        Args:
+            x: List[int]
+
+        Returns:
+
+        """
+        for u, v in combinations(x, 2):
+            self.add_edge_(u, v)
+            self.add_edge_(v, u)
+
+    def add_kv_(self, sample, key, value):
+        """
+
+        Args:
+            sample: int
+            key: str
+            value:
+
+        Returns:
+            int 返回新增的entity的id
+        """
+        """"""
         vid = len(self.values)
         self.samples.append(sample)
         self.types.append(key)
