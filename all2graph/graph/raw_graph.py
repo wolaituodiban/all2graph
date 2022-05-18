@@ -42,7 +42,7 @@ class RawGraph(MetaStruct):
         self._global_foreign_keys: Dict[str, Dict[str, int]] = {}
 
     def _assert(self):
-        assert len(self.nodes) == len(self.values) == sum(self.seq_len.values())
+        assert len(self.samples) == len(self.values) == len(self.types)
         assert len(self.edges[0]) == len(self.edges[1])
 
     @property
@@ -194,7 +194,6 @@ class RawGraph(MetaStruct):
         return vid
 
     def add_targets_(self, keys: Set[str]):
-        assert self.unique_types.isdisjoint(keys), '{} already exists'.format(self.unique_types.intersection(keys))
         self.targets = self.targets.union(keys)
 
     def __add_foreign_key_(self, sample, key, value, fk_dict):
@@ -225,23 +224,23 @@ class RawGraph(MetaStruct):
         for u, v in tqdm(zip(*self.edges), disable=disable, postfix='add edges'):
             graph.add_edge(u, v)
 
-        for i, ((sample, t, _), value) in tqdm(
-                enumerate(zip(self.nodes, self.values)), disable=disable, postfix='add nodes'):
+        for i, (sample, t, value) in tqdm(
+                enumerate(zip(self.samples, self.types, self.values)), disable=disable, postfix='add nodes'):
             if t in include_types:
                 graph.add_node(i, **{SAMPLE: sample, TYPE: t, VALUE: value})
             else:
-                graph.remove_nodes_from(i)
+                graph.remove_node(i)
         return graph
 
     def draw(
-            self, include_keys=None, exclude_keys=None, disable=True, pos='planar', scale=1, center=None,
+            self, include_types=None, exclude_types=None, disable=True, pos='planar', scale=1, center=None,
             dim=2, norm=None, cmap='rainbow', ax=None, labels=None, with_labels=True, **kwargs
     ):
         """
 
         Args:
-            include_keys: 仅包含key对应的点
-            exclude_keys: 去掉key对应的点
+            include_types: 仅包含key对应的点
+            exclude_types: 去掉key对应的点
             disable: 禁用进度条
             pos: 图中每个点的坐标，默认会使用network.planar_layout计算最优坐标
             scale: 详情间network.planar_layout
@@ -270,7 +269,7 @@ class RawGraph(MetaStruct):
             fig = None
 
         # 转成networkx
-        graph = self.to_networkx(include_types=include_keys, exclude_types=exclude_keys, disable=disable)
+        graph = self.to_networkx(include_types=include_types, exclude_types=exclude_types, disable=disable)
 
         # 位置
         if pos == 'planar':

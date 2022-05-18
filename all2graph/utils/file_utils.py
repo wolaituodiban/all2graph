@@ -156,7 +156,7 @@ def split_csv(
             path_df = pd.DataFrame({'path': [to_file] * chunk.shape[0]})
         meta_dfs.append(path_df)
     path_df = pd.concat(meta_dfs)
-    path_df.to_csv(dst+'_path.csv', index=False)
+    path_df.to_csv(dst+'_path.{}'.format('zip' if zip else 'csv'), index=False)
     return path_df
 
 

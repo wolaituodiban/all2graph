@@ -34,7 +34,7 @@ def test_gat_model():
 
     json_parser = ag.JsonParser(
         json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'], local_foreign_key_types={'ord_no'})
-    gat_model = ag.nn.GATModel(
+    gat_model = ag.nn.GATFM(
         data_parser=json_parser,
         check_point='temp',
         d_model=8,

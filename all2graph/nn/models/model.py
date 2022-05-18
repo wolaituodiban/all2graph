@@ -1,19 +1,15 @@
-import os
-import shutil
-from abc import abstractmethod
-from typing import Dict, Union
-
 import pandas as pd
 import torch
-from torch.utils.data import DataLoader
+import numpy as np
 
 from ..framework import Framework
+from ..loss import DictLoss
 from ..train import Trainer
 from ..utils import Module, predict_csv
-from ...data import GraphDataset
+from ...data import CSVDataset
 from ...info import MetaInfo
 from ...parsers import DataParser, GraphParser, ParserWrapper
-from ...graph import Graph
+from ...utils import Metric
 
 
 class Model(Module):
@@ -57,105 +53,110 @@ class Model(Module):
     def device(self):
         return self.module.device
 
-    def build_data(self, train_data, batch_size, valid_data=None, processes=None, **kwargs):
-        # MetaInfo
-        if self.meta_info is None:
-            self.meta_info = self.data_parser.analyse(
-                train_data, processes=processes, configs=self.meta_info_configs, **kwargs)
-        print(self.meta_info)
-
-        # GraphParser
-        if self.graph_parser is None:
-            self.graph_parser = GraphParser.from_data(self.meta_info, **self.graph_parser_configs)
-        print(self.graph_parser)
-
-        # DataLoader
-        num_workers = processes or os.cpu_count()
-        if isinstance(train_data, DataLoader):
-            train_dataloader = train_data
+    def forward(self, inputs: pd.DataFrame):
+        if isinstance(inputs, pd.DataFrame):
+            self.eval()
+            inputs = self.parser(inputs)
+        if isinstance(inputs, dict):
+            return {k: self.module(v) for k, v in inputs.items()}
         else:
-            train_path_df = self.parser.save(
-                src=train_data,
-                dst=os.path.join(self.check_point, 'train'),
-                processes=processes,
-                **kwargs
-            )
-            train_dataset = GraphDataset(path=train_path_df, parser=self.parser)
-            train_dataloader = train_dataset.dataloader(batch_size=batch_size, shuffle=True, num_workers=num_workers)
+            return self.module(inputs)
 
-        valid_dataloaders = []
-        if valid_data:
-            for i, src in enumerate(valid_data):
-                if isinstance(src, DataLoader):
-                    valid_dataloaders.append(src)
-                else:
-                    valid_path_df = self.parser.save(
-                        src=train_data,
-                        dst=os.path.join(self.check_point, 'valid_{}'.format(i)),
-                        processes=processes,
-                        **kwargs
-                    )
-                    valid_dataset = GraphDataset(path=valid_path_df, parser=self.parser)
-                    valid_dataloader = valid_dataset.dataloader(
-                        batch_size=batch_size, shuffle=True, num_workers=num_workers)
-                    valid_dataloaders.append(valid_dataloader)
-        return train_dataloader, valid_dataloaders
+    def build_module(self):
+        raise NotImplementedError
 
     def fit(self,
             train_data,
-            loss,
             epoches,
-            batch_size=None,
+            batch_size,
+            loss,
+            chunksize=None,
             valid_data: list = None,
-            processes=None,
+            processes=0,
             optimizer_cls=None,
             optimizer_kwds=None,
             metrics=None,
             early_stop=None,
+            analyse_frac=None,
+            pin_memory=False,
             **kwargs
             ):
-        if self.check_point:
-            if not os.path.exists(self.check_point) or not os.path.isdir(self.check_point):
-                os.mkdir(self.check_point)
+        """
 
-        # data
-        train_dataloader, valid_dataloaders = self.build_data(
-            train_data=train_data, batch_size=batch_size, valid_data=valid_data, processes=processes, **kwargs)
+        Args:
+            train_data: dataframe, 长度与样本数量相同，包含一列path代表每个样本的文件地址
+            loss:
+            epoches:
+            batch_size:
+            valid_data:
+            processes:
+            optimizer_cls:
+            optimizer_kwds:
+            metrics:
+            early_stop:
+            analyse_frac: 分析阶段的数据采样率
+            pin_memory:
+            **kwargs:
 
-        # model
+        Returns:
+
+        """
+        # 检查parser是否完全
+        chunksize = chunksize or batch_size
+        if not isinstance(loss, DictLoss):
+            loss = DictLoss(loss)
+        if metrics is not None:
+            metrics = {k: v if isinstance(v, Metric) else Metric(v, label_first=False) for k, v in metrics.items()}
+        assert self.data_parser is not None, 'please set data_parser first'
+        if self.graph_parser is None:
+            print('graph_parser not set, start building')
+            if self.meta_info is None:
+                print('meta_info not set, start building')
+                paths = train_data['path'].unique()
+                if analyse_frac is not None:
+                    paths = np.random.choice(paths, int(analyse_frac*paths.shape[0]), replace=False)
+                self.meta_info = self.data_parser.analyse(
+                    paths, processes=processes, configs=self.meta_info_configs, chunksize=chunksize, **kwargs)
+                print(self.meta_info)
+            self.graph_parser = GraphParser.from_data(self.meta_info, **self.graph_parser_configs)
+            print(self.graph_parser)
+        assert isinstance(self.graph_parser, GraphParser), 'fitting not support multi-parsers'
+
+        # dataloader
+        train_data = CSVDataset(train_data, self.parser, **kwargs).dataloader(
+            batch_size=batch_size, num_workers=processes, shuffle=True, pin_memory=pin_memory)
+
+        if valid_data is not None:
+            valid_data = [
+                CSVDataset(x, self.parser, **kwargs).dataloader(
+                    batch_size=batch_size, num_workers=processes, shuffle=True, pin_memory=pin_memory)
+                for x in valid_data
+            ]
+
+        # build module
         if self.module is None:
-            self.module = self.build_module(self.graph_parser.num_tokens)
-        if torch.cuda.is_available():
-            self.module.cuda()
+            self.build_module()
 
+        # train
         if optimizer_cls is not None:
             optimizer = optimizer_cls(self.module.parameters(), **(optimizer_kwds or {}))
         else:
             optimizer = None
 
         trainer = Trainer(
-            module=self.module,
+            module=self,
             optimizer=optimizer,
             loss=loss,
-            data=train_dataloader,
-            valid_data=valid_dataloaders,
+            data=train_data,
+            valid_data=valid_data,
             metrics=metrics,
             check_point=self.check_point,
             early_stop=early_stop
         )
         print(trainer)
         trainer.fit(epoches)
-        shutil.rmtree(self.check_point)
 
     def predict(self, src, **kwargs):
-        self.module.eval()
         return predict_csv(self.parser, self.module, src, **kwargs)
 
-    @torch.no_grad()
-    def forward(self, inputs: pd.DataFrame):
-        self.eval()
-        inputs = self.parser(inputs)
-        if isinstance(inputs, dict):
-            return {k: self.module(v) for k, v in inputs.items()}
-        else:
-            return self.module(inputs)
+

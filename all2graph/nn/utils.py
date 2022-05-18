@@ -102,7 +102,6 @@ class Module(torch.nn.Module):
     def num_parameters(self):
         return num_parameters(self)
 
-    @abstractmethod
     def reset_parameters(self):
         for module in self.children():
             if hasattr(module, 'reset_parameters'):
