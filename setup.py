@@ -1,33 +1,10 @@
 import os
 from setuptools import setup, find_packages
-from Cython.Build import cythonize
 
-
-VERSION_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/globals.py')
-
-
-def get_version():
-    ns = {}
-    with open(VERSION_FILE) as f:
-        exec(f.read(), ns)
-    return ns['__version__']
-
-
-setup(
-    name='all2graph',
-    version=get_version(),
-    author='xiaotian chen',
-    author_email='wolaituodiban@gmail.com',
-    packages=find_packages(),
-    install_requires=[
-        # 'dgl>=0.6.0',
-        # 'torch>=1.5.0',
-        'cython',
-        'numpy',
-        'pandas',
-        'scipy',
-    ],
-    ext_modules=cythonize(
+# 根据是否有cython来确定ext_modules
+try:
+    from Cython.Build import cythonize
+    ext_modules = cythonize(
         [
             'all2graph/meta_struct.py',
             'all2graph/graph/raw_graph.py',
@@ -40,4 +17,27 @@ setup(
             'profile': False
         }
     )
+except ImportError:
+    ext_modules = None
+
+
+def get_version():
+    ns = {}
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/globals.py')) as f:
+        exec(f.read(), ns)
+    return ns['__version__']
+
+
+setup(
+    name='all2graph',
+    version=get_version(),
+    author='xiaotian chen',
+    author_email='wolaituodiban@gmail.com',
+    packages=find_packages(),
+    install_requires=[
+        'numpy',
+        'pandas',
+        'scipy',
+    ],
+    ext_modules=ext_modules
 )

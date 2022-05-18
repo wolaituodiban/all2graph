@@ -43,8 +43,8 @@ class Framework(Module):
             graph = graph.to_simple(copy_ndata=True)
 
         # 计算key emb
-        key_emb_ori = self.str_emb(graph.type_string)
-        key_emb_ori = self.key_emb(key_emb_ori)
+        key_emb_ori = self.str_emb.forward(graph.type_string)
+        key_emb_ori = self.key_emb.forward(key_emb_ori)
         # 兼容pytorch的recurrent layers和transformer layers
         if isinstance(key_emb_ori, tuple):
             key_emb_ori = key_emb_ori[0]
@@ -52,12 +52,12 @@ class Framework(Module):
 
         # 计算in_feats
         key_emb = key_emb_ori[graph.types]
-        str_emb = self.str_emb(graph.strings)
-        num_emb = self.num_emb(graph.numbers)
-        bottle_neck = self.bottle_neck(key_emb, str_emb, num_emb)
+        str_emb = self.str_emb.forward(graph.strings)
+        num_emb = self.num_emb.forward(graph.numbers)
+        bottle_neck = self.bottle_neck.forward(key_emb, str_emb, num_emb)
 
         # 卷积
-        feats = self.body(
+        feats = self.body.forward(
             graph.graph, bottle_neck, node2seq=graph.node2seq, seq2node=graph.seq2node(bottle_neck.shape[1]),
             seq_mask=graph.seq_mask(self.seq_types))
         feats = feats[-self.num_featmaps:]
@@ -73,7 +73,7 @@ class Framework(Module):
             output = readout_feats
         else:
             target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
-            output = self.head(readout_feats, target_feats)
+            output = self.head.forward(readout_feats, target_feats)
         if details:  # 将详细信息赋值给graph
             graph.ndata['key_emb'] = key_emb
             graph.ndata['str_emb'] = str_emb

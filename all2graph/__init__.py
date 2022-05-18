@@ -1,11 +1,10 @@
 # 解决在服务器上运行时，dgl写config文件时，没有权限的问题
+import os
 import platform
 import sys
 from .version import __version__
 print('all2graph version={}'.format(__version__), file=sys.stderr)
-system = platform.system()
-if 'linux' in system.lower():
-    import os
+if 'linux' in platform.system().lower():
     old_home = os.environ['HOME']
     new_home = os.getcwd()
     os.environ['HOME'] = new_home
@@ -15,7 +14,8 @@ if 'linux' in system.lower():
         print('all2graph has moved dgl config.json to {}'.format(config_path), file=sys.stderr)
     except ImportError:
         pass
-    os.environ['HOME'] = old_home
+    finally:
+        os.environ['HOME'] = old_home
 
 try:
     import torch
@@ -26,7 +26,6 @@ if torch is not None:
     from . import data
 else:
     print('all2graph failed to import module nn and data, no torch installed', file=sys.stderr)
-
 
 from . import graph
 from .parsers import *
