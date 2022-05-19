@@ -14,6 +14,7 @@ try:
             'all2graph/parsers/*test*.py',
         ],
         compiler_directives={
+            'language_level': 3,
             'profile': False
         }
     )

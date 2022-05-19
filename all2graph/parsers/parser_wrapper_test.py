@@ -30,6 +30,7 @@ def test_parse():
     )
     graphs = parser_wrapper(df)
     print(graphs)
+    print(json.dumps(parser_wrapper.to_json()))
 
     parser_wrapper = ag.ParserWrapper(
         data_parser={'a': json_parser, 'b': json_parser},

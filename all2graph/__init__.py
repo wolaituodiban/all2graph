@@ -3,7 +3,7 @@ import os
 import platform
 import sys
 from .version import __version__
-print('all2graph version={}'.format(__version__), file=sys.stderr)
+print('all2graph: version={}'.format(__version__), file=sys.stderr)
 if 'linux' in platform.system().lower():
     old_home = os.environ['HOME']
     new_home = os.getcwd()
@@ -11,7 +11,7 @@ if 'linux' in platform.system().lower():
     try:
         import dgl
         config_path = os.path.join(new_home, '.dgl', 'config.json')
-        print('all2graph has moved dgl config.json to {}'.format(config_path), file=sys.stderr)
+        print('all2graph: move dgl config.json to {}'.format(config_path), file=sys.stderr)
     except ImportError:
         pass
     finally:
@@ -25,7 +25,7 @@ if torch is not None:
     from . import nn
     from . import data
 else:
-    print('all2graph failed to import module nn and data, no torch installed', file=sys.stderr)
+    print('all2graph: fail to import module nn and data, no torch installed', file=sys.stderr)
 
 from . import graph
 from .parsers import *

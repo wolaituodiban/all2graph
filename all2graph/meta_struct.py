@@ -1,6 +1,13 @@
+import sys
 import numpy as np
-
 from .version import __version__
+
+try:
+    import cython
+    if cython.compiled:
+        print('all2graph: cython compiled', file=sys.stderr)
+except ImportError:
+    pass
 
 
 class MetaStruct:
