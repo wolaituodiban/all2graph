@@ -9,7 +9,7 @@ except ImportError:
         from multiprocessing import Pool
 
 
-def mp_run(fn, data, kwds=None, processes=0, chunksize=1, disable=False, postfix=None, **kwargs):
+def mp_run(fn, data, kwds=None, processes=0, chunksize=1, disable=False, postfix=None, unordered=False, **kwargs):
     if kwds is not None:
         fn = partial(fn, **kwds)
     with tqdm(data, disable=disable, postfix=postfix, **kwargs) as bar:
@@ -19,6 +19,10 @@ def mp_run(fn, data, kwds=None, processes=0, chunksize=1, disable=False, postfix
                 yield item
         else:
             with Pool(processes=processes) as pool:
-                for item in pool.imap(fn, data, chunksize=chunksize):
+                if unordered:
+                    pool_imap = pool.imap_unordered
+                else:
+                    pool_imap = pool.imap
+                for item in pool_imap(fn, data, chunksize=chunksize):
                     bar.update()
                     yield item

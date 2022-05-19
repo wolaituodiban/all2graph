@@ -129,7 +129,7 @@ class ParserWrapper(MetaStruct):
         return df
 
     def save(self, src, dst, disable=False, chunksize=64, postfix='saving graph', processes=None, sel_cols=None,
-             drop_cols=None, **kwargs):
+             drop_cols=None, unordered=False, **kwargs):
         """
         将原始数据加工后，存储成分片的文件
         Args:
@@ -141,6 +141,7 @@ class ParserWrapper(MetaStruct):
             processes: 多进程数量
             sel_cols: 需要返回的元数据列
             drop_cols: 需要去掉的列，只在meta_col为None时生效
+            unordered: 使用Pool.imap_unordered
             **kwargs: pd.read_csv的额外参数
 
         Returns:
@@ -154,7 +155,9 @@ class ParserWrapper(MetaStruct):
             for i, df in enumerate(iter_csv(src, chunksize=chunksize, **kwargs))
         )
         kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols)
-        for df in mp_run(self._save, inputs, kwds=kwds, disable=disable, processes=processes, postfix=postfix):
+        for df in mp_run(
+                self._save, inputs, kwds=kwds, disable=disable, processes=processes, postfix=postfix,
+                unordered=unordered):
             dfs.append(df)
         path_df = pd.concat(dfs)
         path_df.to_csv(os.path.abspath(dst) + '_path.csv', index=False)
@@ -162,7 +165,7 @@ class ParserWrapper(MetaStruct):
 
     def generator(
             self, src, disable=False, chunksize=64, processes=None, postfix='parsing', sel_cols=None,
-            drop_cols=None, drop_data_cols=True, **kwargs):
+            drop_cols=None, drop_data_cols=True, unordered=False, **kwargs):
         """
         返回一个graph生成器
         Args:
@@ -174,6 +177,7 @@ class ParserWrapper(MetaStruct):
             sel_cols: 需要返回的元数据列
             drop_cols: 需要去掉的列，只在meta_col为None时生效
             drop_data_cols: 去掉data列
+            unordered: 使用Pool.imap_unordered
             **kwargs: pd.read_csv的额外参数
 
         Returns:
@@ -182,7 +186,9 @@ class ParserWrapper(MetaStruct):
         """
         data = iter_csv(src, chunksize=chunksize, **kwargs)
         kwds = dict(sel_cols=sel_cols, drop_cols=drop_cols, drop_data_cols=drop_data_cols)
-        for output in mp_run(self.generate, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix):
+        for output in mp_run(
+                self.generate, data, kwds=kwds, processes=processes, disable=disable, postfix=postfix,
+                unordered=unordered):
             yield output
 
     def extra_repr(self) -> str:

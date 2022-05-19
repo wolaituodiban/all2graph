@@ -40,5 +40,11 @@ setup(
         'pandas',
         'scipy',
     ],
-    ext_modules=ext_modules
+    url='https://github.com/wolaituodiban/all2graph.git',
+    ext_modules=ext_modules,
+    license='MIT',
+    classifiers=[
+        "Programming Language :: Python :: 3",
+        "Operating System :: OS Independent",
+    ],
 )
