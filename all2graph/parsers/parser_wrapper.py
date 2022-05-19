@@ -39,7 +39,7 @@ class ParserWrapper(MetaStruct):
         if not isinstance(data_parser, (list, dict)):
             data_parser = [data_parser]
         if isinstance(data_parser, list):
-            data_parser = {i: parser for i, parser in enumerate(data_parser)}
+            data_parser = {str(i): parser for i, parser in enumerate(data_parser)}
         self._data_parser: Dict[str, DataParser] = data_parser
 
     @property
@@ -53,7 +53,7 @@ class ParserWrapper(MetaStruct):
         if not isinstance(graph_parser, (list, dict)):
             graph_parser = [graph_parser]
         if isinstance(graph_parser, list):
-            graph_parser = {i: parser for i, parser in enumerate(graph_parser)}
+            graph_parser = {str(i): parser for i, parser in enumerate(graph_parser)}
         self._graph_parser: Dict[str, Tuple[GraphParser, List[str]]] = {}
         for k, parser in graph_parser.items():
             if not isinstance(parser, (tuple, list)):
