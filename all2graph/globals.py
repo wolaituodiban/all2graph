@@ -9,4 +9,4 @@ NUMBER = 'number'
 ITEM = 'item'
 SEQ2NODE = 'sequence'
 
-__version__ = '0.4.1'
+__version__ = '0.4.2'
