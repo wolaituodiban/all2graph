@@ -79,6 +79,7 @@ class Model(Module):
             early_stop=None,
             analyse_frac=None,
             pin_memory=False,
+            label_first=True,
             **kwargs
             ):
         """
@@ -96,6 +97,7 @@ class Model(Module):
             early_stop:
             analyse_frac: 分析阶段的数据采样率
             pin_memory:
+            label_first: metric 函数的label是否是第一个输入
             **kwargs:
 
         Returns:
@@ -106,7 +108,7 @@ class Model(Module):
         if not isinstance(loss, DictLoss):
             loss = DictLoss(loss)
         if metrics is not None:
-            metrics = {k: v if isinstance(v, Metric) else Metric(v, label_first=False) for k, v in metrics.items()}
+            metrics = {k: v if isinstance(v, Metric) else Metric(v, label_first=label_first) for k, v in metrics.items()}
         assert self.data_parser is not None, 'please set data_parser first'
         if self.graph_parser is None:
             print('graph_parser not set, start building')
