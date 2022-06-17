@@ -72,7 +72,8 @@ class Model(Module):
             loss,
             chunksize=None,
             valid_data: list = None,
-            processes=0,
+            num_workers=0,
+            processes=None,
             optimizer_cls=None,
             optimizer_kwds=None,
             metrics=None,
@@ -90,7 +91,8 @@ class Model(Module):
             epoches:
             batch_size:
             valid_data:
-            processes:
+            num_workers: dataloader的多进程数量
+            processes: 分析数据时多进程的数量, 如果None, num_workers
             optimizer_cls:
             optimizer_kwds:
             metrics:
@@ -105,6 +107,7 @@ class Model(Module):
         """
         # 检查parser是否完全
         chunksize = chunksize or batch_size
+        processes = processes or num_workers
         if not isinstance(loss, DictLoss):
             loss = DictLoss(loss)
         if metrics is not None:
@@ -126,12 +129,12 @@ class Model(Module):
 
         # dataloader
         train_data = CSVDataset(train_data, self.parser, **kwargs).dataloader(
-            batch_size=batch_size, num_workers=processes, shuffle=True, pin_memory=pin_memory)
+            batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
 
         if valid_data is not None:
             valid_data = [
                 CSVDataset(x, self.parser, **kwargs).dataloader(
-                    batch_size=batch_size, num_workers=processes, shuffle=True, pin_memory=pin_memory)
+                    batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
                 for x in valid_data
             ]
 
@@ -157,6 +160,7 @@ class Model(Module):
         )
         print(trainer)
         trainer.fit(epoches)
+        return trainer
 
     def predict(self, src, **kwargs):
         return predict_csv(self.parser, self.module, src, **kwargs)
