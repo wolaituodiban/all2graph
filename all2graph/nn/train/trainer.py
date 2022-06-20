@@ -41,7 +41,7 @@ class Trainer(torch.nn.Module):
             callbacks:
             valid_callbacks:
             check_point: 保存路径
-            max_batch: 当每个epoch训练的batch数量达到这个值时就会停止，可以用于防止batch太大时dataloader报mmap错误
+            max_batch: 当每个epoch训练的batch数量达到这个值时就会停止, 可以用于防止batch太大时dataloader报mmap错误
             max_history: 保留历史的epoch数量
             save_loader: 是否保存data loader
         """
@@ -241,14 +241,13 @@ class Trainer(torch.nn.Module):
         自动将预测结果保存在check point目录下
         Args:
             src: file path or list of file path
-            valid_id: 如果None，那么使用train dataloader的data parser，否则使用对应valid dataloader的data parser
-            data_parser: 如果提供了自定义的data parser，那么valid_id将不生效
+            valid_id: 如果None, 那么使用train dataloader的data parser, 否则使用对应valid dataloader的data parser
+            data_parser: 如果提供了自定义的data parser, 那么valid_id将不生效
             kwargs: 传递给Predictor.predict的参数
 
         Returns:
 
         """
-        # todo
         if isinstance(src, list):
             return pd.concat(self.predict(path, valid_id=valid_id, data_parser=data_parser, **kwargs) for path in src)
 
@@ -265,7 +264,7 @@ class Trainer(torch.nn.Module):
         """
 
         Args:
-            epochs: 保留多少个epoch的history，默认self.max_history
+            epochs: 保留多少个epoch的history, 默认self.max_history
 
         Returns:
 

@@ -1,5 +1,4 @@
 import pandas as pd
-import torch
 import numpy as np
 
 from ..framework import Framework
@@ -81,6 +80,7 @@ class Model(Module):
             analyse_frac=None,
             pin_memory=False,
             label_first=True,
+            max_history=None,
             **kwargs
             ):
         """
@@ -100,6 +100,7 @@ class Model(Module):
             analyse_frac: 分析阶段的数据采样率
             pin_memory:
             label_first: metric 函数的label是否是第一个输入
+            max_history: 保存epoch预期结果的轮数
             **kwargs:
 
         Returns:
@@ -156,7 +157,8 @@ class Model(Module):
             valid_data=valid_data,
             metrics=metrics,
             check_point=self.check_point,
-            early_stop=early_stop
+            early_stop=early_stop,
+            max_history=max_history
         )
         print(trainer)
         trainer.fit(epoches)
@@ -164,5 +166,3 @@ class Model(Module):
 
     def predict(self, src, **kwargs):
         return predict_csv(self.parser, self.module, src, **kwargs)
-
-
