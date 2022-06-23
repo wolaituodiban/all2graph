@@ -126,7 +126,7 @@ class Model(Module):
                 print(self.meta_info)
             self.graph_parser = GraphParser.from_data(self.meta_info, **self.graph_parser_configs)
             print(self.graph_parser)
-        assert isinstance(self.graph_parser, GraphParser), 'fitting not support multi-parsers'
+        assert not isinstance(self.graph_parser, dict), 'fitting not support multi-parsers'
 
         # dataloader
         train_data = CSVDataset(train_data, self.parser, **kwargs).dataloader(
