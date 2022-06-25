@@ -52,7 +52,7 @@ def test_trainer():
         metrics={'mse': mean_squared_error},
         valid_data=[dataloader, dataloader],
         early_stop=ag.nn.EarlyStop(1, False, tol=0.01, fn=jpm.JsonPathTree([('$.mse',)])),
-        check_point=os.path.join(os.path.dirname(__file__), __file__),
+        check_point=__file__,
         max_history=2,
         save_loader=True
     )

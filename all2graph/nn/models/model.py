@@ -53,6 +53,8 @@ class Model(Module):
         return self.module.device
 
     def forward(self, inputs: pd.DataFrame):
+        if self.device != self.module.device:
+            self.module.to(self.device)
         if isinstance(inputs, pd.DataFrame):
             self.eval()
             inputs = self.parser(inputs)

@@ -27,7 +27,7 @@ class EarlyStop(CallBack):
 
         self._best_metric = None
         self._best_epoch = None
-        self._best_state_dict = None
+        # self._best_state_dict = None
 
     @property
     def sign(self):
@@ -82,13 +82,13 @@ class EarlyStop(CallBack):
                  and (metric - self._best_metric) * self.sign > self.tol):
             self._best_metric = metric
             self._best_epoch = epoch
-            self._best_state_dict = deepcopy(trainer.module.state_dict())
+            # self._best_state_dict = deepcopy(trainer.module.state_dict())
         print('current_epoch={}, current_metric={:.3f}, best_epoch={}, best_metric={:.3f}'.format(
             epoch, metric, self._best_epoch, self._best_metric))
 
         signal = (epoch - self._best_epoch) >= self.rounds
-        if signal:
-            trainer.module.load_state_dict(self._best_state_dict)
-            trainer._current_epoch = self._best_epoch
+        # if signal:
+        #     trainer.module.load_state_dict(self._best_state_dict)
+        #     trainer._current_epoch = self._best_epoch
 
         return signal

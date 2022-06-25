@@ -168,6 +168,9 @@ class Trainer(torch.nn.Module):
         finally:
             if self.check_point:
                 self.save()
+            if self.early_stop is not None:
+                self._current_epoch = self.early_stop._best_epoch
+                self.module = torch.load(self.path).module
 
     def pred_valid(self):
         for i, valid_data in enumerate(self.valid_history):
