@@ -53,8 +53,6 @@ class Model(Module):
         return self.module.device
 
     def forward(self, inputs: pd.DataFrame):
-        if self.device != self.module.device:
-            self.module.to(self.device)
         if isinstance(inputs, pd.DataFrame):
             self.eval()
             inputs = self.parser(inputs)
@@ -83,6 +81,7 @@ class Model(Module):
             pin_memory=False,
             label_first=True,
             max_history=None,
+            device=None,
             **kwargs
             ):
         """
@@ -144,6 +143,8 @@ class Model(Module):
         # build module
         if self.module is None:
             self.build_module()
+        if device is not None:
+            self.to(device)
 
         # train
         if optimizer_cls is not None:
