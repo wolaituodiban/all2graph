@@ -32,10 +32,6 @@ def get_version():
     return ns['__version__']
 
 
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.md'), 'r', encoding='utf-8') as f:
-    long_description = f.read()
-
-
 setup(
     name='all2graph',
     version=get_version(),
@@ -48,7 +44,6 @@ setup(
         'scipy',
     ],
     url='https://github.com/wolaituodiban/all2graph.git',
-    # long_description=long_description,
     ext_modules=ext_modules,
     license='MIT',
     classifiers=[

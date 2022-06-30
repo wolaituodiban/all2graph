@@ -27,8 +27,13 @@ class Dataset(_Dataset):
 
 
 class ParserDataset(Dataset):
-    def __init__(self, parser: ParserWrapper):
+    def __init__(self, parser: ParserWrapper, func):
+        """
+        parser:
+        func: dataframe的预处理函数
+        """
         self.parser = parser
+        self.func = func
 
     def __len__(self):
         raise NotImplementedError
@@ -38,6 +43,8 @@ class ParserDataset(Dataset):
 
     def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
         df = pd.concat(batches)
+        if self.func is not None:
+            df = self.func(df)
         graph = self.parser(df)
         return graph, self.parser.labels(df)
 
@@ -47,7 +54,7 @@ class PartitionDataset(Dataset):
         """
 
         Args:
-            path: 长度为样本数量，需要有一列path
+            path: 长度为样本数量, 需要有一列path
                 例如  path
                     1.csv
                     1.csv
@@ -98,7 +105,7 @@ class PartitionDataset(Dataset):
 
     def batch_sampler(self, num_workers: int, shuffle=False, batch_size=1):
         indices = []
-        for i, row in self._path.iterrows():
+        for _, row in self._path.iterrows():
             indices.append(list(range(row['lb'], row['ub'])))
         return PartitionSampler(indices=indices, num_workers=num_workers, shuffle=shuffle, batch_size=batch_size)
 
@@ -109,9 +116,10 @@ class PartitionDataset(Dataset):
 
 
 class CSVDataset(PartitionDataset, ParserDataset):
-    def __init__(self, path: pd.DataFrame, parser: ParserWrapper, **kwargs):
+    def __init__(self, path: pd.DataFrame, parser: ParserWrapper, func=None, **kwargs):
         super().__init__(path)
         self.parser = parser
+        self.func = func
         self.kwargs = kwargs
 
     def read_file(self, path):
@@ -119,8 +127,8 @@ class CSVDataset(PartitionDataset, ParserDataset):
 
 
 class DFDataset(ParserDataset):
-    def __init__(self, df: pd.DataFrame, parser: ParserWrapper,):
-        super().__init__(parser=parser)
+    def __init__(self, df: pd.DataFrame, parser: ParserWrapper, func=None):
+        super().__init__(parser=parser, func=func)
         self._df = df
 
     def __len__(self):

@@ -10,12 +10,16 @@ if 'darwin' in platform.system().lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
+def foo(x):
+    return x
+
+
 def test_csv_dataset():
     if os.path.exists('temp'):
         shutil.rmtree('temp')
 
     path_df = ag.split_csv(df, 'temp', chunksize=100, drop_cols=['json'])
-    dataset = ag.data.CSVDataset(path_df, parser=parser_wrapper)
+    dataset = ag.data.CSVDataset(path_df, parser=parser_wrapper, func=foo)
     data_loader = dataset.dataloader(num_workers=2, shuffle=True, batch_size=16)
 
     num_samples = 0
@@ -26,7 +30,7 @@ def test_csv_dataset():
     print(x, y)
     assert num_samples == 1000
     shutil.rmtree('temp')
-    os.remove('temp_path.csv')
+    os.remove('temp_path.zip')
 
 
 def test_df_dataset():
@@ -56,7 +60,7 @@ def test_graph_dataset():
     print(x, y)
     assert num_samples == 1000
     shutil.rmtree('temp')
-    os.remove('temp_path.csv')
+    os.remove('temp_path.zip')
 
 
 if __name__ == '__main__':

@@ -64,10 +64,11 @@ class DataParser(MetaStruct):
 
         """
         configs = configs or {}
-        configs['info_cls'] = info_cls
+        kwds = dict(configs)
+        kwds['info_cls'] = info_cls
         data = iter_csv(data, chunksize=chunksize, **kwargs)
-        infos = mp_run(self._analyse, data, kwds=configs, processes=processes, disable=True)
-        return info_cls.batch(infos, disable=disable, postfix=postfix, **configs or {})
+        infos = mp_run(self._analyse, data, kwds=kwds, processes=processes, disable=True)
+        return info_cls.batch(infos, disable=disable, postfix=postfix, **configs)
 
     def __call__(self, data: pd.DataFrame, disable: bool = True) -> RawGraph:
         raise NotImplementedError

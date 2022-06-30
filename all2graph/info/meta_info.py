@@ -37,7 +37,7 @@ class MetaInfo(MetaStruct):
                                  doc_freqs=doc_freqs, num_counts=num_counts, num_ecdfs=num_ecdfs)
 
     @classmethod
-    def batch(cls, meta_infos, num_bins=None, disable=True, postfix=None, **kwargs):
+    def batch(cls, meta_infos, num_bins=None, disable=True, postfix=None):
         keys = None
         num_samples = None
         doc_freqs = None
@@ -92,4 +92,4 @@ class MetaInfo(MetaStruct):
         return {k: i for i, k in enumerate(dictionary)}
 
     def extra_repr(self) -> str:
-        return 'num_types={}, num_numbers={}'.format(self.num_types, self.num_numbers)
+        return 'num_types={}, num_numbers={}, num_tokens={}'.format(self.num_types, self.num_numbers, len(self.doc_freqs))

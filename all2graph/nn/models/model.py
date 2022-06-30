@@ -1,3 +1,4 @@
+"""模型封装"""
 import pandas as pd
 import numpy as np
 
@@ -12,6 +13,7 @@ from ...utils import Metric
 
 
 class Model(Module):
+    """模型封装基类, 定义fit方法"""
     def __init__(
             self,
             data_parser: DataParser = None,
@@ -87,7 +89,7 @@ class Model(Module):
         """
 
         Args:
-            train_data: dataframe, 长度与样本数量相同，包含一列path代表每个样本的文件地址
+            train_data: dataframe, 长度与样本数量相同, 包含一列path代表每个样本的文件地址
             loss:
             epoches:
             batch_size:
@@ -169,3 +171,7 @@ class Model(Module):
 
     def predict(self, src, **kwargs):
         return predict_csv(self.parser, self.module, src, **kwargs)
+
+    def extra_repr(self) -> str:
+        output = super().extra_repr() + '\nparser={}'.format(str(self.parser))
+        return output
