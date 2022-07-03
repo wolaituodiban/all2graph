@@ -36,8 +36,8 @@ class JsonParser(DataParser):
             time_format:
             targets:
             dense_dict: 字典内是否有边
-            dict_degree: 自然数，插入dict时跳连前置节点的度数
-            list_degree: 自然数，插入list时跳连前置节点的度数
+            dict_degree: 自然数, 插入dict时跳连前置节点的度数
+            list_degree: 自然数, 插入list时跳连前置节点的度数
             local_foreign_key_types: 样本内表示id的key
             global_foreign_key_types: 样本间表示id的key
             processor:
@@ -158,3 +158,10 @@ class JsonParser(DataParser):
             self.add_obj(graph, i, obj=obj)
         graph.add_targets_(self.targets)
         return graph
+
+    def extra_repr(self) -> str:
+        output = super().extra_repr()
+        output += ',\ndense_dict={},\ndict_degree={},\nlist_degree={},\nlocal_foreign_key_types={},\nglobal_foreign_key_types={},\nprocessor={}'.format(
+            self.dense_dict, self.dict_degree, self.list_degree, self.local_foreign_key_types, self.global_foreign_key_types, self.processor
+        )
+        return output

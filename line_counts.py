@@ -17,7 +17,7 @@ def line_counts(path, depth, test):
 
 
 if __name__ == '__main__':
-    dir_path = os.path.dirname(__file__)
+    dir_path = os.path.dirname(os.path.abspath(__file__))
     print('source files')
     line_counts(dir_path, 0, test=False)
     print('test files')

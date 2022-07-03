@@ -1,4 +1,3 @@
-from inspect import ismethod
 from typing import List, Type
 
 import numpy as np
@@ -74,10 +73,9 @@ class DataParser(MetaStruct):
         raise NotImplementedError
 
     def extra_repr(self) -> str:
-        s = ',\n'.join(
-            '{}={}'.format(k, v) for k, v in self.__dict__.items() if not ismethod(v) and not k.startswith('_')
-        )
-        return s
+        output = 'data_col="{}",\ntime_col="{}",\ntime_format="{}",\ntargets={}'.format(
+            self.data_col, self.time_col, self.time_format, self.targets)
+        return output
 
 
 class DataAugmenter(DataParser):

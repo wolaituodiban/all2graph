@@ -17,6 +17,9 @@ if 'darwin' in platform.system().lower():
 
 if __name__ == '__main__':
     dst_dir_path = 'train_data'
+    if os.path.exists(dst_dir_path):
+        shutil.rmtree(dst_dir_path)
+
     train_data_df = []
     for i in ag.tqdm(range(100)):
         x = []
@@ -56,7 +59,9 @@ if __name__ == '__main__':
         num_layers=6,
         num_heads=2,
         data_parser=data_parser,
-        check_point='check_point'
+        check_point='check_point',
+        num_featmaps=2,
+        to_bidirected=True
     )
     if torch.cuda.is_available():
         model.cuda()

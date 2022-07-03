@@ -257,7 +257,7 @@ class Trainer(torch.nn.Module):
         dst = os.path.join(self.check_point, str(self._current_epoch))
         if not os.path.exists(dst):
             os.mkdir(dst)
-        dst = os.path.join(dst, 'pred_{}.csv'.format(os.path.split(src)[-1]))
+        dst = os.path.join(dst, 'pred_{}.zip'.format(os.path.split(src)[-1]))
         output = predict_csv(self.get_parser(valid_id=valid_id), self.module, src, **kwargs)
         print("save prediction at '{}'".format(dst))
         output.to_csv(dst)
