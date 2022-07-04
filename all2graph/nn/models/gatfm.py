@@ -62,6 +62,6 @@ class GATFM(Model):
             num_emb=NumEmb(self.d_model, activation=self.activation, norm=self.norm),
             bottle_neck=bottle_neck, body=body, head=head,
             seq_degree=self.seq_degree,
-            to_bidirectied=self.to_bidirected,
+            to_bidirected=self.to_bidirected,
             num_featmaps=self.num_featmaps
         )

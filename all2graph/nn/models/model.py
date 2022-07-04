@@ -1,15 +1,49 @@
 """模型封装"""
 import pandas as pd
 import numpy as np
+import torch
+from torch.nn.functional import cross_entropy
 
 from ..framework import Framework
 from ..loss import DictLoss
 from ..train import Trainer
 from ..utils import Module, predict_csv
 from ...data import CSVDataset
+from ...graph import Graph
 from ...info import MetaInfo
 from ...parsers import DataParser, GraphParser, ParserWrapper
 from ...utils import Metric
+
+
+MASK_LOSS = '__mask_loss'
+MASK_ACCURACY = '__mask_accuracy'
+
+
+class MaskLossWrapper(Module):
+    """
+    融合原本的loss和mask任务的loss
+    Args:
+        loss: 原本的loss函数
+        weight: mask loss的权重
+    """
+    def __init__(self, loss, weight=1):
+        super().__init__()
+        self.loss = loss
+        self.weight = weight
+
+    def forward(self, inputs, target):
+        mask_loss = inputs[MASK_LOSS] * self.weight
+        if self.loss is not None:
+            return self.loss(inputs, target) + mask_loss
+        return mask_loss
+
+
+def get_mask_loss(_, inputs):
+    return inputs[MASK_LOSS].mean()
+
+
+def get_mask_accuracy(_, inputs):
+    return inputs[MASK_ACCURACY].mean()
 
 
 class Model(Module):
@@ -24,6 +58,8 @@ class Model(Module):
             parser: ParserWrapper = None,
             module: Framework = None,
             check_point=None,
+            mask_prob=0,
+            mask_loss_weight=1
     ):
         super().__init__()
         self.meta_info_configs = meta_info_configs or {}
@@ -33,6 +69,18 @@ class Model(Module):
         self.parser = parser
         self.module = module
         self.check_point = check_point
+        self.mask_prob = mask_prob
+        self.mask_loss_weight=mask_loss_weight
+
+    @property
+    def mask_prob(self):
+        if hasattr(self, '_mask_prob'):
+            return self._mask_prob
+        return 0
+
+    @mask_prob.setter
+    def mask_prob(self, x):
+        self._mask_prob = x
 
     @property
     def data_parser(self):
@@ -54,14 +102,32 @@ class Model(Module):
     def device(self):
         return self.module.device
 
-    def forward(self, inputs: pd.DataFrame):
+    def mask_forward(self, inputs: Graph):
+        inputs = self.module.transform_graph(inputs)
+        
+        mask = (inputs.strings != self.graph_parser.default_code) * (torch.rand(inputs.num_nodes, device=inputs.device) < self.mask_prob)
+        mask_label = inputs.strings[mask]
+        inputs.strings[mask] = self.graph_parser.mask_code
+        
+        details = self.module.forward_internal(inputs, details=True)
+        
+        mask_feats = details.ndata['feats'].view(inputs.num_nodes, -1)[mask]
+        mask_token_emb = self.module.str_emb(torch.arange(self.graph_parser.num_tokens, device=self.device))
+        mask_pred = self.module.head.forward(mask_feats, mask_token_emb)
+        return details.output, mask_pred, mask_label
+
+    def forward(self, inputs):
         if isinstance(inputs, pd.DataFrame):
-            self.eval()
             inputs = self.parser(inputs)
         if isinstance(inputs, dict):
             return {k: self.module(v) for k, v in inputs.items()}
-        else:
-            return self.module(inputs)
+        if self.mask_prob > 0:
+            output, mask_pred, mask_label = self.mask_forward(inputs)
+            output[MASK_LOSS] = cross_entropy(mask_pred, mask_label)
+            with torch.no_grad():
+                output[MASK_ACCURACY] = ((mask_pred.argmax(dim=1) == mask_label) * 1.0).mean()
+            return output
+        return self.module(inputs)
 
     def build_module(self):
         raise NotImplementedError
@@ -77,7 +143,7 @@ class Model(Module):
             processes=None,
             optimizer_cls=None,
             optimizer_kwds=None,
-            metrics=None,
+            metrics: dict = None,
             early_stop=None,
             analyse_frac=None,
             pin_memory=False,
@@ -116,6 +182,12 @@ class Model(Module):
             loss = DictLoss(loss)
         if metrics is not None:
             metrics = {k: v if isinstance(v, Metric) else Metric(v, label_first=label_first) for k, v in metrics.items()}
+        if self.mask_prob > 0:
+            loss = MaskLossWrapper(loss, weight=self.mask_loss_weight)
+            if metrics is None:
+                metrics = {}
+            metrics[MASK_LOSS] = get_mask_loss
+            metrics[MASK_ACCURACY] = get_mask_accuracy
         assert self.data_parser is not None, 'please set data_parser first'
         if self.graph_parser is None:
             print('graph_parser not set, start building')

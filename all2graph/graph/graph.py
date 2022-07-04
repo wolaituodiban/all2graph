@@ -139,7 +139,7 @@ class Graph(MetaStruct):
             return Graph(graph, seq_type=self.seq_type, seq_sample=self.seq_sample,
                          type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
 
-    def to_bidirectied(self, *args, **kwargs):
+    def to_bidirected(self, *args, **kwargs):
         graph = dgl.to_bidirected(self.graph, *args, **kwargs)
         return Graph(graph, seq_type=self.seq_type, seq_sample=self.seq_sample,
                      type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)

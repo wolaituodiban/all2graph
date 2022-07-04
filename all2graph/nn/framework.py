@@ -12,7 +12,7 @@ from ..graph import Graph
 
 class Framework(Module):
     def __init__(self, str_emb: torch.nn.Embedding, key_emb, num_emb: NumEmb, bottle_neck: BottleNeck,
-                 body: Body, head: Head = None, num_featmaps=0, add_self_loop=True, to_bidirectied=False, to_simple=False,
+                 body: Body, head: Head = None, num_featmaps=0, add_self_loop=True, to_bidirected=False, to_simple=False,
                  seq_types=None, seq_degree: Tuple[int, int] = None):
         super().__init__()
         self.str_emb = str_emb
@@ -23,24 +23,46 @@ class Framework(Module):
         self.head = head
         self.num_featmaps = num_featmaps
         self.add_self_loop = add_self_loop
-        self.to_bidirectied = to_bidirectied
+        self.to_bidirected = to_bidirected
         self.to_simple = to_simple
         self.seq_types = seq_types
         self.seq_degree = seq_degree
 
+    @property
+    def to_bidirected(self):
+        # todo 兼容老版本的错误, 未来在0.4.4版本移除
+        if hasattr(self, '_to_bidirected'):
+            return self._to_bidirected
+        elif hasattr(self, 'to_bidirectied'):
+            return self.to_bidirectied
+
+    @to_bidirected.setter
+    def to_bidirected(self, x):
+        self._to_bidirected = x
+
     def reset_parameters(self):
         super().reset_parameters()
 
-    def forward(self, graph: Graph, details=False) -> Union[Dict[str, torch.Tensor], torch.Tensor, Graph]:
-        if self.to_bidirectied:
-            graph = graph.to_bidirectied(copy_ndata=True)
+    def transform_graph(self, graph: Graph):
+        if self.to_bidirected:
+            graph = graph.to_bidirected(copy_ndata=True)
         graph = graph.to(self.device, non_blocking=True)
-        if self.seq_degree:
-            graph = graph.add_edges_by_seq(*self.seq_degree, add_self_loop=self.add_self_loop)
+        # todo 兼容性, 未来在0.4.4版本移除
+        if hasattr(graph, 'version') and graph.version >= '0.4.3':
+            if self.add_self_loop or self.seq_degree is not None:
+                seq_degree = self.seq_degree or (0, 0)
+                graph = graph.add_edges_by_seq(*seq_degree, add_self_loop=self.add_self_loop)
+        else:
+            if self.add_self_loop:
+                graph = graph.add_self_loop()
+            if self.seq_degree is not None:
+                graph = graph.add_edges_by_seq(*self.seq_degree)
         if self.to_simple:
             graph = graph.to_simple(copy_ndata=True)
+        return graph
 
-        # 计算key emb
+    def forward_internal(self, graph: Graph, details):
+         # 计算key emb
         key_emb_ori = self.str_emb.forward(graph.type_string)
         key_emb_ori = self.key_emb.forward(key_emb_ori)
         # 兼容pytorch的recurrent layers和transformer layers
@@ -77,9 +99,13 @@ class Framework(Module):
             graph.ndata['str_emb'] = str_emb
             graph.ndata['num_emb'] = num_emb
             graph.ndata['bottle_neck'] = bottle_neck
-            graph.ndata['feats'] = torch.stack(feats, dim=1)
+            graph.ndata['feats'] = feats
             graph.output = output
             graph.target_feats = target_feats
             return graph
         else:
             return output
+
+    def forward(self, graph: Graph, details=False) -> Union[Dict[str, torch.Tensor], torch.Tensor, Graph]:
+        graph = self.transform_graph(graph)
+        return self.forward_internal(graph, details=details)

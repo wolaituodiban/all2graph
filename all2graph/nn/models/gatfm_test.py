@@ -61,7 +61,9 @@ if __name__ == '__main__':
         data_parser=data_parser,
         check_point='check_point',
         num_featmaps=2,
-        to_bidirected=True
+        to_bidirected=True,
+        mask_prob=0.1,
+        mask_loss_weight=0.1
     )
     if torch.cuda.is_available():
         model.cuda()

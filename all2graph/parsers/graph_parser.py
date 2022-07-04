@@ -156,6 +156,9 @@ class GraphParser(MetaStruct):
         return Graph(graph=graph, seq_type=seq_type, seq_sample=seq_sample, type_string=type_string,
                      targets=raw_graph.targets, type_mapper=type_mapper)
 
+    def __call__(self, *args, **kwds):
+        return self.call(*args, **kwds)
+
     def extra_repr(self) -> str:
         return 'num_tokens={}, num_numbers={}, scale_method={}, scale_kwargs={}'.format(
             self.num_tokens, self.num_numbers, self.scale_method, self.scale_kwargs
