@@ -4,6 +4,9 @@ import json
 
 import numpy as np
 import pandas as pd
+import torch
+import dgl
+
 import all2graph as ag
 
 
@@ -29,5 +32,12 @@ if __name__ == '__main__':
 
     graph = parser_wrapper(df)
     print(graph)
-    graph.pin_memory()
-    graph.to('cuda', non_blocking=True)
+    graph1 = graph.add_self_loop()
+    print(graph1)
+    graph2 = graph.add_edges_by_seq(0, 0, add_self_loop=True)
+    print(graph2)
+    assert (graph1.edges()[0] == graph2.edges()[0]).all()
+    assert (graph2.edges()[1] == graph2.edges()[1]).all()
+    if torch.cuda.is_available():
+        graph.pin_memory()
+        graph.to('cuda', non_blocking=True)

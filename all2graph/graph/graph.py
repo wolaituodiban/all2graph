@@ -1,3 +1,4 @@
+from audioop import add
 import gzip
 import pickle
 from typing import Dict, List
@@ -143,8 +144,12 @@ class Graph(MetaStruct):
         return Graph(graph, seq_type=self.seq_type, seq_sample=self.seq_sample,
                      type_string=self.type_string, targets=self.targets, type_mapper=self.type_mapper)
 
-    def add_edges_by_seq(self, degree, r_degree):
+    def add_edges_by_seq(self, degree, r_degree, add_self_loop=False):
         all_u, all_v = [], []
+        if add_self_loop:
+            nodes = torch.arange(self.graph.num_nodes(), device=self.device)
+            all_u.append(nodes)
+            all_v.append(nodes)
         seq, node = torch.sort(self.seq2node()[0], stable=True)
         for d in range(1, max(degree, r_degree) + 1):
             u = torch.nonzero(seq[:-d] == seq[d:]).squeeze(-1)
