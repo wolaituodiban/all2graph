@@ -119,5 +119,6 @@ class Framework(Module):
             'to_simple={}'.format(self.to_simple),
             'seq_types={}'.format(self.seq_types),
             'seq_degree={}'.format(self.seq_degree),
+            'num_featmaps={}'.format(self.num_featmaps),
         ]
         return ',\n'.join(output)

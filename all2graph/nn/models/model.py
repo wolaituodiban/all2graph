@@ -59,7 +59,7 @@ class Model(Module):
             module: Framework = None,
             check_point=None,
             mask_prob=0,
-            mask_loss_weight=1
+            mask_loss_weight=1,
     ):
         super().__init__()
         self.meta_info_configs = meta_info_configs or {}
@@ -81,6 +81,16 @@ class Model(Module):
     @mask_prob.setter
     def mask_prob(self, x):
         self._mask_prob = x
+
+    @property
+    def mask_loss_weight(self):
+        if hasattr(self, '_mask_loss_weight'):
+            return self._mask_loss_weight
+        return 1
+
+    @mask_loss_weight.setter
+    def mask_loss_weight(self, x):
+        self._mask_loss_weight = x
 
     @property
     def data_parser(self):
