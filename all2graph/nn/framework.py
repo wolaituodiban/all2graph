@@ -109,3 +109,15 @@ class Framework(Module):
     def forward(self, graph: Graph, details=False) -> Union[Dict[str, torch.Tensor], torch.Tensor, Graph]:
         graph = self.transform_graph(graph)
         return self.forward_internal(graph, details=details)
+
+
+    def extra_repr(self) -> str:
+        output = [
+            super().extra_repr(),
+            'add_self_loop={}'.format(self.add_self_loop),
+            'to_bidirected={}'.format(self.to_bidirected),
+            'to_simple={}'.format(self.to_simple),
+            'seq_types={}'.format(self.seq_types),
+            'seq_degree={}'.format(self.seq_degree),
+        ]
+        return ',\n'.join(output)

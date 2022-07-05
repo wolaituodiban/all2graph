@@ -83,7 +83,9 @@ if __name__ == '__main__':
         model.eval()
         print(model(train_data_df.iloc[:10]))
 
-    pred_df = model.predict('train_data', chunksize=16)
+    print(model.predict('train_data', chunksize=16, embedding=True))
+    print(model.predict('train_data', chunksize=16))
+
     shutil.rmtree(dst_dir_path)
     shutil.rmtree(model.check_point+'.'+model.version) 
     os.remove(dst_dir_path+'_path.zip')

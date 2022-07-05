@@ -114,7 +114,7 @@ class Model(Module):
         mask_feats = details.ndata['feats'].view(inputs.num_nodes, -1)[mask]
         mask_token_emb = self.module.str_emb(torch.arange(self.graph_parser.num_tokens, device=self.device))
         mask_pred = self.module.head.forward(mask_feats, mask_token_emb)
-        return details.output, mask_pred, mask_label
+        return details, mask_pred, mask_label, mask
 
     def forward(self, inputs):
         if isinstance(inputs, pd.DataFrame):
@@ -122,7 +122,8 @@ class Model(Module):
         if isinstance(inputs, dict):
             return {k: self.module(v) for k, v in inputs.items()}
         if self.mask_prob > 0:
-            output, mask_pred, mask_label = self.mask_forward(inputs)
+            details, mask_pred, mask_label, _ = self.mask_forward(inputs)
+            output = details.output
             output[MASK_LOSS] = cross_entropy(mask_pred, mask_label)
             with torch.no_grad():
                 output[MASK_ACCURACY] = ((mask_pred.argmax(dim=1) == mask_label) * 1.0).mean()
@@ -241,9 +242,23 @@ class Model(Module):
         trainer.fit(epoches)
         return trainer
 
-    def predict(self, src, **kwargs):
-        return predict_csv(self.parser, self.module, src, **kwargs)
+    def predict(self, src, embedding=False, **kwargs):
+        if embedding:  
+            self.module._head = self.module.head
+            self.module.head = None
+            output = predict_csv(self.parser, self.module, src, **kwargs)
+            self.module.head = self.module._head
+            del self.module._head
+            return output
+        else:
+            return predict_csv(self.parser, self.module, src, **kwargs)
 
     def extra_repr(self) -> str:
-        output = super().extra_repr() + '\nparser={}'.format(str(self.parser))
-        return output
+        output = [
+            super().extra_repr(),
+            'parser={}'.format(str(self.parser)),
+            'mask_prob={}'.format(self.mask_prob),
+            'mask_loss_weight={}'.format(self.mask_loss_weight),
+            'check_point="{}"'.format(self.check_point)
+        ]
+        return ',\n'.join(output)
