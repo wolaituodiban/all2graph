@@ -121,4 +121,4 @@ class Framework(Module):
             'seq_degree={}'.format(self.seq_degree),
             'num_featmaps={}'.format(self.num_featmaps),
         ]
-        return ',\n'.join(output)
+        return '\n'.join(output)

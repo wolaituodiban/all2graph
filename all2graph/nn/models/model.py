@@ -147,7 +147,7 @@ class Model(Module):
             train_data,
             epoches,
             batch_size,
-            loss,
+            loss=None,
             chunksize=None,
             valid_data: list = None,
             num_workers=0,
@@ -159,7 +159,7 @@ class Model(Module):
             analyse_frac=None,
             pin_memory=False,
             label_first=True,
-            max_history=None,
+            max_history=0,
             device=None,
             **kwargs
             ):
@@ -189,7 +189,7 @@ class Model(Module):
         # 检查parser是否完全
         chunksize = chunksize or batch_size
         processes = processes or num_workers
-        if not isinstance(loss, DictLoss):
+        if loss is not None and not isinstance(loss, DictLoss):
             loss = DictLoss(loss)
         if metrics is not None:
             metrics = {k: v if isinstance(v, Metric) else Metric(v, label_first=label_first) for k, v in metrics.items()}
@@ -271,4 +271,4 @@ class Model(Module):
             'mask_loss_weight={}'.format(self.mask_loss_weight),
             'check_point="{}"'.format(self.check_point)
         ]
-        return ',\n'.join(output)
+        return '\n'.join(output)

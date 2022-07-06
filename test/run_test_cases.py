@@ -17,6 +17,7 @@ if __name__ == '__main__':
             with open(parser_wrapper_path, 'r') as file:
                 parser_wrapper = ag.ParserWrapper.from_json(json.load(file))
             model = ag.nn.Model(parser=parser_wrapper, module=framework)
+            print(model)
             pred_df = model.predict(test_data_df, processes=0, drop_data_cols=False)
             for target in model.data_parser.targets:
                 assert np.allclose(test_data_df[target+'_pred'].values, pred_df[target+'_pred'].values), target
