@@ -103,9 +103,9 @@ class ParserWrapper(MetaStruct):
         df = df.drop(columns=drop_cols)
         return graph, df
 
-    def labels(self, df):
+    def get_targets(self, df):
         labels = {}
-        for data_key, data_parser in self._data_parser.items():
+        for data_parser in self._data_parser.values():
             labels.update(data_parser.get_targets(df))
         return labels
 
@@ -122,7 +122,7 @@ class ParserWrapper(MetaStruct):
         """
 
         df, path = inputs
-        labels = self.labels(df)
+        labels = self.get_targets(df)
         graph, df = self.generate(df, sel_cols=sel_cols, drop_cols=drop_cols)
         graph.save(path, labels=labels)
         df['path'] = path

@@ -20,6 +20,7 @@ if __name__ == '__main__':
     if os.path.exists(dst_dir_path):
         shutil.rmtree(dst_dir_path)
 
+    targets = ['y', 'z']
     train_data_df = []
     for i in ag.tqdm(range(100)):
         x = []
@@ -30,17 +31,18 @@ if __name__ == '__main__':
             }
             x.append(item)
         x = json.dumps(x, indent=None, separators=(',', ':'))
-        y = np.mean(list(map(ord, x)))
-        train_data_df.append({'x': x, 'y': y})
+        train_data_df.append({'x': x, np.random.choice(targets): np.mean(list(map(ord, x)))})
+
     train_data_df = pd.DataFrame(train_data_df)
-    train_data_df['y'] = (train_data_df['y'] - train_data_df['y'].mean()) / train_data_df['y'].std()
+    for target in targets:
+        train_data_df[target] = (train_data_df[target] - train_data_df[target].mean()) / train_data_df[target].std()
     train_data_df['time'] = None
 
     train_path_df = ag.split_csv(
         src=train_data_df, # 原始数据，可以是dataframe，path和list of path
         dst=dst_dir_path, # 分片后的文件夹地址
         chunksize=10, # 每一片的大小，建议根据你的机器配置设置，设的太大会影响后续训练速度，增大内存开销，设的太小会产生大量小文件
-        drop_cols=['x']
+        drop_cols=targets
     )
 
     data_parser = ag.JsonParser(
@@ -51,7 +53,7 @@ if __name__ == '__main__':
         # 如果time_col的值不为空，按么必填，需要是时间戳的格式，如”%Y-%m-%d“
         time_format=None,
         # 标签名
-        targets=['y']
+        targets=targets
     )
 
     model = ag.nn.GATFM(
@@ -87,5 +89,5 @@ if __name__ == '__main__':
     print(model.predict('train_data', chunksize=16))
 
     shutil.rmtree(dst_dir_path)
-    shutil.rmtree(model.check_point+'.'+model.version) 
+    shutil.rmtree(model.check_point+'.'+model.version)
     os.remove(dst_dir_path+'_path.zip')

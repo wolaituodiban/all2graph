@@ -34,10 +34,13 @@ class DataParser(MetaStruct):
     def get_targets(self, df: pd.DataFrame):
         if self.targets:
             import torch
-            return {
-                k: torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32)
-                for k in self.targets if k in df
-            }
+            output = {}
+            for k in self.targets:
+                if k in df:
+                    output[k] = torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32) 
+                else:
+                    output[k] = torch.full((df.shape[0], ), fill_value=np.nan, dtype=torch.float32)
+            return output
         else:
             return {}
 

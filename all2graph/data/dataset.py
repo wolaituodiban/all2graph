@@ -46,7 +46,7 @@ class ParserDataset(Dataset):
         if self.func is not None:
             df = self.func(df)
         graph = self.parser(df)
-        return graph, self.parser.labels(df)
+        return graph, self.parser.get_targets(df)
 
 
 class PartitionDataset(Dataset):
