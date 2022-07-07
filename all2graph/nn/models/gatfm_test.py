@@ -51,7 +51,7 @@ if __name__ == '__main__':
         # 如果time_col的值不为空，按么必填，需要是时间戳的格式，如”%Y-%m-%d“
         time_format=None,
         # 标签名
-        # targets=['y']
+        targets=['y']
     )
 
     model = ag.nn.GATFM(
@@ -73,8 +73,8 @@ if __name__ == '__main__':
         epoches=2,  # 训练轮数
         batch_size=16,  # 梯度下降的样本数量
         chunksize=100,  # 分析阶段的分片样本数量
-        # loss=torch.nn.MSELoss(),  # 损失函数
-        # metrics={'mse': mean_squared_error},  # 评估函数
+        loss=ag.nn.DictLoss(torch.nn.MSELoss()),  # 损失函数
+        metrics={'mse': ag.Metric(mean_squared_error, label_first=True)},  # 评估函数
         valid_data=[train_path_df],
         processes=os.cpu_count()-1,   # 多进程数量
     )

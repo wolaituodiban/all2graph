@@ -160,8 +160,13 @@ class JsonParser(DataParser):
         return graph
 
     def extra_repr(self) -> str:
-        output = super().extra_repr()
-        output += ',\ndense_dict={},\ndict_degree={},\nlist_degree={},\nlocal_foreign_key_types={},\nglobal_foreign_key_types={},\nprocessor={}'.format(
-            self.dense_dict, self.dict_degree, self.list_degree, self.local_foreign_key_types, self.global_foreign_key_types, self.processor
-        )
-        return output
+        output = [
+            super().extra_repr(),
+            'dense_dict={}'.format(self.dense_dict),
+            'dict_degree={}'.format(self.dict_degree),
+            'list_degree={}'.format(self.list_degree),
+            'local_foreign_key_types={}'.format(self.local_foreign_key_types),
+            'global_foreign_key_types={}'.format(self.global_foreign_key_types),
+            'processor={}'.format(self.processor)
+        ]
+        return '\n'.join(output)

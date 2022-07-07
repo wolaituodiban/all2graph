@@ -44,15 +44,18 @@ class Framework(Module):
         super().reset_parameters()
 
     def transform_graph(self, graph: Graph):
-        if self.to_bidirected:
-            graph = graph.to_bidirected(copy_ndata=True)
-        graph = graph.to(self.device, non_blocking=True)
         # todo 兼容性, 未来在0.4.4版本移除
         if hasattr(graph, 'version') and graph.version >= '0.4.3':
+            if self.to_bidirected:
+                graph = graph.to_bidirected(copy_ndata=True)
+            graph = graph.to(self.device, non_blocking=True)
             if self.add_self_loop or self.seq_degree is not None:
                 seq_degree = self.seq_degree or (0, 0)
                 graph = graph.add_edges_by_seq(*seq_degree, add_self_loop=self.add_self_loop)
         else:
+            if self.to_bidirected:
+                graph = graph.to_bidirectied(copy_ndata=True)
+            graph = graph.to(self.device, non_blocking=True)
             if self.add_self_loop:
                 graph = graph.add_self_loop()
             if self.seq_degree is not None:

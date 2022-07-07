@@ -5,14 +5,12 @@ import torch
 from torch.nn.functional import cross_entropy
 
 from ..framework import Framework
-from ..loss import DictLoss
 from ..train import Trainer
 from ..utils import Module, predict_csv
 from ...data import CSVDataset
 from ...graph import Graph
 from ...info import MetaInfo
 from ...parsers import DataParser, GraphParser, ParserWrapper
-from ...utils import Metric
 
 
 MASK_LOSS = '__mask_loss'
@@ -189,10 +187,6 @@ class Model(Module):
         # 检查parser是否完全
         chunksize = chunksize or batch_size
         processes = processes or num_workers
-        if loss is not None and not isinstance(loss, DictLoss):
-            loss = DictLoss(loss)
-        if metrics is not None:
-            metrics = {k: v if isinstance(v, Metric) else Metric(v, label_first=label_first) for k, v in metrics.items()}
         if self.mask_prob > 0:
             loss = MaskLossWrapper(loss, weight=self.mask_loss_weight)
             if metrics is None:

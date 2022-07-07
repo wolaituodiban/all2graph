@@ -42,6 +42,7 @@ setup(
         'numpy',
         'pandas',
         'scipy',
+        'tqdm'
     ],
     url='https://github.com/wolaituodiban/all2graph.git',
     ext_modules=ext_modules,

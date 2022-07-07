@@ -73,9 +73,13 @@ class DataParser(MetaStruct):
         raise NotImplementedError
 
     def extra_repr(self) -> str:
-        output = 'data_col="{}",\ntime_col="{}",\ntime_format="{}",\ntargets={}'.format(
-            self.data_col, self.time_col, self.time_format, self.targets)
-        return output
+        output = [
+            'data_col="{}"'.format(self.data_col),
+            'time_col="{}"'.format(self.time_col),
+            'time_format={}'.format(None if self.time_format is None else '"{}"'.format(self.time_format)),
+            'targets={}'.format(self.targets)
+        ]
+        return '\n'.join(output)
 
 
 class DataAugmenter(DataParser):
