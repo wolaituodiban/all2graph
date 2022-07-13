@@ -160,6 +160,11 @@ class GraphParser(MetaStruct):
         return self.call(*args, **kwds)
 
     def extra_repr(self) -> str:
-        return 'num_tokens={}, num_numbers={}, scale_method={}, scale_kwargs={}'.format(
-            self.num_tokens, self.num_numbers, self.scale_method, self.scale_kwargs
-        )
+        output = [
+            f'num_tokens={self.num_tokens}',
+            f'num_numbers={self.num_numbers}',
+            f'scale_method="{self.scale_method}"',
+            f'scale_kwargs={self.scale_kwargs}',
+            f'tokenizer={self.tokenizer}'
+        ]
+        return '\n'.join(output)

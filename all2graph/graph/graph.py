@@ -1,4 +1,6 @@
-from audioop import add
+"""
+封装dgl.DGLGraph
+"""
 import gzip
 import pickle
 from typing import Dict, List
@@ -79,6 +81,46 @@ class Graph(MetaStruct):
     @property
     def numbers(self):
         return self.graph.ndata[NUMBER]
+
+    @property
+    def key_emb(self):
+        return self.graph.ndata['key_emb']
+
+    @key_emb.setter
+    def key_emb(self, key_emb):
+        self.graph.ndata['key_emb'] = key_emb
+
+    @property
+    def str_emb(self):
+        return self.graph.ndata['str_emb']
+
+    @str_emb.setter
+    def str_emb(self, str_emb):
+        self.graph.ndata['str_emb'] = str_emb
+
+    @property
+    def num_emb(self):
+        return self.graph.ndata['num_emb']
+
+    @num_emb.setter
+    def num_emb(self, num_emb):
+        self.graph.ndata['num_emb'] = num_emb
+        
+    @property
+    def bottle_neck(self):
+        return self.graph.ndata['bottle_neck']
+
+    @bottle_neck.setter
+    def bottle_neck(self, bottle_neck):
+        self.graph.ndata['bottle_neck'] = bottle_neck       
+        
+    @property
+    def feats(self):
+        return self.graph.ndata['feats']
+
+    @feats.setter
+    def feats(self, feats):
+        self.graph.ndata['feats'] = feats
 
     @property
     def types(self):

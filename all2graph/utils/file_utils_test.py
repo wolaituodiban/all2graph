@@ -8,23 +8,35 @@ import all2graph as ag
 
 def test_iter_files():
     def test_dir():
-        for path in ag.iter_files('./'):
+        for path in ag.iter_files(dir_path):
             print(path)
 
     def test_list():
-        for path in ag.iter_files(['../info', ['../json'], './file_utils.py']):
+        for path in ag.iter_files(
+            [
+                os.path.join(dir_path, 'nn'),
+                [os.path.join(dir_path, 'utils')],
+                os.path.join(dir_path, 'utils/file_utils.py')
+            ]
+        ):
             print(path)
 
     def test_error():
         try:
-            list(ag.iter_files('./haha'))
+            list(ag.iter_files(os.path.join(dir_path, 'haha')))
         except ValueError:
             traceback.print_exc()
             return
         raise ValueError('test error failed')
 
     def test_warning():
-        for path in ag.iter_files(['./haha', './'], error=False):
+        for path in ag.iter_files(
+            [
+                os.path.join(dir_path, 'haha'),
+                dir_path
+            ],
+            error=False
+        ):
             print(path)
 
     with ag.Timer('test_iter_files'):
@@ -37,7 +49,7 @@ def test_iter_files():
 def test_dataframe_chunk_iter():
     def test_error():
         try:
-            for _ in ag.iter_csv('./', chunksize=64):
+            for _ in ag.iter_csv(dir_path, chunksize=64):
                 pass
         except ValueError:
             traceback.print_exc()
@@ -45,7 +57,7 @@ def test_dataframe_chunk_iter():
         raise ValueError('test_error failed')
 
     def test_warning():
-        for _ in ag.iter_csv('file_utils.py', chunksize=64, error=False):
+        for _ in ag.iter_csv(os.path.join(dir_path, 'file_utils.py'), chunksize=64, error=False):
             pass
 
     def test_concat_chip():
@@ -108,10 +120,18 @@ def test_split_csv():
     assert meta_df.shape[0] == df.shape[0], meta_df.shape
     assert 'uid' in meta_df
     shutil.rmtree('temp')
+    os.remove('temp_path.zip')
+
+
+def test_split_csv_empty():
+    ag.split_csv([], 'temp', chunksize=1000, sel_cols=['uid'], concat_chip=False)
+    os.remove('temp_path.zip')
 
 
 if __name__ == '__main__':
+    dir_path = os.path.abspath(os.path.dirname(os.path.dirname(__file__)))
     test_iter_files()
     test_dataframe_chunk_iter()
     test_split_csv()
+    test_split_csv_empty()
     print('all success')

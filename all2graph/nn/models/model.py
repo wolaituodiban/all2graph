@@ -156,9 +156,9 @@ class Model(Module):
             early_stop=None,
             analyse_frac=None,
             pin_memory=False,
-            label_first=True,
             max_history=0,
             device=None,
+            data_process_func=None,
             **kwargs
             ):
         """
@@ -177,7 +177,6 @@ class Model(Module):
             early_stop:
             analyse_frac: 分析阶段的数据采样率
             pin_memory:
-            label_first: metric 函数的label是否是第一个输入
             max_history: 保存epoch预期结果的轮数
             **kwargs:
 
@@ -209,12 +208,12 @@ class Model(Module):
         assert not isinstance(self.graph_parser, dict), 'fitting not support multi-parsers'
 
         # dataloader
-        train_data = CSVDataset(train_data, self.parser, **kwargs).dataloader(
+        train_data = CSVDataset(train_data, self.parser, func=data_process_func, **kwargs).dataloader(
             batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
 
         if valid_data is not None:
             valid_data = [
-                CSVDataset(x, self.parser, **kwargs).dataloader(
+                CSVDataset(x, self.parser, func=data_process_func, **kwargs).dataloader(
                     batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
                 for x in valid_data
             ]

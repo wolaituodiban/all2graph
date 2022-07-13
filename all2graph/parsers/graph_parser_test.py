@@ -1,5 +1,3 @@
-import jieba
-
 import all2graph as ag
 import torch
 
@@ -21,12 +19,13 @@ def test_parse():
     print(raw_graph)
     meta_info = ag.MetaInfo.from_data(raw_graph)
     graph_parser = ag.GraphParser.from_data(meta_info)
+    print(graph_parser)
     graph = graph_parser.call(raw_graph)
     print(graph)
     assert graph.num_nodes == raw_graph.num_nodes
     assert torch.equal(graph.node2seq[graph.seq2node()].flatten(), torch.arange(graph.num_nodes))
     print(graph.add_self_loop())
-    print(graph.to_bidirectied(copy_ndata=True))
+    print(graph.to_bidirected(copy_ndata=True))
     print(graph.to_simple(copy_ndata=True))
     print(graph.seq_mask('a'))
     for t, nodes in raw_graph.seq_info().type2node.items():

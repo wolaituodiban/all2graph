@@ -98,13 +98,19 @@ class Framework(Module):
             target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
             output = self.head.forward(readout_feats, target_feats)
         if details:  # 将详细信息赋值给graph
-            graph.ndata['key_emb'] = key_emb
-            graph.ndata['str_emb'] = str_emb
-            graph.ndata['num_emb'] = num_emb
-            graph.ndata['bottle_neck'] = bottle_neck
-            graph.ndata['feats'] = feats
+            # graph.ndata['key_emb'] = key_emb
+            # graph.ndata['str_emb'] = str_emb
+            # graph.ndata['num_emb'] = num_emb
+            # graph.ndata['bottle_neck'] = bottle_neck
+            # graph.ndata['feats'] = feats
+            graph.key_emb = key_emb
+            graph.str_emb = str_emb
+            graph.num_emb = num_emb
+            graph.bottle_neck = bottle_neck
+            graph.feats = feats
             graph.output = output
             graph.target_feats = target_feats
+            graph.readout_feats = readout_feats
             return graph
         else:
             return output

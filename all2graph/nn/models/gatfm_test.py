@@ -15,6 +15,10 @@ if 'darwin' in platform.system().lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
+def foo(x):
+    return x
+
+
 if __name__ == '__main__':
     dst_dir_path = 'train_data'
     if os.path.exists(dst_dir_path):
@@ -79,6 +83,7 @@ if __name__ == '__main__':
         metrics={'mse': ag.Metric(mean_squared_error, label_first=True)},  # 评估函数
         valid_data=[train_path_df],
         processes=os.cpu_count()-1,   # 多进程数量
+        data_process_func=foo
     )
 
     with torch.no_grad():

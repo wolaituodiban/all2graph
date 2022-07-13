@@ -1,3 +1,6 @@
+"""
+文件操作常用函数
+"""
 import os
 import sys
 import traceback
@@ -43,15 +46,16 @@ def iter_files(inputs, error=True, warning=True):
     """
 
     :param inputs: 文件路径、文件夹路径或者Iterable的任意嵌套
-    :param error: 如果inputs包含的内容不是文件路径、文件夹路径或者Iterable，那么会报错
-    :param warning: 如果inputs包含的内容不是文件路径、文件夹路径或者Iterable，那么会报warning
+    :param error: 如果inputs包含的内容不是文件路径、文件夹路径或者Iterable, 那么会报错
+    :param warning: 如果inputs包含的内容不是文件路径、文件夹路径或者Iterable, 那么会报warning
     :return: 遍历所有文件路径的生成器
     """
     if isinstance(inputs, str):
         if os.path.exists(inputs):
             if os.path.isdir(inputs):
                 for path in iter_files(
-                        [os.path.join(inputs, path) for path in os.listdir(inputs)], error=error, warning=warning
+                        [os.path.join(inputs, path) for path in os.listdir(inputs)],
+                        error=error, warning=warning
                 ):
                     yield path
             else:
@@ -78,8 +82,8 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
         chunksize:
         error: 发生错误时会raise ValueError
         warning: 发生错误时会打印错误信息
-        concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
-        recurse: 是否递归inputs，寻找包含的所有路径；如果False，那么默认inputs是一个list of path
+        concat_chip: 拼接小于chunksize的chunk, 保证(除最后一个)所有chunk的大小都是chunksize
+        recurse: 是否递归inputs, 寻找包含的所有路径; 如果False, 那么默认inputs是一个list of path
         **kwargs: 传递给read_csv的参数
 
     Returns:
@@ -125,9 +129,9 @@ def split_csv(
         zip: 是否压缩
         error: 发生错误时会raise ValueError
         warning: 发生错误时会打印错误信息
-        concat_chip: 拼接小于chunksize的chunk，保证（除最后一个）所有chunk的大小都是chunksize
+        concat_chip: 拼接小于chunksize的chunk, 保证(除最后一个)所有chunk的大小都是chunksize
         sel_cols: 需要保存到元信息dataframe的列名
-        drop_cols: 需要去掉的列，只在meta_col为None时生效
+        drop_cols: 需要去掉的列, 只在meta_col为None时生效
         **kwargs:
 
     Returns:
@@ -155,6 +159,8 @@ def split_csv(
         else:
             path_df = pd.DataFrame({'path': [to_file] * chunk.shape[0]})
         meta_dfs.append(path_df)
+    if len(meta_dfs) == 0:
+        meta_dfs = [pd.DataFrame()]
     path_df = pd.concat(meta_dfs)
     path_df.to_csv(dst+'_path.{}'.format('zip' if zip else 'csv'), index=False)
     return path_df
@@ -162,3 +168,11 @@ def split_csv(
 
 def timestamp_convertor(x):
     return x.replace('T', ' ')[:23]
+
+
+def get_dir_size(dir):
+    size = 0
+    for root, dirs, files in os.walk(dir):
+        size += sum([os.path.getsize(os.path.join(root, name)) for name in files])
+    return size
+

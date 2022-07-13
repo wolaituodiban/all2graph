@@ -140,7 +140,7 @@ class ParserWrapper(MetaStruct):
             postfix: 进度条后缀
             processes: 多进程数量
             sel_cols: 需要返回的元数据列
-            drop_cols: 需要去掉的列，只在meta_col为None时生效
+            drop_cols: 需要去掉的列, 只在meta_col为None时生效
             unordered: 使用Pool.imap_unordered
             **kwargs: pd.read_csv的额外参数
 
@@ -164,7 +164,7 @@ class ParserWrapper(MetaStruct):
         return pd.concat(dfs)
 
     def generator(
-            self, src, disable=False, chunksize=64, processes=None, postfix='parsing', sel_cols=None,
+            self, src, disable=False, chunksize=64, processes=0, postfix='parsing', sel_cols=None,
             drop_cols=None, drop_data_cols=True, unordered=False, **kwargs):
         """
         返回一个graph生成器
@@ -175,7 +175,7 @@ class ParserWrapper(MetaStruct):
             processes: 多进程数量
             postfix: 进度条后缀
             sel_cols: 需要返回的元数据列
-            drop_cols: 需要去掉的列，只在meta_col为None时生效
+            drop_cols: 需要去掉的列, 只在meta_col为None时生效
             drop_data_cols: 去掉data列
             unordered: 使用Pool.imap_unordered
             **kwargs: pd.read_csv的额外参数
