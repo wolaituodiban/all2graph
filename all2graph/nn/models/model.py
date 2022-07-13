@@ -199,12 +199,10 @@ class Model(Module):
                 print('meta_info not set, start building')
                 paths = train_data['path'].unique()
                 if analyse_frac is not None:
-                    paths = np.random.choice(paths, int(analyse_frac*paths.shape[0]), replace=False)
+                    paths = np.random.choice(paths, int(np.ceil(analyse_frac*paths.shape[0])), replace=False)
                 self.meta_info = self.data_parser.analyse(
                     paths, processes=processes, configs=self.meta_info_configs, chunksize=chunksize, **kwargs)
-                print(self.meta_info)
             self.graph_parser = GraphParser.from_data(self.meta_info, **self.graph_parser_configs)
-            print(self.graph_parser)
         assert not isinstance(self.graph_parser, dict), 'fitting not support multi-parsers'
 
         # dataloader
@@ -246,7 +244,7 @@ class Model(Module):
         return trainer
 
     def predict(self, src, embedding=False, **kwargs):
-        if embedding:  
+        if embedding:
             self.module._head = self.module.head
             self.module.head = None
             output = predict_csv(self.parser, self.module, src, **kwargs)
@@ -259,9 +257,10 @@ class Model(Module):
     def extra_repr(self) -> str:
         output = [
             super().extra_repr(),
-            'parser={}'.format(str(self.parser)),
-            'mask_prob={}'.format(self.mask_prob),
-            'mask_loss_weight={}'.format(self.mask_loss_weight),
-            'check_point="{}"'.format(self.check_point)
+            f'meta_info={self.meta_info}',
+            f'parser={self.parser}',
+            f'mask_prob={self.mask_prob}',
+            f'mask_loss_weight={self.mask_loss_weight}',
+            f'check_point="{self.check_point}"'
         ]
         return '\n'.join(output)

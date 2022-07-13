@@ -83,7 +83,8 @@ if __name__ == '__main__':
         metrics={'mse': ag.Metric(mean_squared_error, label_first=True)},  # 评估函数
         valid_data=[train_path_df],
         processes=os.cpu_count()-1,   # 多进程数量
-        data_process_func=foo
+        data_process_func=foo,
+        analyse_frac=0.9
     )
 
     with torch.no_grad():
