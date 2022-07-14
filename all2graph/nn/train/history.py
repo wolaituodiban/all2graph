@@ -1,10 +1,8 @@
-import sys
 from typing import Dict
 
 import torch
 from torch.utils.data import Dataset as _Dataset, DataLoader
 from ..utils import detach, default_collate
-from ...data import ParserDataset
 from ...parsers import ParserWrapper
 
 
@@ -52,14 +50,11 @@ class History:
 
     @property
     def dataset(self) -> _Dataset:
-        if hasattr(self.loader, 'dataset'):
-            return self.loader.dataset
+        return getattr(self.loader, 'dataset', None)
 
     @property
     def parser(self) -> ParserWrapper:
-        dataset = self.dataset
-        if isinstance(dataset, ParserDataset):
-            return dataset.parser
+        return getattr(self.dataset, 'parser', None)
 
     @property
     def num_epochs(self):

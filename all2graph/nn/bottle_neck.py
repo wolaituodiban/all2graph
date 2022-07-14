@@ -1,6 +1,6 @@
 import torch
 
-from .utils import Module, _get_activation, _get_norm
+from .utils import Module, _get_activation, _get_norm, reset_parameters
 
 
 class BottleNeck(Module):
@@ -17,8 +17,7 @@ class BottleNeck(Module):
 
     def reset_parameters(self):
         for layer in self.layers:
-            if hasattr(layer, 'reset_parameters'):
-                layer.reset_parameters()
+            reset_parameters(layer)
 
     def forward(self, key_emb, str_emb, num_emb) -> torch.Tensor:
         mask = torch.isnan(num_emb)

@@ -30,42 +30,25 @@ class Framework(Module):
 
     @property
     def to_bidirected(self):
-        # todo 兼容老版本的错误, 未来在0.4.4版本移除
-        if hasattr(self, '_to_bidirected'):
-            return self._to_bidirected
-        elif hasattr(self, 'to_bidirectied'):
-            return self.to_bidirectied
+        return getattr(self, '_to_bidirected', getattr(self, 'to_bidirectied', None))
 
     @to_bidirected.setter
     def to_bidirected(self, x):
         self._to_bidirected = x
 
-    def reset_parameters(self):
-        super().reset_parameters()
-
     def transform_graph(self, graph: Graph):
-        # todo 兼容性, 未来在0.4.4版本移除
-        if hasattr(graph, 'version') and graph.version >= '0.4.3':
-            if self.to_bidirected:
-                graph = graph.to_bidirected(copy_ndata=True)
-            graph = graph.to(self.device, non_blocking=True)
-            if self.add_self_loop or self.seq_degree is not None:
-                seq_degree = self.seq_degree or (0, 0)
-                graph = graph.add_edges_by_seq(*seq_degree, add_self_loop=self.add_self_loop)
-        else:
-            if self.to_bidirected:
-                graph = graph.to_bidirectied(copy_ndata=True)
-            graph = graph.to(self.device, non_blocking=True)
-            if self.add_self_loop:
-                graph = graph.add_self_loop()
-            if self.seq_degree is not None:
-                graph = graph.add_edges_by_seq(*self.seq_degree)
+        if self.to_bidirected:
+            graph = graph.to_bidirected(copy_ndata=True)
+        graph = graph.to(self.device, non_blocking=True)
+        if self.add_self_loop or self.seq_degree is not None:
+            seq_degree = self.seq_degree or (0, 0)
+            graph = graph.add_edges_by_seq(*seq_degree, add_self_loop=self.add_self_loop)
         if self.to_simple:
             graph = graph.to_simple(copy_ndata=True)
         return graph
 
     def forward_internal(self, graph: Graph, details):
-         # 计算key emb
+        # 计算key emb
         key_emb_ori = self.str_emb.forward(graph.type_string)
         key_emb_ori = self.key_emb.forward(key_emb_ori)
         # 兼容pytorch的recurrent layers和transformer layers
@@ -98,16 +81,16 @@ class Framework(Module):
             target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
             output = self.head.forward(readout_feats, target_feats)
         if details:  # 将详细信息赋值给graph
-            # graph.ndata['key_emb'] = key_emb
-            # graph.ndata['str_emb'] = str_emb
-            # graph.ndata['num_emb'] = num_emb
-            # graph.ndata['bottle_neck'] = bottle_neck
-            # graph.ndata['feats'] = feats
-            graph.key_emb = key_emb
-            graph.str_emb = str_emb
-            graph.num_emb = num_emb
-            graph.bottle_neck = bottle_neck
-            graph.feats = feats
+            graph.ndata['key_emb'] = key_emb
+            graph.ndata['str_emb'] = str_emb
+            graph.ndata['num_emb'] = num_emb
+            graph.ndata['bottle_neck'] = bottle_neck
+            graph.ndata['feats'] = feats
+            # graph.key_emb = key_emb
+            # graph.str_emb = str_emb
+            # graph.num_emb = num_emb
+            # graph.bottle_neck = bottle_neck
+            # graph.feats = feats
             graph.output = output
             graph.target_feats = target_feats
             graph.readout_feats = readout_feats
@@ -118,16 +101,15 @@ class Framework(Module):
     def forward(self, graph: Graph, details=False) -> Union[Dict[str, torch.Tensor], torch.Tensor, Graph]:
         graph = self.transform_graph(graph)
         return self.forward_internal(graph, details=details)
-
-
+    
     def extra_repr(self) -> str:
         output = [
             super().extra_repr(),
-            'add_self_loop={}'.format(self.add_self_loop),
-            'to_bidirected={}'.format(self.to_bidirected),
-            'to_simple={}'.format(self.to_simple),
-            'seq_types={}'.format(self.seq_types),
-            'seq_degree={}'.format(self.seq_degree),
-            'num_featmaps={}'.format(self.num_featmaps),
+            f'add_self_loop={self.add_self_loop}',
+            f'to_bidirected={self.to_bidirected}',
+            f'to_simple={self.to_simple}',
+            f'seq_types={self.seq_types}',
+            f'seq_degree={self.seq_degree}',
+            f'num_featmaps={self.num_featmaps}',
         ]
         return '\n'.join(output)

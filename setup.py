@@ -27,7 +27,7 @@ except ImportError:
 
 def get_version():
     ns = {}
-    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/globals.py')) as f:
+    with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'all2graph/version.py')) as f:
         exec(f.read(), ns)
     return ns['__version__']
 

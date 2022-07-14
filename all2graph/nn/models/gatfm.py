@@ -48,10 +48,7 @@ class GATFM(Model):
 
     @property
     def head_middle_feats(self):
-        if hasattr(self, '_head_middle_feats'):
-            return self._head_middle_feats
-        self._head_middle_feats = (self.num_featmaps + 1) * self.d_model
-        return self._head_middle_feats
+        return getattr(self, '_head_middle_feats', (self.num_featmaps + 1) * self.d_model)
 
     @head_middle_feats.setter
     def head_middle_feats(self, x):

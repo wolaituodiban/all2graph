@@ -93,7 +93,7 @@ if __name__ == '__main__':
 
     print(model.predict('train_data', chunksize=16, embedding=True))
     print(model.predict('train_data', chunksize=16))
-
+    model.reset_parameters()
     shutil.rmtree(dst_dir_path)
     shutil.rmtree(model.check_point+'.'+model.version)
     os.remove(dst_dir_path+'_path.zip')

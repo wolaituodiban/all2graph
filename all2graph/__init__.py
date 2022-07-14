@@ -11,7 +11,7 @@ if 'linux' in platform.system().lower():
     try:
         import dgl
         config_path = os.path.join(new_home, '.dgl', 'config.json')
-        print('all2graph: move dgl config.json to {}'.format(config_path), file=sys.stderr)
+        print('all2graph: move ~/.dgl/config.json to {}'.format(config_path), file=sys.stderr)
     except ImportError:
         pass
     finally:

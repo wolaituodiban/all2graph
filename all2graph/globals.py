@@ -8,5 +8,3 @@ STRING = 'string'
 NUMBER = 'number'
 ITEM = 'item'
 SEQ2NODE = 'sequence'
-
-__version__ = '0.4.3'

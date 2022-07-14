@@ -1,4 +1,5 @@
 """模型封装"""
+from webbrowser import get
 import pandas as pd
 import numpy as np
 import torch
@@ -72,9 +73,7 @@ class Model(Module):
 
     @property
     def mask_prob(self):
-        if hasattr(self, '_mask_prob'):
-            return self._mask_prob
-        return 0
+        return getattr(self, '_mask_prob', 0)
 
     @mask_prob.setter
     def mask_prob(self, x):
@@ -82,9 +81,7 @@ class Model(Module):
 
     @property
     def mask_loss_weight(self):
-        if hasattr(self, '_mask_loss_weight'):
-            return self._mask_loss_weight
-        return 1
+        return getattr(self, '_mask_loss_weight', 1)
 
     @mask_loss_weight.setter
     def mask_loss_weight(self, x):
@@ -150,8 +147,7 @@ class Model(Module):
             valid_data: list = None,
             num_workers=0,
             processes=None,
-            optimizer_cls=None,
-            optimizer_kwds=None,
+            optimizer=None,
             metrics: dict = None,
             early_stop=None,
             analyse_frac=None,
@@ -171,8 +167,7 @@ class Model(Module):
             valid_data:
             num_workers: dataloader的多进程数量
             processes: 分析数据时多进程的数量, 如果None, num_workers
-            optimizer_cls:
-            optimizer_kwds:
+            optimizer:
             metrics:
             early_stop:
             analyse_frac: 分析阶段的数据采样率
@@ -223,11 +218,6 @@ class Model(Module):
             self.to(device)
 
         # train
-        if optimizer_cls is not None:
-            optimizer = optimizer_cls(self.module.parameters(), **(optimizer_kwds or {}))
-        else:
-            optimizer = None
-
         trainer = Trainer(
             module=self,
             optimizer=optimizer,

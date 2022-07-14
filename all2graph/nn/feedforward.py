@@ -1,6 +1,6 @@
 import torch
 
-from .utils import Module, _get_activation, _get_norm
+from .utils import Module, _get_activation, _get_norm, reset_parameters
 
 
 class FeedForward(Module):
@@ -29,18 +29,21 @@ class FeedForward(Module):
         return self.norm.weight
 
     def reset_parameters(self):
-        if hasattr(self, 'pre') and hasattr(self.pre, 'reset_parameters'):
-            self.pre.reset_parameters()
+        pre = getattr(self, 'pre', None)
+        if pre is not None:
+            reset_parameters(pre)
         for module in self.layers:
-            if hasattr(module, 'reset_parameters'):
-                module.reset_parameters()
-        if hasattr(self, 'norm'):
-            self.norm.reset_parameters()
+            reset_parameters(module)
+        norm = getattr(self, 'norm', None)
+        if norm is not None:
+            reset_parameters(norm)
 
     def forward(self, in_feats: torch.Tensor) -> torch.Tensor:
-        if hasattr(self, 'pre'):
-            in_feats = self.pre(in_feats)
+        pre = getattr(self, 'pre', None)
+        if pre is not None:
+            in_feats = pre(in_feats)
         out_feats = self.layers(in_feats)
-        if hasattr(self, 'norm'):
-            out_feats = self.norm(out_feats + in_feats)
+        norm = getattr(self, 'norm', None)
+        if norm is not None:
+            out_feats = norm(out_feats + in_feats)
         return out_feats

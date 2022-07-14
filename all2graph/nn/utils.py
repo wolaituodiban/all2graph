@@ -1,5 +1,4 @@
 import copy
-from abc import abstractmethod
 
 import numpy as np
 import pandas as pd
@@ -87,6 +86,11 @@ def num_parameters(module: torch.nn.Module):
         parameters[id(p)] = p
     return sum(map(lambda x: np.prod(x.shape), parameters.values()))
 
+def reset_parameters(module):
+    reset_parameters = getattr(module, 'reset_parameters', None)
+    if reset_parameters is not None:
+        reset_parameters()
+
 
 class Module(torch.nn.Module):
     def __init__(self):
@@ -104,8 +108,7 @@ class Module(torch.nn.Module):
 
     def reset_parameters(self):
         for module in self.children():
-            if hasattr(module, 'reset_parameters'):
-                module.reset_parameters()
+            reset_parameters(module)
 
     def predict_dataloader(self, loader: DataLoader, postfix=None):
         return predict_dataloader(self, loader, postfix)
@@ -173,14 +176,6 @@ class Residual(Module):
         self.module = module
         self.pre = pre
         self.post = post
-
-    def reset_parameters(self):
-        if hasattr(self.module, 'reset_parameters'):
-            self.module.reset_parameters()
-        if hasattr(self.pre, 'reset_parameters'):
-            self.pre.reset_parameters()
-        if hasattr(self.post, 'reset_parameters'):
-            self.post.reset_parameters()
 
     def forward(self, inputs):
         if self.pre is not None:

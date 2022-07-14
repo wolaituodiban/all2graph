@@ -4,7 +4,7 @@ from typing import List
 import dgl
 import torch
 
-from .utils import Module
+from .utils import Module, reset_parameters
 
 
 class Block(Module):
@@ -15,16 +15,6 @@ class Block(Module):
         self.seq_layer = seq_layer
         self.ff2 = ff2
         self.transpose_dim = transpose_dim
-
-    def reset_parameters(self):
-        if hasattr(self.conv_layer, 'reset_parameters'):
-            self.conv_layer.reset_parameters()
-        if hasattr(self.ff, 'reset_parameters'):
-            self.seq_layer.reset_parameters()
-        if hasattr(self.seq_layer, 'reset_parameters'):
-            self.seq_layer.reset_parameters()
-        if hasattr(self.ff2, 'reset_parameters'):
-            self.seq_layer.reset_parameters()
 
     def conv_forward(self, graph, in_feats):
         out_feats = in_feats
@@ -91,7 +81,7 @@ class Body(Module):
 
     def reset_parameters(self):
         for layer in self.layers:
-            layer.reset_parameters()
+            reset_parameters(layer)
 
     def forward(self, graph: dgl.DGLGraph, in_feats, node2seq, seq2node, seq_mask=None) -> List[torch.Tensor]:
         """
