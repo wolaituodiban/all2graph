@@ -1,5 +1,6 @@
 import os
 import platform
+from re import M
 import string
 import json
 import shutil
@@ -97,9 +98,12 @@ if __name__ == '__main__':
 
     with torch.no_grad():
         model.eval()
+        model.return_details = True
         print(model(train_data_df.iloc[:10]))
+        model.return_details = False
 
-    print(model.predict('train_data', chunksize=16, embedding=True))
+    print(model.predict('train_data', chunksize=16))
+    model.return_embedding = True
     print(model.predict('train_data', chunksize=16))
     model.reset_parameters()
     shutil.rmtree(dst_dir_path)

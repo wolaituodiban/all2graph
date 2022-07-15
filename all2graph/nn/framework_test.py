@@ -64,7 +64,8 @@ def test_framework():
     if torch.cuda.is_available():
         module.cuda()
     print(module)
-    pred = module(graph)
+    details = module(graph)
+    pred = details.output
     print(pred)
     pred['m3_ovd_30'].sum().backward()
     for k, v in module.named_parameters():

@@ -47,7 +47,7 @@ class Framework(Module):
             graph = graph.to_simple(copy_ndata=True)
         return graph
 
-    def forward_internal(self, graph: Graph, details):
+    def forward_internal(self, graph: Graph):
         # 计算key emb
         key_emb_ori = self.str_emb.forward(graph.type_string)
         key_emb_ori = self.key_emb.forward(key_emb_ori)
@@ -74,33 +74,26 @@ class Framework(Module):
 
         # 输出
         readout_feats = feats[graph.readout_mask]
-        if self.head is None:  # 没有head时，输出embedding
-            target_feats = None
-            output = readout_feats
-        else:
-            target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
-            output = self.head.forward(readout_feats, target_feats)
-        if details:  # 将详细信息赋值给graph
-            graph.ndata['key_emb'] = key_emb
-            graph.ndata['str_emb'] = str_emb
-            graph.ndata['num_emb'] = num_emb
-            graph.ndata['bottle_neck'] = bottle_neck
-            graph.ndata['feats'] = feats
-            # graph.key_emb = key_emb
-            # graph.str_emb = str_emb
-            # graph.num_emb = num_emb
-            # graph.bottle_neck = bottle_neck
-            # graph.feats = feats
-            graph.output = output
-            graph.target_feats = target_feats
-            graph.readout_feats = readout_feats
-            return graph
-        else:
-            return output
+        target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
+        output = self.head.forward(readout_feats, target_feats)
+        graph.ndata['key_emb'] = key_emb
+        graph.ndata['str_emb'] = str_emb
+        graph.ndata['num_emb'] = num_emb
+        graph.ndata['bottle_neck'] = bottle_neck
+        graph.ndata['feats'] = feats
+        # graph.key_emb = key_emb
+        # graph.str_emb = str_emb
+        # graph.num_emb = num_emb
+        # graph.bottle_neck = bottle_neck
+        # graph.feats = feats
+        graph.output = output
+        graph.target_feats = target_feats
+        graph.readout_feats = readout_feats
+        return graph
 
-    def forward(self, graph: Graph, details=False) -> Union[Dict[str, torch.Tensor], torch.Tensor, Graph]:
+    def forward(self, graph: Graph) -> Graph:
         graph = self.transform_graph(graph)
-        return self.forward_internal(graph, details=details)
+        return self.forward_internal(graph)
     
     def extra_repr(self) -> str:
         output = [

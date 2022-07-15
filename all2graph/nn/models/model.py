@@ -59,6 +59,8 @@ class Model(Module):
             check_point=None,
             mask_prob=0,
             mask_loss_weight=1,
+            return_details=False,
+            return_embedding=False
     ):
         super().__init__()
         self.meta_info_configs = meta_info_configs or {}
@@ -70,6 +72,24 @@ class Model(Module):
         self.check_point = check_point
         self.mask_prob = mask_prob
         self.mask_loss_weight=mask_loss_weight
+        self.return_details = return_details
+        self.return_embedding = return_embedding
+
+    @property
+    def return_embedding(self):
+        return getattr(self, '_return_embedding', False)
+
+    @return_embedding.setter
+    def return_embedding(self, x):
+        self._return_embedding = x
+
+    @property
+    def return_details(self):
+        return getattr(self, '_details', False)
+
+    @return_details.setter
+    def return_details(self, x):
+        self._details = x
 
     @property
     def mask_prob(self):
@@ -114,7 +134,7 @@ class Model(Module):
         mask_label = inputs.strings[mask]
         inputs.strings[mask] = self.graph_parser.mask_code
         
-        details = self.module.forward_internal(inputs, details=True)
+        details = self.module.forward_internal(inputs)
         
         mask_feats = details.ndata['feats'].view(inputs.num_nodes, -1)[mask]
         mask_token_emb = self.module.str_emb(torch.arange(self.graph_parser.num_tokens, device=self.device))
@@ -125,22 +145,42 @@ class Model(Module):
         if isinstance(inputs, pd.DataFrame):
             inputs = self.parser(inputs)
         if isinstance(inputs, dict):
-            return {k: self.module(v) for k, v in inputs.items()}
+            return {k: self.forward(v) for k, v in inputs.items()}
         if self.mask_prob > 0:
             details, mask_pred, mask_label, _ = self.mask_forward(inputs)
             output = details.output
             output[MASK_LOSS] = cross_entropy(mask_pred, mask_label)
             with torch.no_grad():
                 output[MASK_ACCURACY] = ((mask_pred.argmax(dim=1) == mask_label) * 1.0).mean()
-            return output
-        return self.module(inputs)
+        else:
+            details = self.module(inputs)
+        if self.return_details:
+            return details
+        elif self.return_embedding:
+            return details.readout_feats
+        else:
+            return details.output
 
-    def build_module(self):
+    def build_model(self, data, chunksize, processes=0, analyse_frac=None, **kwargs):
+        assert self.data_parser is not None, 'please set data_parser first'
+        if self.graph_parser is None:
+            print('graph_parser not set, start building')
+            if self.meta_info is None:
+                print('meta_info not set, start building')
+                paths = data['path'].unique()
+                if analyse_frac is not None:
+                    paths = np.random.choice(paths, int(np.ceil(analyse_frac*paths.shape[0])), replace=False)
+                self.meta_info = self.data_parser.analyse(
+                    paths, processes=processes, configs=self.meta_info_configs, chunksize=chunksize, **kwargs)
+            self.graph_parser = GraphParser.from_data(self.meta_info, **self.graph_parser_configs)
+        self.build_framework()
+
+    def build_framework(self):
         raise NotImplementedError
 
     def fit(self,
             train_data,
-            epoches,
+            epoches=0,
             batch_size=None,
             loss=None,
             chunksize=None,
@@ -178,7 +218,6 @@ class Model(Module):
         Returns:
 
         """
-        # 检查parser是否完全
         chunksize = chunksize or batch_size
         processes = processes or num_workers
         if self.mask_prob > 0:
@@ -187,18 +226,6 @@ class Model(Module):
                 metrics = {}
             metrics[MASK_LOSS] = get_mask_loss
             metrics[MASK_ACCURACY] = get_mask_accuracy
-        assert self.data_parser is not None, 'please set data_parser first'
-        if self.graph_parser is None:
-            print('graph_parser not set, start building')
-            if self.meta_info is None:
-                print('meta_info not set, start building')
-                paths = train_data['path'].unique()
-                if analyse_frac is not None:
-                    paths = np.random.choice(paths, int(np.ceil(analyse_frac*paths.shape[0])), replace=False)
-                self.meta_info = self.data_parser.analyse(
-                    paths, processes=processes, configs=self.meta_info_configs, chunksize=chunksize, **kwargs)
-            self.graph_parser = GraphParser.from_data(self.meta_info, **self.graph_parser_configs)
-        assert not isinstance(self.graph_parser, dict), 'fitting not support multi-parsers'
 
         # dataloader
         if not isinstance(train_data, DataLoader):
@@ -216,7 +243,16 @@ class Model(Module):
 
         # build module
         if self.module is None:
-            self.build_module()
+            self.build_model(
+                data=train_data,
+                chunksize=chunksize,
+                processes=processes,
+                analyse_frac=analyse_frac,
+                **kwargs
+            )
+        assert not isinstance(self.data_parser, dict), 'fitting not support multi data parsers'
+        assert not isinstance(self.graph_parser, dict), 'fitting not support multi graph parsers'
+
         if device is not None:
             self.to(device)
 
@@ -232,20 +268,16 @@ class Model(Module):
             early_stop=early_stop,
             max_history=max_history
         )
-        print(trainer)
-        trainer.fit(epoches)
+        if epoches > 0:
+            print(trainer)
+            trainer.fit(epoches)
         return trainer
 
-    def predict(self, src, embedding=False, **kwargs):
-        if embedding:
-            self.module._head = self.module.head
-            self.module.head = None
-            output = predict_csv(self.parser, self.module, src, **kwargs)
-            self.module.head = self.module._head
-            del self.module._head
-            return output
-        else:
-            return predict_csv(self.parser, self.module, src, **kwargs)
+    def predict(self, src, **kwargs):
+        mask_prob, self.mask_prob = self.mask_prob, 0
+        output = predict_csv(self.parser, self, src, **kwargs)
+        self.mask_prob = mask_prob
+        return output
 
     def extra_repr(self) -> str:
         output = [

@@ -54,7 +54,7 @@ class GATFM(Model):
     def head_middle_feats(self, x):
         self._head_middle_feats = x
 
-    def build_module(self):
+    def build_framework(self):
         bottle_neck = BottleNeck(
             self.d_model, dropout=self.dropout, activation=self.activation,
             norm_first=self.norm_first, norm=self.norm)
