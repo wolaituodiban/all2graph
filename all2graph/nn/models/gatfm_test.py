@@ -86,6 +86,14 @@ if __name__ == '__main__':
         data_process_func=foo,
         analyse_frac=0.9
     )
+    train_data = ag.data.CSVDataset(train_path_df, model.parser).dataloader(num_workers=0, batch_size=16)
+    trainer = model.fit(
+        train_data,
+        epoches=2,
+        loss=ag.nn.DictLoss(torch.nn.MSELoss()),  # 损失函数
+        metrics={'mse': ag.Metric(mean_squared_error, label_first=True)},  # 评估函数
+        valid_data=[train_data],
+    )
 
     with torch.no_grad():
         model.eval()

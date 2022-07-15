@@ -16,3 +16,4 @@ tutorials
 *.log
 *.all2graph.*
 *.so
+*.ipynb

@@ -1,9 +1,9 @@
 """模型封装"""
-from webbrowser import get
 import pandas as pd
 import numpy as np
 import torch
 from torch.nn.functional import cross_entropy
+from torch.utils.data import DataLoader
 
 from ..framework import Framework
 from ..train import Trainer
@@ -141,7 +141,7 @@ class Model(Module):
     def fit(self,
             train_data,
             epoches,
-            batch_size,
+            batch_size=None,
             loss=None,
             chunksize=None,
             valid_data: list = None,
@@ -201,15 +201,18 @@ class Model(Module):
         assert not isinstance(self.graph_parser, dict), 'fitting not support multi-parsers'
 
         # dataloader
-        train_data = CSVDataset(train_data, self.parser, func=data_process_func, **kwargs).dataloader(
-            batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
+        if not isinstance(train_data, DataLoader):
+            train_data = CSVDataset(train_data, self.parser, func=data_process_func, **kwargs).dataloader(
+                batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
 
         if valid_data is not None:
-            valid_data = [
-                CSVDataset(x, self.parser, func=data_process_func, **kwargs).dataloader(
-                    batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
-                for x in valid_data
-            ]
+            old_valid_data = valid_data
+            valid_data = []
+            for data in old_valid_data:
+                if not isinstance(data, DataLoader):
+                    data = CSVDataset(data, self.parser, func=data_process_func, **kwargs).dataloader(
+                        batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
+                valid_data.append(data)
 
         # build module
         if self.module is None:
