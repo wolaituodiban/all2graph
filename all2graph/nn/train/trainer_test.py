@@ -2,7 +2,6 @@ import sys
 import os
 
 import all2graph as ag
-import jsonpromax as jpm
 import torch
 from torch.utils.data import Dataset, DataLoader
 from sklearn.metrics import mean_squared_error
@@ -36,6 +35,10 @@ class TestModule(torch.nn.Module):
         return self.linear2(self.relu(self.linear1(inputs)))
 
 
+def get_mse(x):
+    return x['mse']
+
+
 def test_trainer():
     num_samples = 100000
     in_feats = 100
@@ -51,7 +54,7 @@ def test_trainer():
         module=module, loss=torch.nn.MSELoss(), data=dataloader,
         metrics={'mse': mean_squared_error},
         valid_data=[dataloader, dataloader],
-        early_stop=ag.nn.EarlyStop(1, False, tol=0.01, fn=jpm.JsonPathTree([('$.mse',)])),
+        early_stop=ag.nn.EarlyStop(1, False, tol=0.01, fn=get_mse),
         check_point=__file__,
         max_history=2,
         save_loader=True

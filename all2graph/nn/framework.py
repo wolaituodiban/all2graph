@@ -81,6 +81,7 @@ class Framework(Module):
         graph.ndata['num_emb'] = num_emb
         graph.ndata['bottle_neck'] = bottle_neck
         graph.ndata['feats'] = feats
+        # todo
         # graph.key_emb = key_emb
         # graph.str_emb = str_emb
         # graph.num_emb = num_emb

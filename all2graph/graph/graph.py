@@ -226,13 +226,10 @@ class Graph(MetaStruct):
         return self
 
     def pin_memory(self):
-        if dgl.__version__ >= '0.8':
-            self.graph.pin_memory_()
-        else:
-            for k, v in self.graph.ndata.items():
-                self.graph.ndata[k] = v.pin_memory()
-            for k, v in self.graph.edata.items():
-                self.graph.edata[k] = v.pin_memory()
+        for k, v in self.graph.ndata.items():
+            self.graph.ndata[k] = v.pin_memory()
+        for k, v in self.graph.edata.items():
+            self.graph.edata[k] = v.pin_memory()
         self.seq_type = self.seq_type.pin_memory()
         self.seq_sample = self.seq_sample.pin_memory()
         self.type_string = self.type_string.pin_memory()

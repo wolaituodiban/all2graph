@@ -1,3 +1,4 @@
+import encodings
 import os
 from setuptools import setup, find_packages
 
@@ -31,8 +32,8 @@ def get_version():
         exec(f.read(), ns)
     return ns['__version__']
 
-
-with open(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.md'), 'r') as f:
+readme_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'README.md')
+with open(readme_path, 'r', encoding='utf-8') as f:
     long_description = f.read()
 
 

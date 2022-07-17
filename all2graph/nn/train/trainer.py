@@ -22,10 +22,19 @@ class Trainer(torch.nn.Module):
     """
 
     def __init__(
-            self, module: torch.nn.Module,  data: DataLoader, loss: torch.nn.Module = None,
-            optimizer: torch.optim.Optimizer = None, scheduler=None, valid_data: List[DataLoader] = None,
-            early_stop: EarlyStop = None, metrics: Dict[str, Callable] = None, callbacks: List[Callable] = None,
-            valid_callbacks: List[Callable] = None, check_point=None, max_batch=None, max_history=1,
+            self, module: torch.nn.Module,
+            data: DataLoader,
+            loss: torch.nn.Module = None,
+            optimizer: torch.optim.Optimizer = None,
+            scheduler=None,
+            valid_data: List[DataLoader] = None,
+            early_stop: EarlyStop = None,
+            metrics: Dict[str, Callable] = None,
+            callbacks: List[Callable] = None,
+            valid_callbacks: List[Callable] = None,
+            check_point=None,
+            max_batch=None,
+            max_history=1,
             save_loader=True):
         """
 
@@ -54,6 +63,8 @@ class Trainer(torch.nn.Module):
         self.valid_history = [History(d) for d in valid_data or []]
         self.early_stop = early_stop
         self.metrics = [Metric(metric, name) for name, metric in (metrics or {}).items()]
+        if self.early_stop is not None:
+            assert len(self.metrics) > 0, 'early_stop need metrics'
         self.callbacks = callbacks or []
         self.valid_callbacks = valid_callbacks or []
         self.max_batch = max_batch
@@ -74,36 +85,42 @@ class Trainer(torch.nn.Module):
         self.error_msg = None
 
     def extra_repr(self) -> str:
-        output = ['optimizer={}'.format(self.optimizer)]
+        output = [f'optimizer={self.optimizer}']
         if self.scheduler:
-            output.append('scheduler={}'.format(self.scheduler))
+            output.append(f'scheduler={self.scheduler}')
         if self.early_stop:
-            output.append('early_stop={}'.format(self.early_stop))
+            output.append(f'early_stop={self.early_stop}')
         if self.metrics:
-            output.append('metrics=[\n{}\n]'.format(',\n'.join('  '+str(metric) for metric in self.metrics)))
+            metrics = ',\n'.join('  '+str(metric) for metric in self.metrics)
+            output.append(f"metrics=[\n{metrics}\n]")
         if self.check_point:
-            output.append('check_point="{}"'.format(self.check_point))
+            output.append(f'check_point="{self.check_point}"')
         if self._current_epoch:
-            output.append('current_epoch={}'.format(self._current_epoch))
+            output.append(f'current_epoch={self._current_epoch}')
         return ',\n'.join(output)
 
     @property
     def current_epoch(self):
+        """当前epoch"""
         return copy.deepcopy(self._current_epoch)
 
     @property
     def path(self):
-        return os.path.join(self.check_point, '{}.all2graph.trainer'.format(self._current_epoch))
+        """模型存储路径"""
+        return os.path.join(self.check_point, f'{self._current_epoch}.all2graph.trainer')
 
     @property
     def best_metric(self):
+        """最优metric"""
         return self.early_stop.best_metric
 
     @property
     def sign(self):
+        """正表示metric越高越好, 负表示metric越低越好"""
         return self.early_stop.sign
 
     def save(self):
+        """保存trainer"""
         self.module.eval()
         print('save at "{}"'.format(self.path))
         if self.save_loader:
@@ -121,6 +138,7 @@ class Trainer(torch.nn.Module):
                 self.set_data_loader(loader, valid_id=i)
 
     def fit_one_epoch(self, digits=3):
+        """训练一个epoch"""
         self._current_epoch += 1
         with tqdm(
                 list(range(len(self.train_history.loader))),
@@ -149,11 +167,18 @@ class Trainer(torch.nn.Module):
             bar.set_postfix({'loss': json_round(self.train_history.mean_loss(self._current_epoch), digits)})
 
     def fit(self, epochs=10, digits=3, indent=None):
+        """
+        Args:
+            epochs: 训练几轮
+            digits: 展示metrics时, 保留几位小数点
+            indent: 展示metrics时, 换行缩进几个字符
+        """
         try:
             for _ in range(epochs):
                 self.fit_one_epoch(digits=digits)
                 self.pred_valid()
-                self.evaluate(digits=digits, indent=indent)
+                if len(self.metrics) > 0:
+                    self.evaluate(digits=digits, indent=indent)
                 if self.max_history is not None:
                     self.delete_history()
                 if self.check_point:
@@ -169,8 +194,8 @@ class Trainer(torch.nn.Module):
             if self.check_point:
                 self.save()
             if self.early_stop is not None and self.early_stop._best_epoch is not None and self.check_point is not None:
-                self._current_epoch = self.early_stop._best_epoch
                 self.module = torch.load(self.path).module
+                self._current_epoch = self.early_stop._best_epoch
 
     def pred_valid(self):
         for i, valid_data in enumerate(self.valid_history):

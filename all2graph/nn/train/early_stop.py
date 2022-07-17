@@ -54,7 +54,7 @@ class EarlyStop(CallBack):
         output = output.format(
             self.__class__.__name__, self.rounds, self.higher, self.tol, self.loader_id,
              self._best_epoch)
-        output += '  fn=(\n{}\n  )\n)'.format(fn_expr)
+        output += f'  fn=(\n{fn_expr}\n  )\n)'
         return output
 
     def __call__(self, trainer, _, epoch: int) -> bool:
@@ -68,10 +68,7 @@ class EarlyStop(CallBack):
         Returns:
             True是停止信号
         """
-        if self.loader_id is None:
-            history: History = trainer.train_history
-        else:
-            history: History = trainer.valid_history[self.loader_id]
+        history: History = trainer.get_history(self.loader_id)
 
         metric = deepcopy(history.last.metric)
         if self.fn is not None:
@@ -83,10 +80,15 @@ class EarlyStop(CallBack):
             self._best_metric = metric
             self._best_epoch = epoch
             # self._best_state_dict = deepcopy(trainer.module.state_dict())
-        print('current_epoch={}, current_metric={:.3f}, best_epoch={}, best_metric={:.3f}'.format(
-            epoch, metric, self._best_epoch, self._best_metric))
+        msg = [
+            f'current_epoch={epoch}',
+            f'current_metric={metric:.3f}',
+            f'best_epoch={self._best_epoch}',
+            f'best_metric={self._best_metric:.3f}'
+        ]
+        print(', '.join(msg))
 
-        signal = (epoch - self._best_epoch) >= self.rounds
+        signal = self.rounds is not None and (epoch - self._best_epoch) >= self.rounds
         # if signal:
         #     trainer.module.load_state_dict(self._best_state_dict)
         #     trainer._current_epoch = self._best_epoch

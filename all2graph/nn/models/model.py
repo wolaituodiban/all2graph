@@ -125,6 +125,8 @@ class Model(Module):
 
     @property
     def device(self):
+        if self.module is None:
+            return super().device
         return self.module.device
 
     def mask_forward(self, inputs: Graph):
@@ -174,6 +176,7 @@ class Model(Module):
                     paths, processes=processes, configs=self.meta_info_configs, chunksize=chunksize, **kwargs)
             self.graph_parser = GraphParser.from_data(self.meta_info, **self.graph_parser_configs)
         self.build_framework()
+        self.to(super().device)
 
     def build_framework(self):
         raise NotImplementedError
@@ -193,7 +196,6 @@ class Model(Module):
             analyse_frac=None,
             pin_memory=False,
             max_history=0,
-            device=None,
             data_process_func=None,
             **kwargs
             ):
@@ -220,12 +222,18 @@ class Model(Module):
         """
         chunksize = chunksize or batch_size
         processes = processes or num_workers
-        if self.mask_prob > 0:
-            loss = MaskLossWrapper(loss, weight=self.mask_loss_weight)
-            if metrics is None:
-                metrics = {}
-            metrics[MASK_LOSS] = get_mask_loss
-            metrics[MASK_ACCURACY] = get_mask_accuracy
+
+        # build module
+        if self.module is None:
+            self.build_model(
+                data=train_data,
+                chunksize=chunksize,
+                processes=processes,
+                analyse_frac=analyse_frac,
+                **kwargs
+            )
+        assert not isinstance(self.data_parser, dict), 'fitting not support multi data parsers'
+        assert not isinstance(self.graph_parser, dict), 'fitting not support multi graph parsers'
 
         # dataloader
         if not isinstance(train_data, DataLoader):
@@ -241,22 +249,16 @@ class Model(Module):
                         batch_size=batch_size, num_workers=num_workers, shuffle=True, pin_memory=pin_memory)
                 valid_data.append(data)
 
-        # build module
-        if self.module is None:
-            self.build_model(
-                data=train_data,
-                chunksize=chunksize,
-                processes=processes,
-                analyse_frac=analyse_frac,
-                **kwargs
-            )
-        assert not isinstance(self.data_parser, dict), 'fitting not support multi data parsers'
-        assert not isinstance(self.graph_parser, dict), 'fitting not support multi graph parsers'
-
-        if device is not None:
-            self.to(device)
-
         # train
+        if self.mask_prob > 0:
+            loss = MaskLossWrapper(loss, weight=self.mask_loss_weight)
+            if metrics is None:
+                metrics = {}
+            else:
+                metrics = dict(metrics)
+            metrics[MASK_LOSS] = get_mask_loss
+            metrics[MASK_ACCURACY] = get_mask_accuracy
+
         trainer = Trainer(
             module=self,
             optimizer=optimizer,
@@ -274,9 +276,15 @@ class Model(Module):
         return trainer
 
     def predict(self, src, **kwargs):
-        mask_prob, self.mask_prob = self.mask_prob, 0
+        """
+        Args:
+            src: pandas.DataDrame或者csv文件路径
+        Returns:
+            pandas.DataFrame
+        """
+        self.ori_mask_prob, self.mask_prob = self.mask_prob, 0
         output = predict_csv(self.parser, self, src, **kwargs)
-        self.mask_prob = mask_prob
+        self.mask_prob = self.ori_mask_prob
         return output
 
     def extra_repr(self) -> str:

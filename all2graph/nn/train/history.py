@@ -38,9 +38,17 @@ class Epoch:
         loss = default_collate(buffer.loss)
         return cls(pred=pred, label=label, loss=loss)
 
+    @property
+    def mean_loss(self):
+        if self.loss is not None:
+            return self.loss.mean()
+
     def delete_pred_and_label(self):
         self.pred = None
         self.label = None
+
+    def delete_loss(self):
+        self.loss = self.mean_loss
 
 
 class History:
@@ -79,6 +87,7 @@ class History:
         for i, epoch in self.epochs.items():
             if i + epochs <= max_epoch:
                 epoch.delete_pred_and_label()
+                epoch.delete_loss()
 
     @property
     def last(self) -> Epoch:
@@ -118,4 +127,4 @@ class History:
 
     @torch.no_grad()
     def mean_loss(self, epoch):
-        return torch.mean(self.epochs[epoch].loss)
+        return self.epochs[epoch].mean_loss
