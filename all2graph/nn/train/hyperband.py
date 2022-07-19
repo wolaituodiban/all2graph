@@ -44,7 +44,7 @@ class HyperBand:
         for k in range(rounds):
             n = int(np.ceil(len(self) / self.eta ** k))
             r = int(self.R / self.eta ** (rounds - k - 1))
-            for i in self.top_id(n):
-                print('hyperband round={}/{}, n={}/{}, r={}/{}, i={}'.format(k + 1, rounds, n, len(self), r, self.R, i))
+            for j, i in enumerate(self.top_id(n)):
+                print(f'hyperband round={k+1}/{rounds}, n={j}/{n}/{len(self)}, r={r}/{self.R}, i={i}')
                 trainer = self[i]
                 trainer.fit(r - trainer.current_epoch)

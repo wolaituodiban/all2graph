@@ -74,7 +74,7 @@ def iter_files(inputs, error=True, warning=True):
         print('path {} dose not exists'.format(inputs), file=sys.stderr)
 
 
-def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recurse=True, **kwargs):
+def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recurse=True, func=None, **kwargs):
     """
 
     Args:
@@ -84,6 +84,7 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
         warning: 发生错误时会打印错误信息
         concat_chip: 拼接小于chunksize的chunk, 保证(除最后一个)所有chunk的大小都是chunksize
         recurse: 是否递归inputs, 寻找包含的所有路径; 如果False, 那么默认inputs是一个list of path
+        func: dataframe的预处理函数
         **kwargs: 传递给read_csv的参数
 
     Returns:
@@ -99,6 +100,8 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
         for path in inputs:
             try:
                 for chunk in pd.read_csv(path, chunksize=chunksize, **kwargs):
+                    if func is not None:
+                        chunk = func(chunk)
                     if concat_chip:
                         buffer = pd.concat([buffer, chunk])
                     else:
@@ -118,7 +121,7 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
 
 def split_csv(
         src, dst, chunksize, disable=False, zip=True, error=True, warning=True, concat_chip=True, sel_cols=None,
-        drop_cols=None, **kwargs):
+        drop_cols=None, func=None, **kwargs):
     """
 
     Args:
@@ -132,6 +135,7 @@ def split_csv(
         concat_chip: 拼接小于chunksize的chunk, 保证(除最后一个)所有chunk的大小都是chunksize
         sel_cols: 需要保存到元信息dataframe的列名
         drop_cols: 需要去掉的列, 只在meta_col为None时生效
+        func: dataframe的预处理函数
         **kwargs:
 
     Returns:
@@ -143,7 +147,9 @@ def split_csv(
         raise ValueError('{} already exists'.format(dst))
     os.mkdir(dst)
     chunk_iter = enumerate(
-        iter_csv(src, chunksize=chunksize, error=error, warning=warning, concat_chip=concat_chip, **kwargs))
+        iter_csv(
+            src, chunksize=chunksize, error=error, warning=warning,
+            concat_chip=concat_chip, func=func, **kwargs))
     for i, chunk in tqdm(chunk_iter, disable=disable, postfix='spliting csv'):
         if zip:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'zip'))

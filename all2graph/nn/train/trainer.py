@@ -191,7 +191,7 @@ class Trainer(torch.nn.Module):
             self.error_msg = traceback.format_exc()
             print(self.error_msg)
         finally:
-            if self.check_point:
+            if self.check_point and not os.path.exists(self.path):
                 self.save()
             if self.early_stop is not None and self.early_stop._best_epoch is not None and self.check_point is not None:
                 self.module = torch.load(self.path).module
