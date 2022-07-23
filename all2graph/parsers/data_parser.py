@@ -91,11 +91,11 @@ class DataParser(MetaStruct):
 
     def extra_repr(self) -> str:
         output = [
-            f'data_col="{self.data_col}"',
-            f'time_col="{self.time_col}"',
-            f'time_format="{self.time_format}"',
-            f'targets={self.targets}',
-            f'string_based={self.string_based}'
+            'data_col="{}"'.format(self.data_col),
+            'time_col="{}"'.format(self.time_col),
+            'time_format={}'.format(None if self.time_format is None else '"{}"'.format(self.time_format)),
+            'targets={}'.format(self.targets),
+            'string_based={}'.format(self.string_based)
         ]
         return '\n'.join(output)
 
