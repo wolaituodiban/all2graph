@@ -16,7 +16,7 @@ class MetaStruct:
         """
         用户请使用from_json和from_data创建对象
         除非你知道你自己在干什么，否则不要调用构造函数
-        :param.py initialized: 如果为False，那么将无法给对象增加属性
+        :param.py initialized: 如果为False, 那么将无法给对象增加属性
         :param.py kwargs:
         """
         if type is not None:

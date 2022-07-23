@@ -138,11 +138,15 @@ class GraphParser(MetaStruct):
 
         # parsing ndata
         seq_info = raw_graph.seq_info()
-        strings, numbers = raw_graph.formatted_values()
-        for t, nodes in seq_info.type2node.items():
-            numbers[nodes] = self.scale(t, numbers[nodes])
+        if len(self.num_ecdfs) > 0:
+            strings, numbers = raw_graph.formatted_values()
+            for t, nodes in seq_info.type2node.items():
+                numbers[nodes] = self.scale(t, numbers[nodes])
+            graph.ndata[NUMBER] = torch.as_tensor(numbers, dtype=torch.float32)
+        else:
+            # 如果没有任何数值分布信息, 那么使用string based的方式编码数字
+            strings = raw_graph.formatted_values(True)
         graph.ndata[STRING] = torch.as_tensor(self.encode(strings), dtype=torch.long)
-        graph.ndata[NUMBER] = torch.as_tensor(numbers, dtype=torch.float32)
         graph.ndata[SEQ2NODE] = torch.tensor(seq_info.seq2node, dtype=torch.long)
 
         # parsing type
@@ -156,8 +160,8 @@ class GraphParser(MetaStruct):
         return Graph(graph=graph, seq_type=seq_type, seq_sample=seq_sample, type_string=type_string,
                      targets=raw_graph.targets, type_mapper=type_mapper)
 
-    def __call__(self, *args, **kwds):
-        return self.call(*args, **kwds)
+    def __call__(self, *args, **kwargs):
+        return self.call(*args, **kwargs)
 
     def extra_repr(self) -> str:
         output = [

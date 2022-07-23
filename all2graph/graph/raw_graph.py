@@ -80,10 +80,24 @@ class RawGraph(MetaStruct):
             foreign_key_types.extend(t)
         return set(foreign_key_types)
 
-    def formatted_values(self):
+    def formatted_values(self, string_based=False):
+        """
+        返回格式化的value
+        Args:
+            string_based: 是否使用string来表示数字
+
+        Return:
+            如果string based, 那么返回一个list
+            否则, 返回一个string list和一个numpy array
+        """
         id_keys = self.foreign_key_types
-        numbers = []
+        if string_based:
+            return [
+                value if key not in id_keys and isinstance(value, (str, float, int, bool)) else None
+                for key, value in zip(self.types, self.values)
+            ]
         strings = []
+        numbers = []
         for key, value in zip(self.types, self.values):
             if key in id_keys:
                 numbers.append(np.nan)
@@ -130,11 +144,28 @@ class RawGraph(MetaStruct):
             seq_mapper=seq_mapper, seq_type=seq_type, seq_sample=seq_sample, type2node=type2node,
             seq2node=seq2node)
 
-    @property
-    def node_df(self) -> pd.DataFrame:
+    def node_df(self, string_based=False) -> pd.DataFrame:
+        """
+        Args:
+            string_based: 如果等于True, 那么将以string based的方式编码数字
+            https://arxiv.org/abs/2103.13136
+        Returns:
+            if string_base == True:
+                return dataframe with three columns: sample, type, string
+            else:
+                return dataframe with four columns: sample, type, string, number
+        """
+        if string_based:
+            return pd.DataFrame(
+                {
+                    SAMPLE: self.samples,
+                    TYPE: self.types,
+                    STRING: self.formatted_values(string_based=string_based)
+                }
+            )
         strings, numbers = self.formatted_values()
-        df = pd.DataFrame({SAMPLE: self.samples, TYPE: self.types, STRING: strings, NUMBER: numbers})
-        return df
+        return pd.DataFrame(
+            {SAMPLE: self.samples, TYPE: self.types, STRING: strings, NUMBER: numbers})
 
     def add_edge_(self, u, v):
         """
@@ -206,13 +237,13 @@ class RawGraph(MetaStruct):
         return fk_dict[value]
 
     def add_local_foreign_key_(self, sample, key: str, value: str) -> int:
-        """如果id已存在，则不会对图产生任何修改"""
+        """如果id已存在, 则不会对图产生任何修改"""
         if sample not in self._local_foreign_keys:
             self._local_foreign_keys[sample] = {}
         return self.__add_foreign_key_(sample, key, value, self._local_foreign_keys[sample])
 
     def add_global_foreign_key_(self, sample, key: str, value: str) -> int:
-        """如果id已存在，则不会对图产生任何修改"""
+        """如果id已存在, 则不会对图产生任何修改"""
         return self.__add_foreign_key_(sample, key, value, self._global_foreign_keys)
 
     def to_networkx(self, exclude_types: Set[str] = None, include_types: Set[str] = None, disable=True):
@@ -242,7 +273,7 @@ class RawGraph(MetaStruct):
             include_types: 仅包含key对应的点
             exclude_types: 去掉key对应的点
             disable: 禁用进度条
-            pos: 图中每个点的坐标，默认会使用network.planar_layout计算最优坐标
+            pos: 图中每个点的坐标, 默认会使用network.planar_layout计算最优坐标
             scale: 详情间network.planar_layout
             center: 详情间network.planar_layout
             dim: 详情间network.planar_layout

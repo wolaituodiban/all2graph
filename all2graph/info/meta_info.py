@@ -8,6 +8,16 @@ from ..utils import tqdm
 
 
 class MetaInfo(MetaStruct):
+    """
+    图的元信息
+    包括图的大小, 点的类型, 数字的占比以及分布, 字符串的doc freq
+    Args: 
+        types: 所有点的类型(key)
+        num_samples: sample的数量
+        doc_freqs: token级别的doc_freqs
+        num_counts: 不同类型下, 数值出现的次数
+        num_ecdfs: 不同类型的数值的累计分布函数
+    """
     def __init__(self, types: Set[str], num_samples: int, doc_freqs: Dict[str, float],
                  num_counts: Dict[str, int], num_ecdfs: Dict[str, ECDF], **kwargs):
         super().__init__(**kwargs)
@@ -19,8 +29,13 @@ class MetaInfo(MetaStruct):
         self.num_ecdfs = num_ecdfs
 
     @classmethod
-    def from_data(cls, raw_graph: RawGraph, num_bins=None):
-        node_df = raw_graph.node_df
+    def from_data(cls, raw_graph: RawGraph, num_bins=None, string_based=False):
+        """
+        获得图的元信息
+        num_bins: 数值型的累计分布函数的分箱数量
+        string_based: 是否使用string based的方法来表示数值https://arxiv.org/abs/2103.13136
+        """
+        node_df = raw_graph.node_df(string_based=string_based)
         node_df['copy'] = node_df[STRING]
 
         str_counts_df = node_df.pivot_table(values='copy', index=SAMPLE, columns=STRING, aggfunc='count', fill_value=0)
@@ -28,11 +43,12 @@ class MetaInfo(MetaStruct):
 
         num_counts = {}
         num_ecdfs = {}
-        for key, sub_node_df in node_df[[TYPE, NUMBER]].groupby(TYPE):
-            num_count = sub_node_df[NUMBER].count()
-            if num_count > 0:
-                num_counts[key] = num_count
-                num_ecdfs[key] = ECDF.from_data(sub_node_df[NUMBER], num_bins=num_bins)
+        if NUMBER in node_df:
+            for key, sub_node_df in node_df[[TYPE, NUMBER]].groupby(TYPE):
+                num_count = sub_node_df[NUMBER].count()
+                if num_count > 0:
+                    num_counts[key] = num_count
+                    num_ecdfs[key] = ECDF.from_data(sub_node_df[NUMBER], num_bins=num_bins)
         return super().from_data(types=raw_graph.unique_types, num_samples=raw_graph.num_samples,
                                  doc_freqs=doc_freqs, num_counts=num_counts, num_ecdfs=num_ecdfs)
 

@@ -16,12 +16,22 @@ class DataParser(MetaStruct):
             time_col,
             time_format,
             targets,
+            string_based=False,
             **kwargs):
         super().__init__(**kwargs)
         self.data_col = data_col
         self.time_col = time_col
         self.time_format = time_format
         self.targets = set(targets or set())
+        self.string_based = string_based
+
+    @property
+    def string_based(self):
+        return getattr(self, '_string_based', False)
+
+    @string_based.setter
+    def string_based(self, string_based):
+        self._string_based = string_based
 
     def to_json(self) -> dict:
         outputs = super().to_json()
@@ -29,6 +39,7 @@ class DataParser(MetaStruct):
         outputs['time_col'] = self.time_col
         outputs['time_format'] = self.time_format
         outputs['targets'] = list(self.targets)
+        outputs['string_based'] = self.string_based
         return outputs
 
     def get_targets(self, df: pd.DataFrame):
@@ -46,7 +57,7 @@ class DataParser(MetaStruct):
 
     def _analyse(self, df, info_cls: Type[MetaInfo], **configs):
         graph = self(df, disable=True)
-        info = info_cls.from_data(graph, **configs)
+        info = info_cls.from_data(graph, string_based=self.string_based, **configs)
         return info
 
     def analyse(self, data, chunksize=64, disable=False, postfix='analysing', processes=None, info_cls=MetaInfo,

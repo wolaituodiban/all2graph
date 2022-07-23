@@ -20,36 +20,7 @@ def foo(x):
     return x
 
 
-if __name__ == '__main__':
-    dst_dir_path = 'train_data'
-    if os.path.exists(dst_dir_path):
-        shutil.rmtree(dst_dir_path)
-
-    targets = ['y', 'z']
-    train_data_df = []
-    for i in ag.tqdm(range(100)):
-        x = []
-        for _ in range(np.random.randint(1, 200)):
-            item = {
-                k: list(np.random.choice(list(string.ascii_letters)+list(string.digits), size=np.random.randint(1, 10)))
-                for k in np.random.choice(list(string.ascii_letters), size=np.random.randint(1, 10))
-            }
-            x.append(item)
-        x = json.dumps(x, indent=None, separators=(',', ':'))
-        train_data_df.append({'x': x, np.random.choice(targets): np.mean(list(map(ord, x)))})
-
-    train_data_df = pd.DataFrame(train_data_df)
-    for target in targets:
-        train_data_df[target] = (train_data_df[target] - train_data_df[target].mean()) / train_data_df[target].std()
-    train_data_df['time'] = None
-
-    train_path_df = ag.split_csv(
-        src=train_data_df, # 原始数据，可以是dataframe，path和list of path
-        dst=dst_dir_path, # 分片后的文件夹地址
-        chunksize=10, # 每一片的大小，建议根据你的机器配置设置，设的太大会影响后续训练速度，增大内存开销，设的太小会产生大量小文件
-        drop_cols=targets
-    )
-
+def test_gatfm(string_based):
     data_parser = ag.JsonParser(
         # 必填，包含json数据的列
         json_col='x',
@@ -58,7 +29,8 @@ if __name__ == '__main__':
         # 如果time_col的值不为空，按么必填，需要是时间戳的格式，如”%Y-%m-%d“
         time_format=None,
         # 标签名
-        targets=targets
+        targets=targets,
+        string_based=string_based
     )
 
     model = ag.nn.GATFM(
@@ -106,6 +78,40 @@ if __name__ == '__main__':
     model.return_embedding = True
     print(model.predict('train_data', chunksize=16))
     model.reset_parameters()
-    shutil.rmtree(dst_dir_path)
     shutil.rmtree(model.check_point+'.'+model.version)
+
+if __name__ == '__main__':
+    dst_dir_path = 'train_data'
+    if os.path.exists(dst_dir_path):
+        shutil.rmtree(dst_dir_path)
+
+    targets = ['y', 'z']
+    train_data_df = []
+    for i in ag.tqdm(range(100)):
+        x = []
+        for _ in range(np.random.randint(1, 200)):
+            item = {
+                k: list(np.random.choice(list(string.ascii_letters)+list(string.digits), size=np.random.randint(1, 10)))
+                for k in np.random.choice(list(string.ascii_letters), size=np.random.randint(1, 10))
+            }
+            x.append(item)
+        x = json.dumps(x, indent=None, separators=(',', ':'))
+        train_data_df.append({'x': x, np.random.choice(targets): np.mean(list(map(ord, x)))})
+
+    train_data_df = pd.DataFrame(train_data_df)
+    for target in targets:
+        train_data_df[target] = (train_data_df[target] - train_data_df[target].mean()) / train_data_df[target].std()
+    train_data_df['time'] = None
+
+    train_path_df = ag.split_csv(
+        src=train_data_df, # 原始数据，可以是dataframe，path和list of path
+        dst=dst_dir_path, # 分片后的文件夹地址
+        chunksize=10, # 每一片的大小，建议根据你的机器配置设置，设的太大会影响后续训练速度，增大内存开销，设的太小会产生大量小文件
+        drop_cols=targets
+    )
+
+    test_gatfm(False)
+    test_gatfm(True)
+    
+    shutil.rmtree(dst_dir_path)
     os.remove(dst_dir_path+'_path.zip')

@@ -17,7 +17,7 @@ def get_metric(x):
     return x['auc']['m3_ovd_30']
 
 
-def test_framework():
+def test_framework(string_based):
     data = [
                {
                    'ord_no': 'CH202007281033864',
@@ -35,7 +35,7 @@ def test_framework():
         json_col='json', time_col='crt_dte', time_format='%Y-%m-%d', targets=['m3_ovd_30'],
         local_foreign_key_types={'ord_no'})
     raw_graph = json_parser(df)
-    meta_info = ag.MetaInfo.from_data(raw_graph)
+    meta_info = ag.MetaInfo.from_data(raw_graph, string_based=string_based)
     graph_parser = ag.GraphParser.from_data(meta_info)
     graph = graph_parser(raw_graph).add_self_loop()
 
@@ -43,7 +43,7 @@ def test_framework():
     module = ag.nn.Framework(
         key_emb=torch.nn.RNN(d_model, d_model, 1, batch_first=True),
         str_emb=torch.nn.Embedding(graph_parser.num_tokens, d_model),
-        num_emb=ag.nn.NumEmb(d_model),
+        num_emb=None if string_based else ag.nn.NumEmb(d_model),
         bottle_neck=ag.nn.BottleNeck(d_model),
         body=ag.nn.Body(
             6,
@@ -73,4 +73,5 @@ def test_framework():
 
 
 if __name__ == '__main__':
-    test_framework()
+    test_framework(True)
+    test_framework(False)

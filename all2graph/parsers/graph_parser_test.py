@@ -2,7 +2,7 @@ import all2graph as ag
 import torch
 
 
-def test_parse():
+def test_parse(string_based):
     raw_graph = ag.graph.RawGraph()
     raw_graph.add_kv_(0, ag.READOUT, 'b')
     raw_graph.add_kv_(0, 'a', [1, 2, 3, 4])
@@ -17,7 +17,7 @@ def test_parse():
     raw_graph.add_kv_(2, 'dar Tank', 'haha')
     raw_graph._assert()
     print(raw_graph)
-    meta_info = ag.MetaInfo.from_data(raw_graph)
+    meta_info = ag.MetaInfo.from_data(raw_graph, string_based=string_based)
     graph_parser = ag.GraphParser.from_data(meta_info)
     print(graph_parser)
     graph = graph_parser.call(raw_graph)
@@ -33,4 +33,5 @@ def test_parse():
 
 
 if __name__ == '__main__':
-    test_parse()
+    test_parse(False)
+    test_parse(True)

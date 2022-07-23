@@ -22,7 +22,7 @@ cdef class RawGraph(MetaStruct):
     cpdef Py_ssize_t add_kv_(self, Py_ssize_t sample, str key, value)
 
     @cython.locals(number=cython.float, )
-    cpdef formatted_values(self)
+    cpdef formatted_values(self, string_based=*)
 
     @cython.locals(i=cython.Py_ssize_t, sample_id=cython.Py_ssize_t, _type=str)
     cpdef seq_info(self)

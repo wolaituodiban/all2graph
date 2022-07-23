@@ -71,11 +71,14 @@ class GATFM(Model):
             middle_feats=self.head_middle_feats,
             activation=self.activation,
         )
+        if len(self.graph_parser.num_ecdfs) == 0:
+            num_emb = None
+        else:
+            num_emb=NumEmb(self.d_model, activation=self.activation, norm=self.norm)
         self.module = Framework(
             key_emb=torch.nn.LSTM(self.d_model, self.d_model // 2, 2, bidirectional=True, batch_first=True),
             str_emb=torch.nn.Embedding(self.graph_parser.num_tokens, self.d_model),
-            num_emb=NumEmb(self.d_model, activation=self.activation, norm=self.norm),
-            bottle_neck=bottle_neck, body=body, head=head,
+            bottle_neck=bottle_neck, body=body, head=head, num_emb=num_emb,
             seq_degree=self.seq_degree,
             to_bidirected=self.to_bidirected,
             num_featmaps=self.num_featmaps

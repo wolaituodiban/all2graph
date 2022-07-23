@@ -11,9 +11,20 @@ from ..graph import Graph
 
 
 class Framework(Module):
-    def __init__(self, str_emb: torch.nn.Embedding, key_emb, num_emb: NumEmb, bottle_neck: BottleNeck,
-                 body: Body, head: Head = None, num_featmaps=0, add_self_loop=True, to_bidirected=False, to_simple=False,
-                 seq_types=None, seq_degree: Tuple[int, int] = None):
+    def __init__(
+        self,
+        str_emb: torch.nn.Embedding,
+        key_emb,
+        bottle_neck: BottleNeck,
+        body: Body,
+        num_emb: NumEmb = None,
+        head: Head = None,
+        num_featmaps=0,
+        add_self_loop=True,
+        to_bidirected=False,
+        to_simple=False,
+        seq_types=None,
+        seq_degree: Tuple[int, int] = None):
         super().__init__()
         self.str_emb = str_emb
         self.key_emb = key_emb
@@ -59,7 +70,10 @@ class Framework(Module):
         # 计算in_feats
         key_emb = key_emb_ori[graph.types]
         str_emb = self.str_emb.forward(graph.strings)
-        num_emb = self.num_emb.forward(graph.numbers)
+        if self.num_emb is not None:
+            num_emb = self.num_emb.forward(graph.numbers)
+        else:
+            num_emb = None
         bottle_neck = self.bottle_neck.forward(key_emb, str_emb, num_emb)
 
         # 卷积
@@ -78,7 +92,8 @@ class Framework(Module):
         output = self.head.forward(readout_feats, target_feats)
         graph.ndata['key_emb'] = key_emb
         graph.ndata['str_emb'] = str_emb
-        graph.ndata['num_emb'] = num_emb
+        if num_emb is not None:
+            graph.ndata['num_emb'] = num_emb
         graph.ndata['bottle_neck'] = bottle_neck
         graph.ndata['feats'] = feats
         # todo

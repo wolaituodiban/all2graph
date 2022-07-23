@@ -1,7 +1,7 @@
 import all2graph as ag
 
 
-def test_from_data():
+def test_from_data(string_based):
     graph = ag.graph.RawGraph()
     graph.add_kv_(0, 'a', 'b')
     graph.add_kv_(0, 'a', [1, 2, 3, 4])
@@ -9,7 +9,10 @@ def test_from_data():
     graph.add_kv_(0, 'b', 'haha')
     graph.add_kv_(0, 'c', 'hehe')
     graph.add_kv_(0, 'd', 'hihi')
-    graph_info = ag.MetaInfo.from_data(graph)
+    graph.add_kv_(0, 'a', 1)
+    graph.add_kv_(0, 'b', 1.)
+    graph.add_kv_(0, 'b', 1.0)
+    graph_info = ag.MetaInfo.from_data(graph, string_based=string_based)
     print(graph_info)
 
 
@@ -54,5 +57,6 @@ def test_reduce():
 
 
 if __name__ == '__main__':
-    test_from_data()
+    test_from_data(False)
+    test_from_data(True)
     test_reduce()

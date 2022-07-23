@@ -19,10 +19,11 @@ class BottleNeck(Module):
         for layer in self.layers:
             reset_parameters(layer)
 
-    def forward(self, key_emb, str_emb, num_emb) -> torch.Tensor:
-        mask = torch.isnan(num_emb)
-        num_emb = torch.masked_fill(num_emb, mask, 0)
-        mask = torch.bitwise_not(mask)
-        str_emb = torch.masked_fill(str_emb, mask, 0)
-        value_emb = num_emb + str_emb
-        return self.layers(torch.cat([key_emb, value_emb], dim=-1))
+    def forward(self, key_emb, str_emb, num_emb=None) -> torch.Tensor:
+        if num_emb is not None:
+            mask = torch.isnan(num_emb)
+            num_emb = torch.masked_fill(num_emb, mask, 0)
+            mask = torch.bitwise_not(mask)
+            str_emb = torch.masked_fill(str_emb, mask, 0)
+            str_emb = num_emb + str_emb
+        return self.layers(torch.cat([key_emb, str_emb], dim=-1))
