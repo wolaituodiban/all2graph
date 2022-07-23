@@ -58,7 +58,7 @@ class Framework(Module):
             graph = graph.to_simple(copy_ndata=True)
         return graph
 
-    def forward_internal(self, graph: Graph):
+    def forward_internal(self, graph: Graph) -> Graph:
         # 计算key emb
         key_emb_ori = self.str_emb.forward(graph.type_string)
         key_emb_ori = self.key_emb.forward(key_emb_ori)
@@ -68,43 +68,31 @@ class Framework(Module):
         key_emb_ori = key_emb_ori[:, -1]
 
         # 计算in_feats
-        key_emb = key_emb_ori[graph.types]
-        str_emb = self.str_emb.forward(graph.strings)
+        graph.key_emb = key_emb_ori[graph.types]
+        graph.str_emb = self.str_emb.forward(graph.strings)
         if self.num_emb is not None:
-            num_emb = self.num_emb.forward(graph.numbers)
+            graph.num_emb = self.num_emb.forward(graph.numbers)
+            graph.bottle_neck = self.bottle_neck.forward(graph.key_emb, graph.str_emb, graph.num_emb)
         else:
-            num_emb = None
-        bottle_neck = self.bottle_neck.forward(key_emb, str_emb, num_emb)
+            graph.bottle_neck = self.bottle_neck.forward(graph.key_emb, graph.str_emb)
 
         # 卷积
         feats = self.body.forward(
-            graph.graph, bottle_neck, node2seq=graph.node2seq, seq2node=graph.seq2node(bottle_neck.shape[1]),
+            graph.graph, graph.bottle_neck,
+            node2seq=graph.node2seq,
+            seq2node=graph.seq2node(graph.bottle_neck.shape[1]),
             seq_mask=graph.seq_mask(self.seq_types))
         feats = feats[-self.num_featmaps:]
         if len(feats) > 1:
-            feats = torch.cat(feats, dim=1)
+            graph.feats = torch.cat(feats, dim=1)
         else:
-            feats = feats[0]
+            graph.feats = feats[0]
 
         # 输出
-        readout_feats = feats[graph.readout_mask]
-        target_feats = {target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
-        output = self.head.forward(readout_feats, target_feats)
-        graph.ndata['key_emb'] = key_emb
-        graph.ndata['str_emb'] = str_emb
-        if num_emb is not None:
-            graph.ndata['num_emb'] = num_emb
-        graph.ndata['bottle_neck'] = bottle_neck
-        graph.ndata['feats'] = feats
-        # todo
-        # graph.key_emb = key_emb
-        # graph.str_emb = str_emb
-        # graph.num_emb = num_emb
-        # graph.bottle_neck = bottle_neck
-        # graph.feats = feats
-        graph.output = output
-        graph.target_feats = target_feats
-        graph.readout_feats = readout_feats
+        graph.readout_feats = graph.feats[graph.readout_mask]
+        graph.target_feats = {
+            target: key_emb_ori[graph.type_mapper[target]] for target in graph.targets}
+        graph.output = self.head.forward(graph.readout_feats, graph.target_feats)
         return graph
 
     def forward(self, graph: Graph) -> Graph:

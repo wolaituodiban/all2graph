@@ -9,6 +9,16 @@ from ..meta_struct import MetaStruct
 from ..utils import iter_csv, mp_run
 
 
+def default_get_targets(df: pd.DataFrame, targets) -> dict:
+    import torch
+    output = {}
+    for k in targets:
+        if k in df:
+            output[k] = torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32) 
+        else:
+            output[k] = torch.full((df.shape[0], ), fill_value=np.nan, dtype=torch.float32)
+    return output
+
 class DataParser(MetaStruct):
     def __init__(
             self,
@@ -17,6 +27,7 @@ class DataParser(MetaStruct):
             time_format,
             targets,
             string_based=False,
+            target_func=default_get_targets,
             **kwargs):
         super().__init__(**kwargs)
         self.data_col = data_col
@@ -24,6 +35,7 @@ class DataParser(MetaStruct):
         self.time_format = time_format
         self.targets = set(targets or set())
         self.string_based = string_based
+        self.target_fun = target_func
 
     @property
     def string_based(self):
@@ -42,18 +54,9 @@ class DataParser(MetaStruct):
         outputs['string_based'] = self.string_based
         return outputs
 
-    def get_targets(self, df: pd.DataFrame):
-        if self.targets:
-            import torch
-            output = {}
-            for k in self.targets:
-                if k in df:
-                    output[k] = torch.tensor(pd.to_numeric(df[k], errors='coerce').values, dtype=torch.float32) 
-                else:
-                    output[k] = torch.full((df.shape[0], ), fill_value=np.nan, dtype=torch.float32)
-            return output
-        else:
-            return {}
+    def get_targets(self, df: pd.DataFrame) -> dict:
+        return self.target_fun(df, self.targets)
+
 
     def _analyse(self, df, info_cls: Type[MetaInfo], **configs):
         graph = self(df, disable=True)
@@ -83,15 +86,16 @@ class DataParser(MetaStruct):
         infos = mp_run(self._analyse, data, kwds=kwds, processes=processes, disable=True)
         return info_cls.batch(infos, disable=disable, postfix=postfix, **configs)
 
-    def __call__(self, data: pd.DataFrame, disable: bool = True) -> RawGraph:
+    def __call__(self, data, disable: bool = True) -> RawGraph:
         raise NotImplementedError
 
     def extra_repr(self) -> str:
         output = [
-            'data_col="{}"'.format(self.data_col),
-            'time_col="{}"'.format(self.time_col),
-            'time_format={}'.format(None if self.time_format is None else '"{}"'.format(self.time_format)),
-            'targets={}'.format(self.targets)
+            f'data_col="{self.data_col}"',
+            f'time_col="{self.time_col}"',
+            f'time_format="{self.time_format}"',
+            f'targets={self.targets}',
+            f'string_based={self.string_based}'
         ]
         return '\n'.join(output)
 

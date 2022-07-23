@@ -138,7 +138,7 @@ class Model(Module):
         
         details = self.module.forward_internal(inputs)
         
-        mask_feats = details.ndata['feats'].view(inputs.num_nodes, -1)[mask]
+        mask_feats = details.feats.view(inputs.num_nodes, -1)[mask]
         mask_token_emb = self.module.str_emb(torch.arange(self.graph_parser.num_tokens, device=self.device))
         mask_pred = self.module.head.forward(mask_feats, mask_token_emb)
         return details, mask_pred, mask_label, mask

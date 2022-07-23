@@ -162,11 +162,11 @@ class JsonParser(DataParser):
     def extra_repr(self) -> str:
         output = [
             super().extra_repr(),
-            'dense_dict={}'.format(self.dense_dict),
-            'dict_degree={}'.format(self.dict_degree),
-            'list_degree={}'.format(self.list_degree),
-            'local_foreign_key_types={}'.format(self.local_foreign_key_types),
-            'global_foreign_key_types={}'.format(self.global_foreign_key_types),
-            'processor={}'.format(self.processor)
+            f'dense_dict={self.dense_dict}',
+            f'dict_degree={self.dict_degree}',
+            f'list_degree={self.list_degree}',
+            f'local_foreign_key_types={self.local_foreign_key_types}',
+            f'global_foreign_key_types={self.global_foreign_key_types}',
+            f'processor={self.processor}'
         ]
         return '\n'.join(output)

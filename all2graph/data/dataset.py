@@ -6,18 +6,11 @@ import torch
 from torch.utils.data import Dataset as _Dataset, DataLoader
 
 from .sampler import PartitionSampler
-from .utils import default_collate
 from ..graph import Graph
 from ..parsers import ParserWrapper
 
 
 class Dataset(_Dataset):
-    def __len__(self):
-        raise NotImplementedError
-
-    def __getitem__(self, item) -> pd.DataFrame:
-        raise NotImplementedError
-
     @abstractmethod
     def collate_fn(self, batches):
         raise NotImplementedError
@@ -34,12 +27,6 @@ class ParserDataset(Dataset):
         """
         self.parser = parser
         self.func = func
-
-    def __len__(self):
-        raise NotImplementedError
-
-    def __getitem__(self, item) -> pd.DataFrame:
-        raise NotImplementedError
 
     def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
         df = pd.concat(batches)
@@ -76,6 +63,10 @@ class PartitionDataset(Dataset):
     def read_file(self, path):
         raise NotImplementedError
 
+    @abstractmethod
+    def get_partition_len(self, partition) -> int:
+        raise NotImplementedError
+
     def _get_partition_num(self, item, left=0, right=None):
         assert 0 <= item < len(self), 'out of bound'
         right = right or self._path.shape[0]
@@ -91,17 +82,17 @@ class PartitionDataset(Dataset):
     def _get_partition(self, partition_num):
         if partition_num not in self._partitions:
             # print(torch.utils.data.get_worker_info().id, partition_num)
+            partition = self.read_file(self._path.index[partition_num])
             self._partitions = {
-                partition_num: self.read_file(self._path.index[partition_num])
+                partition_num: [partition, self.get_partition_len(partition), 0]
             }
-        return self._partitions[partition_num]
 
-    def __getitem__(self, item) -> pd.DataFrame:
-        partition_num = self._get_partition_num(item)
-        # print(torch.utils.data.get_worker_info().id, partition_num)
-        partition = self._get_partition(partition_num)
-        df = partition.iloc[[item - self._path['lb'].iloc[partition_num]]]
-        return df
+        partitions = self._partitions[partition_num][0]
+        # partiton计数器, 如果达到最大使用次数，那么清理缓存
+        self._partitions[partition_num][-1] += 1
+        if self._partitions[partition_num][-1] >= self._partitions[partition_num][1]:
+            del self._partitions[partition_num]
+        return partitions
 
     def batch_sampler(self, num_workers: int, shuffle=False, batch_size=1):
         indices = []
@@ -125,6 +116,17 @@ class CSVDataset(PartitionDataset, ParserDataset):
     def read_file(self, path):
         return pd.read_csv(path, **self.kwargs)
 
+    @staticmethod
+    def get_partition_len(partition: pd.DataFrame):
+        return partition.shape[0]
+
+    def __getitem__(self, item) -> pd.DataFrame:
+        partition_num = self._get_partition_num(item)
+        # print(torch.utils.data.get_worker_info().id, partition_num)
+        partition = self._get_partition(partition_num)
+        df = partition.iloc[[item - self._path['lb'].iloc[partition_num]]]
+        return df
+
 
 class DFDataset(ParserDataset):
     def __init__(self, df: pd.DataFrame, parser: ParserWrapper, func=None):
@@ -136,26 +138,3 @@ class DFDataset(ParserDataset):
 
     def __getitem__(self, item) -> pd.DataFrame:
         return self._df.iloc[[item]]
-
-
-class GraphDataset(PartitionDataset):
-    def read_file(self, path):
-        return Graph.load(path)
-
-    def __getitem__(self, item) -> Tuple[Graph, Dict[str, torch.Tensor]]:
-        partition_num = self._get_partition_num(item)
-        # print(torch.utils.data.get_worker_info().id, partition_num)
-        graph, label = self._get_partition(partition_num)
-        i = item - self._path['lb'].iloc[partition_num]
-        graph = graph.sample_subgraph(i, store_ids=False)
-        label = {k: v[i] for k, v in label.items()}
-        return graph, label
-
-    def collate_fn(self, batches: List[Tuple[Graph, Dict[str, torch.Tensor]]]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
-        graphs = []
-        labels = []
-        for graph, label in batches:
-            graphs.append(graph)
-            labels.append(label)
-        graph = Graph.batch(graphs)
-        return graph, default_collate(labels)
