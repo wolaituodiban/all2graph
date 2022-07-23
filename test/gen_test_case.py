@@ -16,6 +16,7 @@ if __name__ == '__main__':
     data_path = os.path.join(dir_path, 'test_data.csv.zip')
     parser_wrapper_path = os.path.join(dir_path, 'parser_wrapper.json')
     framework_path = os.path.join(dir_path, 'framework.th')
+    model_path = os.path.join(dir_path, 'model.th')
     data = []
     for _ in range(100):
         one_sample = []
@@ -58,3 +59,4 @@ if __name__ == '__main__':
     with open(parser_wrapper_path, 'w') as file:
         json.dump(parser_wrapper.to_json(), file)
     torch.save(model.module, framework_path)
+    torch.save(model, model_path)

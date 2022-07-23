@@ -114,7 +114,7 @@ class Module(torch.nn.Module):
         return predict_dataloader(self, loader, postfix)
 
     def extra_repr(self) -> str:
-        return 'num_parameters={}'.format(self.num_parameters)
+        return f'version={self.version}\nnum_parameters={self.num_parameters}'
 
 
 @torch.no_grad()
