@@ -116,12 +116,17 @@ def test_split_csv():
     for chunk in ag.iter_csv(df, chunksize=1000):
         assert chunk.shape[0] == 1000
 
-    meta_df = ag.split_csv(df, 'temp', chunksize=1000, sel_cols=['uid'], concat_chip=False, func=lambda x: x)
+    meta_df = ag.split_csv(df, 'temp', chunksize=1000, sel_cols=['uid'], concat_chip=False)
     assert meta_df.shape[0] == df.shape[0], meta_df.shape
     assert 'uid' in meta_df
-    shutil.rmtree('temp')
-    os.remove('temp_path.zip')
 
+    if os.path.exists('temp2'):
+        shutil.rmtree('temp2')
+    meta_df = ag.split_csv('temp', 'temp2', chunksize=1000, sel_cols=['uid'], concat_chip=False)
+    shutil.rmtree('temp')
+    shutil.rmtree('temp2')
+    os.remove('temp_path.zip')
+    os.remove('temp2_path.zip')
 
 def test_split_csv_empty():
     ag.split_csv([], 'temp', chunksize=1000, sel_cols=['uid'], concat_chip=False)

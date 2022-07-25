@@ -146,7 +146,7 @@ def split_csv(
     chunk_iter = enumerate(
         iter_csv(
             src, chunksize=chunksize, error=error, warning=warning,
-            concat_chip=concat_chip, func=func, **kwargs))
+            concat_chip=concat_chip, **kwargs))
     for i, chunk in tqdm(chunk_iter, disable=disable, postfix='spliting csv'):
         if func is not None:
             chunk = func(chunk)
