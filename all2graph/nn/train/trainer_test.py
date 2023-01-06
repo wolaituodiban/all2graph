@@ -11,6 +11,8 @@ if 'darwin' in sys.platform.lower():
     os.environ['OMP_NUM_THREADS'] = '1'
 
 
+METRIC_NAME = '均方误差'
+
 class TestDataset(Dataset):
     def __init__(self, x, y):
         super().__init__()
@@ -36,7 +38,7 @@ class TestModule(torch.nn.Module):
 
 
 def get_mse(x):
-    return x['mse']
+    return x[METRIC_NAME]
 
 
 def test_trainer():
@@ -52,7 +54,8 @@ def test_trainer():
 
     trainer = ag.nn.Trainer(
         module=module, loss=torch.nn.MSELoss(), data=dataloader,
-        metrics={'mse': mean_squared_error},
+        # 测试metrics显示中文
+        metrics={METRIC_NAME: mean_squared_error},
         valid_data=[dataloader, dataloader],
         early_stop=ag.nn.EarlyStop(1, False, tol=0.01, fn=get_mse),
         check_point=__file__,

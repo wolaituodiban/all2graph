@@ -213,10 +213,10 @@ class Trainer(torch.nn.Module):
                 metric(trainer=self, history=valid_data, epoch=epoch)
         print(
             'epoch {} train metrics:'.format(epoch),
-            json.dumps(json_round(self.train_history.get_metric(epoch), digits), indent=indent)
+            json.dumps(json_round(self.train_history.get_metric(epoch), digits), indent=indent, ensure_ascii=False)
         )
         for i, valid_data in enumerate(self.valid_history):
-            msg = json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent)
+            msg = json.dumps(json_round(valid_data.get_metric(epoch), digits), indent=indent, ensure_ascii=False)
             print('epoch {} val {} metrics: {}'.format(epoch, i, msg))
 
     def get_history(self, valid_id=None) -> History:
