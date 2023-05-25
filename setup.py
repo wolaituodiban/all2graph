@@ -2,27 +2,26 @@ import os
 from setuptools import setup, find_packages
 
 # 根据是否有cython来确定ext_modules
-try:
-    from Cython.Build import cythonize
-    ext_modules = cythonize(
-        [
-            'all2graph/meta_struct.py',
-            'all2graph/graph/raw_graph.py',
-            'all2graph/parsers/data_parser.py',
-            'all2graph/parsers/json_parser.py',
-            'all2graph/parsers/graph_parser.py',
-            'all2graph/parsers/parser_wrapper.py',  
-        ],
-        exclude=[
-            'all2graph/parsers/*test*.py',
-        ],
-        compiler_directives={
-            'language_level': 3,
-            'profile': False
-        }
-    )
-except ImportError:
-    ext_modules = None
+ext_modules = None
+# try:
+#     from Cython.Build import cythonize
+#     ext_modules = cythonize(
+#         [
+#             'all2graph/meta_struct.py',
+#             'all2graph/graph/raw_graph.py',
+#             'all2graph/parsers/data_parser.py',
+#             'all2graph/parsers/json_parser.py',
+#             'all2graph/parsers/graph_parser.py',
+#             'all2graph/parsers/parser_wrapper.py',  
+#         ],
+#         exclude=[
+#             'all2graph/parsers/*test*.py',
+#         ],
+#         compiler_directives={
+#             'language_level': 3,
+#             'profile': False
+#         }
+#     )
 
 
 def get_version():

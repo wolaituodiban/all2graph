@@ -27,11 +27,9 @@ class Trainer(torch.nn.Module):
             loss: torch.nn.Module = None,
             optimizer: torch.optim.Optimizer = None,
             scheduler=None,
+            scaler=None,
             valid_data: List[DataLoader] = None,
-            early_stop: EarlyStop = None,
             metrics: Dict[str, Callable] = None,
-            callbacks: List[Callable] = None,
-            valid_callbacks: List[Callable] = None,
             check_point=None,
             max_batch=None,
             max_history=1,
@@ -59,14 +57,10 @@ class Trainer(torch.nn.Module):
         self.loss = loss
         self.optimizer = optimizer or torch.optim.AdamW(self.module.parameters())
         self.scheduler = scheduler
+        self.scaler = scaler
         self.train_history = History(data)
         self.valid_history = [History(d) for d in valid_data or []]
-        self.early_stop = early_stop
         self.metrics = [Metric(metric, name) for name, metric in (metrics or {}).items()]
-        if self.early_stop is not None:
-            assert len(self.metrics) > 0, 'early_stop need metrics'
-        self.callbacks = callbacks or []
-        self.valid_callbacks = valid_callbacks or []
         self.max_batch = max_batch
         self.max_history = max_history
         self.save_loader = save_loader
@@ -88,8 +82,8 @@ class Trainer(torch.nn.Module):
         output = [f'optimizer={self.optimizer}']
         if self.scheduler:
             output.append(f'scheduler={self.scheduler}')
-        if self.early_stop:
-            output.append(f'early_stop={self.early_stop}')
+        if self.scaler:
+            output.append(f'scaler={self.scaler}')
         if self.metrics:
             metrics = ',\n'.join('  '+str(metric) for metric in self.metrics)
             output.append(f"metrics=[\n{metrics}\n]")
@@ -137,7 +131,7 @@ class Trainer(torch.nn.Module):
             for i, loader in enumerate(valid_loaders):
                 self.set_data_loader(loader, valid_id=i)
 
-    def fit_one_epoch(self, digits=3):
+    def fit_one_epoch(self, digits):
         """训练一个epoch"""
         self._current_epoch += 1
         with tqdm(
@@ -149,24 +143,33 @@ class Trainer(torch.nn.Module):
             for data, label in self.train_history.loader:
                 # step fit
                 self.optimizer.zero_grad()
-                pred = self.module(data)
-                if self.loss:
+
+                # 如果scaler不为None，则开启amp模式                
+                with torch.cuda.amp.autocast(enabled=self.scaler is not None):
+                    pred = self.module(data)
                     loss = self.loss(pred, label)
+
+                if self.scaler is not None:
+                    self.scaler.scale(loss).backward()
+                    self.scaler.step(self.optimizer)
+                    self.scaler.update()
                 else:
-                    loss = pred
-                loss.backward()
-                self.optimizer.step()
+                    loss.backward()
+                    self.optimizer.step()
+                
                 if self.scheduler:
                     self.scheduler.step()
+                
                 buffer.log(pred=pred, loss=loss, label=label)
+                
                 bar.update()
-                bar.set_postfix({'loss': json_round(buffer.mean_loss, digits)})
-                if self.max_batch and buffer.batches >= self.max_batch:
-                    break
+                bar.set_postfix({'loss': round(float(buffer.mean_loss), digits)})
+            
             self.train_history.insert_buffer(epoch=self._current_epoch, buffer=buffer)
-            bar.set_postfix({'loss': json_round(self.train_history.mean_loss(self._current_epoch), digits)})
+            
+            bar.set_postfix({'loss': round(float(self.train_history.mean_loss(self._current_epoch)), digits)})
 
-    def fit(self, epochs=10, digits=3, indent=None):
+    def fit(self, epochs=10, digits=6, indent=None):
         """
         Args:
             epochs: 训练几轮
@@ -183,8 +186,6 @@ class Trainer(torch.nn.Module):
                     self.delete_history()
                 if self.check_point:
                     self.save()
-                if self.early_stop is not None and self.early_stop(self, None, self._current_epoch):
-                    break
         except (KeyboardInterrupt, SystemExit):
             print('KeyboardInterrupt')
         except:
@@ -193,9 +194,6 @@ class Trainer(torch.nn.Module):
         finally:
             if self.check_point and not os.path.exists(self.path):
                 self.save()
-            if self.early_stop is not None and self.early_stop._best_epoch is not None and self.check_point is not None:
-                self.module = torch.load(self.path).module
-                self._current_epoch = self.early_stop._best_epoch
 
     def pred_valid(self):
         for i, valid_data in enumerate(self.valid_history):
@@ -205,7 +203,7 @@ class Trainer(torch.nn.Module):
             )
             valid_data.add_epoch(self._current_epoch, pred=pred, label=label)
 
-    def evaluate(self, epoch=None, digits=3, indent=None):
+    def evaluate(self, epoch=None, digits=6, indent=None):
         epoch = epoch or self._current_epoch
         for metric in self.metrics:
             metric(trainer=self, history=self.train_history, epoch=epoch)
