@@ -3,7 +3,6 @@ import os
 import platform
 import sys
 from .version import __version__
-print(__file__)
 print('all2graph: version={}'.format(__version__), file=sys.stderr)
 if 'linux' in platform.system().lower():
     old_home = os.environ['HOME']

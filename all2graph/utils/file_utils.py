@@ -118,7 +118,7 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
 
 def split_csv(
         src, dst, chunksize, disable=False, zip=True, error=True, warning=True, concat_chip=True, sel_cols=None,
-        drop_cols=None, func=None, **kwargs):
+        drop_cols=None, func=None, index=True, **kwargs):
     """
 
     Args:
@@ -167,7 +167,7 @@ def split_csv(
     if len(meta_dfs) == 0:
         meta_dfs = [pd.DataFrame()]
     path_df = pd.concat(meta_dfs)
-    path_df.to_csv(dst+'_path.{}'.format('zip' if zip else 'csv'), index=False)
+    path_df.to_csv(dst+'_path.{}'.format('zip' if zip else 'csv'), index=index)
     return path_df
 
 

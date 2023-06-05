@@ -33,7 +33,9 @@ class Trainer(torch.nn.Module):
             check_point=None,
             max_batch=None,
             max_history=1,
-            save_loader=True):
+            save_loader=True,
+            post_func=None
+        ):
         """
 
         Args:
@@ -64,6 +66,7 @@ class Trainer(torch.nn.Module):
         self.max_batch = max_batch
         self.max_history = max_history
         self.save_loader = save_loader
+        self.post_func = post_func
 
         if check_point:
             check_point = '.'.join([check_point, __version__])
@@ -102,16 +105,6 @@ class Trainer(torch.nn.Module):
     def path(self):
         """模型存储路径"""
         return os.path.join(self.check_point, f'{self._current_epoch}.all2graph.trainer')
-
-    @property
-    def best_metric(self):
-        """最优metric"""
-        return self.early_stop.best_metric
-
-    @property
-    def sign(self):
-        """正表示metric越高越好, 负表示metric越低越好"""
-        return self.early_stop.sign
 
     def save(self):
         """保存trainer"""
@@ -160,14 +153,19 @@ class Trainer(torch.nn.Module):
                 if self.scheduler:
                     self.scheduler.step()
                 
+                if self.post_func is not None:
+                    pred = self.post_func(pred)
                 buffer.log(pred=pred, loss=loss, label=label)
                 
                 bar.update()
-                bar.set_postfix({'loss': round(float(buffer.mean_loss), digits)})
+                bar.set_postfix({'loss': buffer.mean_loss.numpy().round(digits)})
+
+                if self.max_batch and buffer.batches >= self.max_batch:
+                    break
             
             self.train_history.insert_buffer(epoch=self._current_epoch, buffer=buffer)
             
-            bar.set_postfix({'loss': round(float(self.train_history.mean_loss(self._current_epoch)), digits)})
+            bar.set_postfix({'loss': self.train_history.mean_loss(self._current_epoch).numpy().round(digits)})
 
     def fit(self, epochs=10, digits=6, indent=None):
         """
@@ -199,7 +197,7 @@ class Trainer(torch.nn.Module):
         for i, valid_data in enumerate(self.valid_history):
             pred, label = predict_dataloader(
                 self.module, valid_data.loader, desc='epoch {} val {}'.format(self._current_epoch, i),
-                max_batch=self.max_batch
+                max_batch=self.max_batch, post_func=self.post_func
             )
             valid_data.add_epoch(self._current_epoch, pred=pred, label=label)
 
@@ -262,7 +260,7 @@ class Trainer(torch.nn.Module):
     def add_valid_data(self, loader: DataLoader):
         self.valid_history.append(History(loader))
 
-    def predict(self, src: Union[str, List[str]], valid_id=None, data_parser=None, **kwargs) -> pd.DataFrame:
+    def predict(self, src: Union[str, List[str]], valid_id=None, data_parser=None, index=True, **kwargs) -> pd.DataFrame:
         """
         自动将预测结果保存在check point目录下
         Args:
@@ -281,9 +279,15 @@ class Trainer(torch.nn.Module):
         if not os.path.exists(dst):
             os.mkdir(dst)
         dst = os.path.join(dst, 'pred_{}.zip'.format(os.path.split(src)[-1]))
-        output = predict_csv(self.get_parser(valid_id=valid_id), self.module, src, **kwargs)
+        output = predict_csv(
+            self.get_parser(valid_id=valid_id),
+            self.module,
+            src,
+            post_func=self.post_func,
+            **kwargs
+        )
         print("save prediction at '{}'".format(dst))
-        output.to_csv(dst)
+        output.to_csv(dst, index=index)
         return output
 
     def delete_history(self, epochs=None):

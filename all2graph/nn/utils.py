@@ -22,7 +22,13 @@ def _get_type(x):
 
 
 @torch.no_grad()
-def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader, desc=None, max_batch=None):
+def predict_dataloader(
+    module: torch.nn.Module,
+    data_loader: DataLoader,
+    desc=None,
+    max_batch=None,
+    post_func=None
+):
     """
     仅支持torch.Tensor, list和dict作为输入
     Args:
@@ -46,6 +52,8 @@ def predict_dataloader(module: torch.nn.Module, data_loader: DataLoader, desc=No
         if last_label_type and label_type != last_label_type:
             raise TypeError('got inconsistent label type: {} and {}'.format(last_label_type, label_type))
         output = module(graph)
+        if post_func is not None:
+            output = post_func(output)
         ouptut_type = _get_type(output)
         if last_output_type and ouptut_type != last_output_type:
             raise TypeError('got inconsistent output type: {} and {}'.format(last_output_type, ouptut_type))
@@ -118,30 +126,27 @@ class Module(torch.nn.Module):
 
 
 @torch.no_grad()
-def predict_csv(parser: ParserWrapper, module: torch.nn.Module, src, **kwargs):
+def predict_csv(parser: ParserWrapper, module: torch.nn.Module, src, post_func=None, **kwargs):
     module.eval()
     dfs = []
-    for graphs, df in parser.generator(src, **kwargs):
-        # 将graphs的类型全都转成dict
-        if not isinstance(graphs, dict):
-            graphs = {'pred': graphs}
-        for parser_key, graph in graphs.items():
-            # pred的类型全都转成dict
-            pred = module(graph)
-            if isinstance(pred, list):
-                pred = {'output_{}'.format(i): v for i, v in enumerate(pred)}
-            elif isinstance(pred, torch.Tensor):
-                pred = {'output': pred}
-            # 判断value的维度
-            for target_key, value in pred.items():
-                value = value.view(df.shape[0], -1).squeeze(-1).cpu().numpy()
-                if len(value.shape) == 0:
-                    continue
-                elif len(value.shape) == 1:
-                    df['{}_{}'.format(target_key, parser_key)] = value
-                else:
-                    for j in range(value.shape[1]):
-                        df['{}_dim{}_{}'.format(target_key, j, parser_key)] = value[:, j]
+    for graph, df in parser.generator(src, **kwargs):
+        pred = module(graph)
+        if post_func is not None:
+            pred = post_func(pred)
+        if isinstance(pred, list):
+            pred = {'output_{}'.format(i): v for i, v in enumerate(pred)}
+        elif isinstance(pred, torch.Tensor):
+            pred = {'output': pred}
+        # 判断value的维度
+        for target_key, value in pred.items():
+            value = value.view(df.shape[0], -1).squeeze(-1).cpu().numpy()
+            if len(value.shape) == 0:
+                continue
+            elif len(value.shape) == 1:
+                df['{}_pred'.format(target_key)] = value
+            else:
+                for j in range(value.shape[1]):
+                    df['{}_dim{}_pred'.format(target_key, j)] = value[:, j]
         dfs.append(df)
     return pd.concat(dfs)
 
