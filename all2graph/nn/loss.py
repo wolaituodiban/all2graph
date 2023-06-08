@@ -1,5 +1,7 @@
 from typing import Dict, List
+
 import torch
+import numpy as np
 
 from .utils import Module
 
@@ -72,3 +74,22 @@ class ListLoss(Module):
             weight_sum += weight
 
         return loss / weight_sum
+
+class DeepHitSingleLoss(torch.nn.Module):
+    def __init__(self, unit=1):
+        super().__init__()
+        self.unit = unit
+    
+    def forward(self, pred, lower, upper):
+        lower = lower.unsqueeze(-1) / self.unit
+        upper = upper.unsqueeze(-1) / self.unit
+
+        idx = torch.ones_like(pred).cumsum(-1) - 1
+        lower_mask = idx >= lower.floor().clip(-np.inf, pred.shape[1]-1)
+        upper_mask = idx <= upper.floor().clip(0, np.inf)
+        mask = lower_mask & upper_mask
+        
+        return -(pred * mask).sum(-1).log().mean()
+    
+    def extra_repr(self) -> str:
+        return f'unit={self.unit}'

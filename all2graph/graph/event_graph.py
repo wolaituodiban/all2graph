@@ -1,0 +1,159 @@
+from typing import List
+
+import dgl
+import torch
+import numpy as np
+
+
+class EventGraph:
+    SAMPLE_OBS_TIMESTAMP = 'sample_obs_timestamp'
+    OBS_TIMESTAMP = 'obs_timestamp'
+    EVENT_TIMESTAMP = 'event_timestamp'
+    CENSOR_TIMESTAMP = 'censor_timestamp'
+    
+    DIFF_TIMESTAMP = 'diff_timestamp'
+    ARRIVAL_TIME = 'arrival_time'
+    CENSOR_TIME = 'censor_time'
+    
+    EVENT = 'event'
+    SAMPLE_ID = 'sample_id'
+    FEAT = 'feat'
+    
+    CAUSAL = 'causal'
+    SURVIVAL = 'survival'
+    
+    NUM_EDGE_FEAT = 1
+    
+    def __init__(
+        self,
+        graph: dgl.DGLGraph,
+        lookup_table: torch.Tensor,
+        event_types: List[str],
+    ):
+        self.graph = graph.remove_self_loop(etype=self.SURVIVAL)
+        self.lookup_table = lookup_table
+        self.event_types = event_types
+        
+    @property
+    def events(self):
+        return self.graph.ndata[self.EVENT]
+    
+    @events.setter
+    def events(self, event):
+        self.graph.ndata[self.EVENT] = event
+        
+    @property
+    def sample_ids(self):
+        return self.graph.ndata[self.SAMPLE_ID]
+    
+    @sample_ids.setter
+    def sample_ids(self, sample_id):
+        self.graph.ndata[self.SAMPLE_ID] = sample_id
+        
+    @property
+    def sample_obs_timestamps(self):
+        return self.graph.ndata[self.SAMPLE_OBS_TIMESTAMP]
+    
+    @sample_obs_timestamps.setter
+    def sample_obs_timestamps(self, timestamps):
+        self.graph.ndata[self.SAMPLE_OBS_TIMESTAMP] = timestamps
+        
+    @property
+    def obs_timestamps(self):
+        return self.graph.ndata[self.OBS_TIMESTAMP]
+    
+    @obs_timestamps.setter
+    def obs_timestamps(self, timestamps):
+        self.graph.ndata[self.OBS_TIMESTAMP] = timestamps
+        
+    @property
+    def event_timestamps(self):
+        return self.graph.ndata[self.EVENT_TIMESTAMP]
+    
+    @event_timestamps.setter
+    def event_timestamps(self, timestamps):
+        self.graph.ndata[self.EVENT_TIMESTAMP] = timestamps
+        
+    @property
+    def censor_timestamps(self):
+        return self.graph.ndata[self.CENSOR_TIMESTAMP]
+    
+    @censor_timestamps.setter
+    def censor_timestamps(self, timestamps):
+        self.graph.ndata[self.CENSOR_TIMESTAMP] = timestamps
+    
+    @property
+    def diff_timestamps(self):
+        if self.DIFF_TIMESTAMP not in self.graph.edges[self.CAUSAL].data:
+            self.graph.apply_edges(
+                dgl.function.v_sub_u(self.EVENT_TIMESTAMP, self.EVENT_TIMESTAMP, self.DIFF_TIMESTAMP),
+                etype=self.CAUSAL
+            )
+        return self.graph.edges[self.CAUSAL].data[self.DIFF_TIMESTAMP]
+    
+    @property
+    def arrival_times(self):
+        if self.ARRIVAL_TIME not in self.graph.ndata:
+            self.graph.update_all(
+                dgl.function.v_sub_u(self.EVENT_TIMESTAMP, self.EVENT_TIMESTAMP, self.ARRIVAL_TIME),
+                dgl.function.mean(self.ARRIVAL_TIME, self.ARRIVAL_TIME),
+                etype=self.SURVIVAL
+            )
+        return self.graph.ndata[self.ARRIVAL_TIME]
+    
+    @property
+    def censor_times(self):
+        if self.CENSOR_TIME not in self.graph.ndata:
+            self.graph.update_all(
+                dgl.function.v_sub_u(self.CENSOR_TIMESTAMP, self.EVENT_TIMESTAMP, self.CENSOR_TIME),
+                dgl.function.mean(self.CENSOR_TIME, self.CENSOR_TIME),
+                etype=self.SURVIVAL
+            )
+        return self.graph.ndata[self.CENSOR_TIME]
+    
+    @property
+    def survival_times(self):
+        censor_mask = ~torch.isnan(self.censor_timestamps)
+
+        arrival_times = self.arrival_times.to(torch.float32).masked_fill(censor_mask, 0)
+        censor_times = self.censor_times.to(torch.float32).masked_fill(~censor_mask, 0)
+
+        lower_bounds = arrival_times + censor_times
+        upper_bounds = arrival_times.masked_fill(censor_mask, np.inf)
+
+        return lower_bounds, upper_bounds
+        
+    @property
+    def edge_feats(self):
+        if self.FEAT not in self.graph.edges[self.CAUSAL].data:
+            feats = (self.diff_timestamps+1).log().unsqueeze(-1).to(torch.float32)
+            feats = torch.masked_fill(feats, torch.isnan(feats), 0)
+            self.graph.edges[self.CAUSAL].data[self.FEAT] = feats
+        return self.graph.edges[self.CAUSAL].data[self.FEAT]
+    
+    @property
+    def causal_graph(self):
+        return self.graph.edge_type_subgraph(etypes=[self.CAUSAL])
+    
+    @property
+    def survival_graph(self):
+        return self.graph.edge_type_subgraph(etypes=[self.SURVIVAL])
+        
+    def to(self, *args, **kwargs):
+        lookup_table = self.lookup_table.to(*args, **kwargs)
+        graph = self.graph.to(*args, **kwargs)
+        return self.__class__(
+            graph=graph,
+            lookup_table=lookup_table,
+            event_types=self.event_types,
+        )
+    
+    def pin_memory(self):
+        self.lookup_table = self.lookup_table.pin_memory()
+        self.graph = self.graph.pin_memory_()
+        return self
+        
+    def to_simple(self):
+        self.graph = self.graph.to_simple()
+
+    

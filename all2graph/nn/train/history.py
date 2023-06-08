@@ -3,7 +3,6 @@ from typing import Dict
 import torch
 from torch.utils.data import Dataset as _Dataset, DataLoader
 from ..utils import detach, default_collate
-from ...parsers import ParserWrapper
 
 
 class EpochBuffer:
@@ -61,7 +60,7 @@ class History:
         return getattr(self.loader, 'dataset', None)
 
     @property
-    def parser(self) -> ParserWrapper:
+    def parser(self):
         return getattr(self.dataset, 'parser', None)
 
     @property

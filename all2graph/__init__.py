@@ -17,20 +17,9 @@ if 'linux' in platform.system().lower():
     finally:
         os.environ['HOME'] = old_home
 
-try:
-    import torch
-except ImportError:
-    torch = None
-if torch is not None:
-    from . import nn
-    from . import data
-else:
-    print('all2graph: fail to import module nn and data, no torch installed', file=sys.stderr)
-
-from . import graph
-from .parsers import *
-from .info import *
-from .stats import ECDF, Discrete, Distribution
+from . import nn
+from . import data
+from .graph import EventGraph, EventSet, Event
+from .parser import Parser
 from .utils import *
 from .globals import *
-from .meta_struct import MetaStruct, equal

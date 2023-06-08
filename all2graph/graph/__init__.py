@@ -1,5 +1,3 @@
-try:
-    from .graph import Graph
-except ImportError:
-    Graph = None
-from .raw_graph import RawGraph
+from .event_graph import EventGraph
+from .event_set import EventSet
+from .event import Event

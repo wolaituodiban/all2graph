@@ -6,7 +6,6 @@ import torch
 from torch.utils.data import DataLoader
 
 from ..data import default_collate
-from ..parsers import ParserWrapper
 from ..utils import tqdm
 from ..version import __version__
 
@@ -126,7 +125,7 @@ class Module(torch.nn.Module):
 
 
 @torch.no_grad()
-def predict_csv(parser: ParserWrapper, module: torch.nn.Module, src, pre_func=None, post_func=None, **kwargs):
+def predict_csv(parser, module: torch.nn.Module, src, pre_func=None, post_func=None, **kwargs):
     module.eval()
     dfs = []
     for graph, df in parser.generator(src, pre_func=pre_func, **kwargs):

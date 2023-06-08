@@ -4,3 +4,13 @@ from .metrics import ks_score, Metric
 from .time_utils import Timer
 from .tqdm_utils import tqdm
 from .utils import json_round
+from .token_utils import (
+    SpecialToken,
+    CLS,
+    UNKNOWN,
+    END,
+    PADDING,
+    SEP,
+    Tokenizer,
+    tokenizer
+)

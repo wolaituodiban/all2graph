@@ -1,13 +1,11 @@
 from abc import abstractmethod
-from typing import List, Tuple, Dict
+from typing import List, Tuple, Dict, Any
 
 import pandas as pd
 import torch
 from torch.utils.data import Dataset as _Dataset, DataLoader
 
 from .sampler import PartitionSampler
-from ..graph import Graph
-from ..parsers import ParserWrapper
 
 
 class Dataset(_Dataset):
@@ -20,15 +18,15 @@ class Dataset(_Dataset):
 
 
 class ParserDataset(Dataset):
-    def __init__(self, parser: ParserWrapper, func):
+    def __init__(self, parser, func):
         """
-        parser:
+        parser: instance, 需要实现两个方法: __call__(self, df: pd.DataFrame)和get_targets(df: pd.DataFrame))
         func: dataframe的预处理函数
         """
         self.parser = parser
         self.func = func
 
-    def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Graph, Dict[str, torch.Tensor]]:
+    def collate_fn(self, batches: List[pd.DataFrame]) -> Tuple[Any, Dict[str, torch.Tensor]]:
         df = pd.concat(batches)
         if self.func is not None:
             df = self.func(df)
@@ -107,7 +105,7 @@ class PartitionDataset(Dataset):
 
 
 class CSVDataset(PartitionDataset, ParserDataset):
-    def __init__(self, path: pd.DataFrame, parser: ParserWrapper, func=None, **kwargs):
+    def __init__(self, path: pd.DataFrame, parser, func=None, **kwargs):
         super().__init__(path)
         self.parser = parser
         self.func = func
@@ -129,7 +127,7 @@ class CSVDataset(PartitionDataset, ParserDataset):
 
 
 class DFDataset(ParserDataset):
-    def __init__(self, df: pd.DataFrame, parser: ParserWrapper, func=None):
+    def __init__(self, df: pd.DataFrame, parser, func=None):
         super().__init__(parser=parser, func=func)
         self._df = df
 
