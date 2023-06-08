@@ -260,7 +260,16 @@ class Trainer(torch.nn.Module):
     def add_valid_data(self, loader: DataLoader):
         self.valid_history.append(History(loader))
 
-    def predict(self, src: Union[str, List[str]], valid_id=None, data_parser=None, index=True, **kwargs) -> pd.DataFrame:
+    def predict(
+        self,
+        src: Union[str, List[str]],
+        valid_id=None,
+        data_parser=None,
+        index=True,
+        pre_func=None,
+        post_func=None,
+        **kwargs
+    ) -> pd.DataFrame:
         """
         自动将预测结果保存在check point目录下
         Args:
@@ -273,17 +282,29 @@ class Trainer(torch.nn.Module):
 
         """
         if isinstance(src, list):
-            return pd.concat(self.predict(path, valid_id=valid_id, data_parser=data_parser, **kwargs) for path in src)
+            return pd.concat(
+                self.predict(
+                    path, 
+                    valid_id=valid_id, 
+                    data_parser=data_parser,
+                    index=index,
+                    pre_func=pre_func,
+                    post_func=post_func,
+                    **kwargs
+                )
+                for path in src
+            )
 
         dst = os.path.join(self.check_point, str(self._current_epoch))
         if not os.path.exists(dst):
             os.mkdir(dst)
         dst = os.path.join(dst, 'pred_{}.zip'.format(os.path.split(src)[-1]))
         output = predict_csv(
-            self.get_parser(valid_id=valid_id),
-            self.module,
-            src,
-            post_func=self.post_func,
+            parser=data_parser or self.get_parser(valid_id=valid_id),
+            module=self.module,
+            src=src,
+            pre_func=pre_func,
+            post_func=post_func or self.post_func,
             **kwargs
         )
         print("save prediction at '{}'".format(dst))
