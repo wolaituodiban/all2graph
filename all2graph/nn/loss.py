@@ -1,4 +1,4 @@
-from typing import Dict, List
+from typing import Dict, List, Optional
 
 import torch
 import numpy as np
@@ -7,7 +7,7 @@ from .utils import Module
 
 
 class DictLoss(Module):
-    def __init__(self, torch_loss: torch.nn.Module, weights: Dict[str, float] = None):
+    def __init__(self, torch_loss: torch.nn.Module, weights: Optional[Dict[str, float]] = None):
         """
         封装输入类型为dict的loss
         Args:
@@ -43,7 +43,7 @@ class DictLoss(Module):
 
 
 class ListLoss(Module):
-    def __init__(self, torch_loss: torch.nn.Module, weights: List[float] = None):
+    def __init__(self, torch_loss: torch.nn.Module, weights: Optional[List[float]] = None):
         """
         封装输入类型为list的loss
         Args:

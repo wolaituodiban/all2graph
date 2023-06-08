@@ -134,10 +134,6 @@ class EventSet:
         return len(self.causal_u)
     
     @property
-    def num_survival_edges(self):
-        return len(self.survival_u)
-    
-    @property
     def unique_event_types(self):
         return set(self.event_types)
     
