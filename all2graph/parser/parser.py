@@ -16,7 +16,8 @@ from ..utils import (
     END,
     PADDING,
     SEP,
-    tokenizer
+    iter_csv,
+    mp_run
 )
 
 
@@ -105,11 +106,10 @@ class Parser:
             tokens = json.load(file)
         new_dictionary = {}
         for k, v in tokens[self.SPECIAL_TOKENS].items():
-            assert v not in new_dictionary.values()
             new_dictionary[globals()[k]] = v
         for k, v in tokens[self.COMMON_TOKENS].items():
-            assert v not in new_dictionary.values()
             new_dictionary[k] = v
+        assert set(new_dictionary.values()) == set(range(len(new_dictionary)))
         self._dictionary = new_dictionary
         
     def parse_df(self, df: pd.DataFrame) -> EventSet:
@@ -174,8 +174,16 @@ class Parser:
         graph = self.parse_df(df)
         return graph.unique_tokens
     
-    def gen_dictionary(self, inputs, chunksize, processes=0, disable=False, **kwargs):
-        data = iter_csv(inputs, chunksize=chunksize, **kwargs)
+    def gen_dictionary(
+        self,
+        inputs,
+        chunksize,
+        processes=0,
+        disable=False,
+        pre_func=None,
+        **kwargs
+    ):
+        data = iter_csv(inputs, chunksize=chunksize, pre_func=pre_func, **kwargs)
         for tokens in mp_run(self.find_all_tokens, data, processes=processes, disable=disable):
             self.add_tokens(tokens)
         

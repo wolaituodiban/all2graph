@@ -91,6 +91,24 @@ class Model(Module):
             if p.dim() > 1:
                 torch.nn.init.xavier_uniform_(p)
                 
+    def add_tokens(self, new_tokens):
+        # 保存老embedding参数
+        old_embedding_state_dict = self.embedding.state_dict()
+        d_model = old_embedding_state_dict['weight'].shape[1]
+        
+        # 将新token添加到字典中
+        self.parser.add_tokens(new_tokens)
+        num_new_tokens = self.parser.num_embeddings - old_embedding_state_dict['weight'].shape[0]
+        
+        # 创建新的embedding layer
+        self.embedding = torch.nn.Embedding(self.parser.num_embeddings, d_model)
+        
+        # 用unknown的参数初始化新token的参数
+        new_embedding_weight = old_embedding_state_dict['weight'][self.parser.unknown]
+        new_embedding_weight = new_embedding_weight.repeat(num_new_tokens, 1)
+        old_embedding_state_dict['weight'] = torch.cat([old_embedding_state_dict['weight'], new_embedding_weight], axis=0)
+        self.embedding.load_state_dict(old_embedding_state_dict)
+                
     def generate_square_subsequent_mask(self, inputs):
         neg_inf = torch.full((inputs.shape[1], inputs.shape[1]), float('-inf'), device=self.device)
         mask = torch.triu(neg_inf, diagonal=1)

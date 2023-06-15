@@ -74,7 +74,15 @@ def iter_files(inputs, error=True, warning=True):
         print('path {} dose not exists'.format(inputs), file=sys.stderr)
 
 
-def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recurse=True, **kwargs):
+def iter_csv(
+    inputs,
+    chunksize,
+    error=True,
+    warning=True,
+    concat_chip=True,
+    recurse=True,
+    pre_func=None,
+    **kwargs):
     """
 
     Args:
@@ -84,6 +92,7 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
         warning: 发生错误时会打印错误信息
         concat_chip: 拼接小于chunksize的chunk, 保证(除最后一个)所有chunk的大小都是chunksize
         recurse: 是否递归inputs, 寻找包含的所有路径; 如果False, 那么默认inputs是一个list of path
+        pre_func: dataframe在返回前, 会先进过pre_func预处理
         **kwargs: 传递给read_csv的参数
 
     Returns:
@@ -91,7 +100,10 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
     """
     if isinstance(inputs, pd.DataFrame):
         for i in range(int(np.ceil(inputs.shape[0] / chunksize))):
-            yield inputs.iloc[chunksize * i:chunksize * (i + 1)]
+            chunk = inputs.iloc[chunksize * i:chunksize * (i + 1)]
+            if pre_func is not None:
+                chunk = pre_func(chunk)
+            yield chunk
     else:
         buffer = pd.DataFrame()
         if recurse:
@@ -99,6 +111,8 @@ def iter_csv(inputs, chunksize, error=True, warning=True, concat_chip=True, recu
         for path in inputs:
             try:
                 for chunk in pd.read_csv(path, chunksize=chunksize, **kwargs):
+                    if pre_func is not None:
+                        chunk = pre_func(chunk)
                     if concat_chip:
                         buffer = pd.concat([buffer, chunk])
                     else:
