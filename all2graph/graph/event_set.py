@@ -206,5 +206,5 @@ class EventSet:
         return lookup_table, event_tokens
         
     def __repr__(self):
-        return f'{self.__class__.__name__}(num_event_types={self.num_event_types}, num_nodes={self.num_nodes}, num_causal_edges={self.num_causal_edges}, num_survival_edges={self.num_survival_edges})'
+        return f'{self.__class__.__name__}(num_event_types={self.num_event_types}, num_nodes={self.num_nodes}, num_causal_edges={self.num_causal_edges})'
 
