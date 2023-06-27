@@ -162,22 +162,28 @@ def split_csv(
             src, chunksize=chunksize, error=error, warning=warning,
             concat_chip=concat_chip, **kwargs))
     for i, chunk in tqdm(chunk_iter, disable=disable, postfix='spliting csv'):
+        # 执行预处理函数func
         if func is not None:
             chunk = func(chunk)
+        
+        # 判断是否进行zip压缩
         if zip:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'zip'))
         else:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'csv'))
         chunk.to_csv(to_file)
-        if sel_cols is not None:
-            path_df = chunk[sel_cols]
-            path_df['path'] = to_file
-        elif drop_cols is not None:
+        
+        # 挑选需要保留在path_df中的列
+        if drop_cols is not None:
             path_df = chunk.drop(columns=drop_cols)
-            path_df['path'] = to_file
-        else:
-            path_df = pd.DataFrame({'path': [to_file] * chunk.shape[0]})
+
+        if sel_cols is not None:
+            path_df = chunk[sel_cols].copy()
+
+        path_df['path'] = to_file
+
         meta_dfs.append(path_df)
+
     if len(meta_dfs) == 0:
         meta_dfs = [pd.DataFrame()]
     path_df = pd.concat(meta_dfs)
