@@ -19,11 +19,9 @@ class Model(Module):
         nhead,
         num_tfm_layers,
         num_survival_periods,
-        neighbor_sampling=False,
         dim_feedforward=None,
         dropout=0,
         norm_first=True,
-        return_loss=True,
         unit=86400,
     ) -> None:
         super().__init__()
@@ -40,7 +38,7 @@ class Model(Module):
             d_model, nhead,
             dim_feedforward=dim_feedforward,
             dropout=dropout,
-            batch_first=norm_first,
+            batch_first=True,
             norm_first=norm_first
         )
         self.attr_encoder = torch.nn.TransformerEncoder(encoder_layer, num_tfm_layers)
@@ -81,7 +79,7 @@ class Model(Module):
         self.survival_loss = DeepHitSingleLoss(unit)
         self.register_buffer('survival_periods', torch.arange(num_survival_periods, dtype=torch.float32)) 
         
-        self.return_loss = return_loss
+        self.return_loss = True
         
         self._reset_parameters()
         
