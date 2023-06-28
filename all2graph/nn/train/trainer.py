@@ -142,6 +142,11 @@ class Trainer(torch.nn.Module):
                     pred = self.module(data)
                     loss = self.loss(pred, label)
 
+                # 当loss为nan或者inf时，停止训练，并保存当前的batch数据
+                if torch.isnan(loss) or torch.isinf(loss):
+                    self.last_batch = data, label, pred, loss
+                    raise ValueError(f'loss is {loss}')
+
                 if self.scaler is not None:
                     self.scaler.scale(loss).backward()
                     self.scaler.step(self.optimizer)
