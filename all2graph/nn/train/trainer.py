@@ -9,7 +9,6 @@ import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from .early_stop import EarlyStop
 from .history import History, EpochBuffer
 from .metric import Metric
 from ..utils import predict_dataloader, predict_csv

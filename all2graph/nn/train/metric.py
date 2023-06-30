@@ -1,11 +1,10 @@
 from inspect import isfunction
 
-from .callback import CallBack
 from .history import History
 from ..utils import to_numpy
 
 
-class Metric(CallBack):
+class Metric:
     def __init__(self, func, name):
         """
 

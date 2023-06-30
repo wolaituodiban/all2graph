@@ -23,6 +23,7 @@ class Model(Module):
         dropout=0,
         norm_first=True,
         unit=86400,
+        epsilon=None
     ) -> None:
         super().__init__()
         if dim_feedforward is None:
@@ -76,7 +77,7 @@ class Model(Module):
         )
         self.survival_norm = torch.nn.BatchNorm1d(d_model)
         self.survival_linear = torch.nn.Linear(d_model, num_survival_periods)
-        self.survival_loss = DeepHitSingleLoss(unit)
+        self.survival_loss = DeepHitSingleLoss(unit, epsilon=epsilon)
         self.register_buffer('survival_periods', torch.arange(num_survival_periods, dtype=torch.float32)) 
         
         self.return_loss = True
@@ -111,7 +112,42 @@ class Model(Module):
         neg_inf = torch.full((inputs.shape[1], inputs.shape[1]), float('-inf'), device=self.device)
         mask = torch.triu(neg_inf, diagonal=1)
         return mask
-    
+
+    def _attr_block(self, graph: EventGraph):
+        lookup_mask = self.generate_square_subsequent_mask(graph.lookup_table)
+        lookup_padding_mask = graph.lookup_table == self.parser.padding
+        lookup_emb = self.embedding(graph.lookup_table) * self.sqrt_d_model
+        lookup_emb = self.attr_encoder(lookup_emb, mask=lookup_mask, src_key_padding_mask=lookup_padding_mask)
+        lookup_emb = self.attr_norm(lookup_emb[:, -1])
+        return lookup_emb
+
+    def _event_block(self, graph: EventGraph, lookup_emb):
+        event_padding_mask = graph.events < 0
+        event_feats = torch.nn.functional.embedding(graph.events.clip(0), lookup_emb)
+        event_type_emb = self.event_type_norm(event_feats[:, 0])
+        event_feats = self.event_encoder(event_feats, src_key_padding_mask=event_padding_mask)
+        event_emb = self.event_norm(event_feats[:, -1])
+        return event_type_emb, event_emb
+
+    def _survival_block(self, graph: EventGraph, causal_feats, event_type_emb):
+        survival_feats = self.survival_conv(graph.survival_graph, (causal_feats, event_type_emb))
+        survival_feats = survival_feats.view(survival_feats.shape[0], -1)
+        survival_feats = self.survival_norm(survival_feats)
+        survival_probs = self.survival_linear(survival_feats).softmax(-1)
+
+        output = {
+            EventGraph.FEAT: survival_feats,
+            'survival_prob': survival_probs,
+            EventGraph.ARRIVAL_TIME: (survival_probs * self.survival_periods).sum(-1),
+        }
+        
+        if self.return_loss:
+            lower, upper = graph.survival_times
+            mask = ~torch.isnan(graph.obs_timestamps)
+            output['loss'] = self.survival_loss(survival_probs[mask], lower[mask], upper[mask])
+
+        return output
+
     def forward(self, graph: EventGraph):
         if isinstance(graph, pd.DataFrame):
             graph = self.parser(graph)
@@ -119,18 +155,10 @@ class Model(Module):
         graph = graph.to(self.device, non_blocking=True)
 
         # lookup编码
-        lookup_mask = self.generate_square_subsequent_mask(graph.lookup_table)
-        lookup_padding_mask = graph.lookup_table == self.parser.padding
-        lookup_emb = self.embedding(graph.lookup_table) * self.sqrt_d_model
-        lookup_emb = self.attr_encoder(lookup_emb, mask=lookup_mask, src_key_padding_mask=lookup_padding_mask)
-        lookup_emb = self.attr_norm(lookup_emb[:, -1])
+        lookup_emb = self._attr_block(graph)
 
         # 事件embedding
-        event_padding_mask = graph.events < 0
-        event_feats = torch.nn.functional.embedding(graph.events.clip(0), lookup_emb)
-        event_type_emb = self.event_type_norm(event_feats[:, 0])
-        event_feats = self.event_encoder(event_feats, src_key_padding_mask=event_padding_mask)
-        event_emb = self.event_norm(event_feats[:, -1])
+        event_type_emb, event_emb = self._event_block(graph, lookup_emb)
 
         # 时间embedding
         edge_feats = self.time_encoder(graph.edge_feats)
@@ -139,23 +167,37 @@ class Model(Module):
         causal_feats, edge_emb = self.causal_convs(graph.causal_graph, event_emb, edge_feats)
         
         # 生存分析
-        survival_feats = self.survival_conv(graph.survival_graph, (causal_feats, event_type_emb))
-        survival_feats = survival_feats.view(survival_feats.shape[0], -1)
-        survival_feats = self.survival_norm(survival_feats)
-        survival_probs = self.survival_linear(survival_feats).softmax(-1)
+        output = self._survival_block(graph, causal_feats=causal_feats, event_type_emb=event_type_emb)
         
-        output = {
-            EventGraph.ARRIVAL_TIME: (survival_probs * self.survival_periods).sum(-1),
+        output.update({
             EventGraph.SAMPLE_ID: graph.sample_ids,
             EventGraph.SAMPLE_OBS_TIMESTAMP: graph.sample_obs_timestamps,
             EventGraph.OBS_TIMESTAMP: graph.obs_timestamps,
+        })
+        
+        return output
+    
+
+class ModelV2(Model):
+    def _survival_block(self, graph: EventGraph, causal_feats, event_type_emb):
+        survival_feats = self.survival_conv(graph.survival_graph, (causal_feats, event_type_emb))
+        survival_feats = survival_feats.view(survival_feats.shape[0], -1)        
+
+        # v1先batchnorm，再indexing
+        # v2先indexing，在batchnorm
+        # 两者batchnrom的running_mean和running_var将不同
+        mask = ~torch.isnan(graph.obs_timestamps)
+        survival_feats = self.survival_norm(survival_feats[mask])
+        survival_probs = self.survival_linear(survival_feats).softmax(-1)
+
+        output = {
             EventGraph.FEAT: survival_feats,
-            'survival_prob': survival_probs
+            'survival_prob': survival_probs,
+            EventGraph.ARRIVAL_TIME: (survival_probs * self.survival_periods).sum(-1),
         }
         
         if self.return_loss:
             lower, upper = graph.survival_times
-            mask = ~torch.isnan(graph.obs_timestamps)
-            output['loss'] = self.survival_loss(survival_probs[mask], lower[mask], upper[mask])
+            output['loss'] = self.survival_loss(survival_probs, lower[mask], upper[mask])
+
         return output
-    

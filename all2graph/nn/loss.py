@@ -76,9 +76,11 @@ class ListLoss(Module):
         return loss / weight_sum
 
 class DeepHitSingleLoss(torch.nn.Module):
-    def __init__(self, unit=1):
+    def __init__(self, unit=1, epsilon=None):
         super().__init__()
         self.unit = unit
+        if epsilon is not None:
+            self.epsilon = epsilon
     
     def forward(self, pred, lower, upper):
         lower = lower.unsqueeze(-1) / self.unit
@@ -89,7 +91,10 @@ class DeepHitSingleLoss(torch.nn.Module):
         upper_mask = idx <= upper.floor().clip(0, np.inf)
         mask = lower_mask & upper_mask
         
-        return -(pred * mask).sum(-1).log().mean()
+        prob = (pred * mask).sum(-1)
+        if getattr(self, 'epsilon', None) is not None:
+            prob = prob.clip(self.epsilon, 1)
+        return -prob.log().mean()
     
     def extra_repr(self) -> str:
-        return f'unit={self.unit}'
+        return f'unit={self.unit}, epsilon={getattr(self, "epsilon", None)}'
