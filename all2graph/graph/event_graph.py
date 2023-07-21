@@ -3,6 +3,7 @@ from typing import List
 import dgl
 import torch
 import numpy as np
+import pandas as pd
 
 
 class EventGraph:
@@ -44,43 +45,43 @@ class EventGraph:
         
     @property
     def sample_ids(self):
-        return self.graph.ndata[self.SAMPLE_ID]
+        return self.graph.nodes[self.EVENT].data[self.SAMPLE_ID]
     
     @sample_ids.setter
     def sample_ids(self, sample_id):
-        self.graph.ndata[self.SAMPLE_ID] = sample_id
+        self.graph.nodes[self.EVENT].data[self.SAMPLE_ID] = sample_id
         
     @property
     def sample_obs_timestamps(self):
-        return self.graph.ndata[self.SAMPLE_OBS_TIMESTAMP]
+        return self.graph.nodes[self.EVENT].data[self.SAMPLE_OBS_TIMESTAMP]
     
     @sample_obs_timestamps.setter
     def sample_obs_timestamps(self, timestamps):
-        self.graph.ndata[self.SAMPLE_OBS_TIMESTAMP] = timestamps
+        self.graph.nodes[self.EVENT].data[self.SAMPLE_OBS_TIMESTAMP] = timestamps
         
     @property
     def obs_timestamps(self):
-        return self.graph.ndata[self.OBS_TIMESTAMP]
+        return self.graph.nodes[self.EVENT].data[self.OBS_TIMESTAMP]
     
     @obs_timestamps.setter
     def obs_timestamps(self, timestamps):
-        self.graph.ndata[self.OBS_TIMESTAMP] = timestamps
+        self.graph.nodes[self.EVENT].data[self.OBS_TIMESTAMP] = timestamps
         
     @property
     def event_timestamps(self):
-        return self.graph.ndata[self.EVENT_TIMESTAMP]
+        return self.graph.nodes[self.EVENT].data[self.EVENT_TIMESTAMP]
     
     @event_timestamps.setter
     def event_timestamps(self, timestamps):
-        self.graph.ndata[self.EVENT_TIMESTAMP] = timestamps
+        self.graph.nodes[self.EVENT].data[self.EVENT_TIMESTAMP] = timestamps
         
     @property
     def censor_timestamps(self):
-        return self.graph.ndata[self.CENSOR_TIMESTAMP]
+        return self.graph.nodes[self.EVENT].data[self.CENSOR_TIMESTAMP]
     
     @censor_timestamps.setter
     def censor_timestamps(self, timestamps):
-        self.graph.ndata[self.CENSOR_TIMESTAMP] = timestamps
+        self.graph.nodes[self.EVENT].data[self.CENSOR_TIMESTAMP] = timestamps
     
     @property
     def diff_timestamps(self):
@@ -93,23 +94,23 @@ class EventGraph:
     
     @property
     def arrival_times(self):
-        if self.ARRIVAL_TIME not in self.graph.ndata:
+        if self.ARRIVAL_TIME not in self.graph.nodes[self.EVENT].data:
             self.graph.update_all(
                 dgl.function.v_sub_u(self.EVENT_TIMESTAMP, self.EVENT_TIMESTAMP, self.ARRIVAL_TIME),
                 dgl.function.mean(self.ARRIVAL_TIME, self.ARRIVAL_TIME),
                 etype=self.SURVIVAL
             )
-        return self.graph.ndata[self.ARRIVAL_TIME]
+        return self.graph.nodes[self.EVENT].data[self.ARRIVAL_TIME]
     
     @property
     def censor_times(self):
-        if self.CENSOR_TIME not in self.graph.ndata:
+        if self.CENSOR_TIME not in self.graph.nodes[self.EVENT].data:
             self.graph.update_all(
                 dgl.function.v_sub_u(self.CENSOR_TIMESTAMP, self.EVENT_TIMESTAMP, self.CENSOR_TIME),
                 dgl.function.mean(self.CENSOR_TIME, self.CENSOR_TIME),
                 etype=self.SURVIVAL
             )
-        return self.graph.ndata[self.CENSOR_TIME]
+        return self.graph.nodes[self.EVENT].data[self.CENSOR_TIME]
     
     @property
     def survival_times(self):
@@ -156,4 +157,76 @@ class EventGraph:
     def to_simple(self):
         self.graph = self.graph.to_simple()
 
+
+class EventGraphV2(EventGraph):
+    ATTR = 'attr'
     
+    def __init__(
+        self,
+        graph: dgl.DGLGraph,
+        event_types: List[str],
+    ):
+        self.graph = graph.remove_self_loop(etype=self.SURVIVAL)
+        self.event_types = event_types
+        
+    @property
+    def events(self):
+        if self.EVENT not in self.graph.nodes[self.EVENT].data:
+            u, v = self.graph.edges(etype=self.ATTR)
+            output = {}
+            for i, j in zip(u.tolist(), v.tolist()):
+                if j not in output:
+                    output[j] = [i]
+                else:
+                    output[j].append(i)
+
+            # 使用pandas对齐事件token长度
+            output = pd.DataFrame([output[i] for i in range(len(output))])
+
+            # 填充padding
+            output = output.fillna(-1)
+
+            # 在event末尾加上[cls]
+            output['cls'] = self.graph.num_nodes(self.ATTR) - 1
+            
+            self.graph.nodes[self.EVENT].data[self.EVENT] = torch.tensor(
+                output.values, dtype=torch.long, device=self.graph.device).contiguous()
+        
+        return self.graph.nodes[self.EVENT].data[self.EVENT]
+        
+    @property
+    def lookup_table(self):
+        return self.graph.nodes[self.ATTR].data[self.FEAT]
+    
+    @lookup_table.setter
+    def lookup_table(self, lookup_table):
+        self.graph.nodes[self.ATTR].data[self.FEAT] = lookup_table
+        
+    def to(self, *args, **kwargs):
+        graph = self.graph.to(*args, **kwargs)
+        return self.__class__(
+            graph=graph,
+            event_types=self.event_types,
+        )
+    
+    def pin_memory(self):
+        self.graph = self.graph.pin_memory_()
+        return self
+    
+    def sample_subgraph(self, sample_ids):
+        # 寻找事件点
+        sub_event_nodes = np.nonzero(pd.Series(self.sample_ids.numpy()).isin(sample_ids).values)[0].tolist()
+
+        # 寻找事件点对应的属性点
+        attr_graph = self.graph.edge_type_subgraph([self.ATTR])
+        sub_attr_graph = dgl.sampling.sample_neighbors(attr_graph, nodes={self.EVENT: sub_event_nodes}, fanout=-1)
+        sub_attr_nodes = sub_attr_graph.edges()[0]
+        sub_attr_nodes = sub_attr_nodes.unique().tolist()
+
+        # 将[cls]对应的属性点加回去
+        sub_attr_nodes.append(self.graph.num_nodes(self.ATTR)-1)
+
+        # 采子图
+        sub_graph = self.graph.subgraph({self.EVENT: sub_event_nodes, self.ATTR: sub_attr_nodes})
+        sub_event_types = [self.event_types[i] for i in sub_event_nodes]
+        return EventGraphV2(graph=sub_graph, event_types=sub_event_types)

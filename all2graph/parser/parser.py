@@ -1,14 +1,17 @@
 import json
 import string
+import os
 from copy import deepcopy
 from typing import Iterable, List
 from itertools import combinations
+from gzip import GzipFile
 
+import numpy as np
 import dgl
 import torch
 import pandas as pd
 
-from ..graph import EventGraph, EventSet, Event
+from ..graph import EventGraph, EventSet, Event, EventGraphV2
 from ..utils import (
     SpecialToken,
     CLS,
@@ -302,6 +305,148 @@ class Parser:
     
     def generator(self, src, chunksize, processes=0, disable=False, unordered=False, pre_func=None, **kwargs):
         data = iter_csv(src, chunksize=chunksize, **kwargs)
-        for output in mp_run(self.generate, data, kwds={'pre_func': pre_func}, processes=processes, unordered=unordered):
+        for output in mp_run(
+            self.generate,
+            data,
+            kwds={'pre_func': pre_func},
+            processes=processes,
+            disable=disable,
+            unordered=unordered
+        ):
             yield output
     
+    
+class ParserV2(Parser):
+    def __init__(self, *args, transformers_tokenizer, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.transformers_tokenizer = transformers_tokenizer
+        del self._dictionary
+        
+    @property
+    def num_embeddings(self):
+        return self.transformers_tokenizer.vocab_size
+    
+    @property
+    def padding(self):
+        return self.transformers_tokenizer.pad_token_id
+    
+    def gen_event_graph(self, event_set: EventSet) -> EventGraph:
+        lookup_table, attr_edge_u, attr_edge_v = event_set.gen_attribute_lookup_table()
+        # 在lookup_table中添加[cls]
+        lookup_table.append([self.transformers_tokenizer.cls_token, ''])
+        
+        # encode lookup_table
+        lookup_table = self.transformers_tokenizer(
+            lookup_table,
+            add_special_tokens=True,
+            padding=True,
+            return_tensors='pt',
+            return_token_type_ids=False,
+            return_attention_mask=False,
+            return_special_tokens_mask=False
+        )['input_ids']
+        
+        # 将cls放到末尾
+        lookup_table = torch.cat([lookup_table[:, 1:], lookup_table[:, [0]]], dim=1).contiguous()
+        
+        # 构造图        
+        graph = dgl.heterograph(
+            {
+                (EventGraphV2.EVENT, EventGraphV2.SURVIVAL, EventGraphV2.EVENT): event_set.gen_survival_edges(),
+                (EventGraphV2.EVENT, EventGraphV2.CAUSAL, EventGraphV2.EVENT): (event_set.causal_u, event_set.causal_v),
+                (EventGraphV2.ATTR, EventGraphV2.ATTR, EventGraphV2.EVENT): (attr_edge_u, attr_edge_v),
+            },
+            num_nodes_dict={
+                EventGraphV2.EVENT: event_set.num_nodes,
+                EventGraphV2.ATTR: lookup_table.shape[0]
+            }
+        )
+        
+        # 封装
+        output = EventGraphV2(
+            graph,
+            event_types=event_set.event_types,
+        )
+        output.lookup_table = lookup_table
+        output.sample_ids = torch.tensor(event_set.sample_ids, dtype=torch.long)
+        output.sample_obs_timestamps = torch.tensor(event_set.sample_obs_timestamps, dtype=torch.float64)
+        output.obs_timestamps = torch.tensor(event_set.obs_timestamps, dtype=torch.float64)
+        output.event_timestamps = torch.tensor(event_set.event_timestamps, dtype=torch.float64)
+        output.censor_timestamps = torch.tensor(event_set.censor_timestamps, dtype=torch.float64)
+        
+        output.to_simple()
+        return output
+    
+    def _save_graph(self, inputs, dst, compresslevel=6, pre_func=None, path_col='path'):
+        i, df = inputs
+        if pre_func is not None:
+            df = pre_func(df)
+        graph = self(df)
+        df = df.drop(columns=list(self.event_cols))
+        path = os.path.join(dst, f'{i}.all2graph.{graph.__class__.__name__}.gzip')
+        df[path_col] = path
+        with GzipFile(path, 'wb', compresslevel=compresslevel) as myzip:
+            label = self.get_targets(df)
+            torch.save([graph, label], myzip)
+        return df
+        
+    def save_graph(self, src, dst, chunksize, processes=0, disable=False, unordered=False, pre_func=None, index=False, path_col='path', compresslevel=6, **kwargs):
+        # 检查文件夹是否存在，如果存在则报错，否则创建文件夹
+        if os.path.exists(dst):
+            raise ValueError('{} already exists'.format(dst))
+        os.mkdir(dst)
+        
+        meta_df = []
+        for df in mp_run(
+            self._save_graph,
+            enumerate(iter_csv(src, chunksize=chunksize, **kwargs)),
+            kwds={'dst': dst, 'compresslevel': compresslevel, 'pre_func': pre_func, 'path_col': path_col},
+            processes=processes,
+            disable=disable,
+            unordered=unordered
+        ):
+            meta_df.append(df)
+        
+        meta_df = pd.concat(meta_df)
+        meta_df.to_csv(f'{dst}_path.zip', index=index)
+        
+#     def _save_graph(self, df,  pre_func=None):
+#         if pre_func is not None:
+#             df = pre_func(df)
+#         parsed = self.parse_df(df)
+#         parsed.gen_attribute_lookup_table()
+#         parsed.gen_survival_edges()
+#         df = df.drop(columns=list(self.event_cols))
+#         return parsed, df
+
+#     def save_graph(self, src, dst, chunksize, processes=0, disable=False, unordered=False, pre_func=None, index=False, path_col='path', compresslevel=6, **kwargs):
+#         # 检查文件夹是否存在，如果存在则报错，否则创建文件夹
+#         if os.path.exists(dst):
+#             raise ValueError('{} already exists'.format(dst))
+#         os.mkdir(dst)
+
+#         meta_df = []
+#         for i, (event_set, df) in enumerate(
+#             mp_run(
+#                 self._save_graph,
+#                 iter_csv(src, chunksize=chunksize, **kwargs),
+#                 kwds={'pre_func': pre_func},
+#                 processes=processes,
+#                 disable=disable,
+#                 unordered=unordered
+#             )
+#         ):
+#             assert path_col not in df
+            
+#             graph = self.gen_event_graph(event_set)
+
+#             path = os.path.join(dst, f'{i}.all2graph.{graph.__class__.__name__}.gzip')
+#             df[path_col] = path
+#             meta_df.append(df)
+
+#             with GzipFile(path, 'wb', compresslevel=compresslevel) as myzip:
+#                 label = self.get_targets(df)
+#                 torch.save([graph, label], myzip)
+
+#         meta_df = pd.concat(meta_df)
+#         meta_df.to_csv(f'{dst}_path.zip', index=index)

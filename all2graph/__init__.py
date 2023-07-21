@@ -19,7 +19,7 @@ if 'linux' in platform.system().lower():
 
 from . import nn
 from . import data
-from .graph import EventGraph, EventSet, Event
-from .parser import Parser
+from .graph import EventGraph, EventSet, Event, EventGraphV2
+from .parser import Parser, ParserV2
 from .utils import *
 from .globals import *

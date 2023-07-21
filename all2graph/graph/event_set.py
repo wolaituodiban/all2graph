@@ -22,6 +22,13 @@ class EventSet:
         self.causal_u = []
         self.causal_v = []
         
+        self.survival_u = None
+        self.survival_v = None
+        
+        self.lookup_table = None
+        self.attr_edge_u = None
+        self.attr_edge_v = None
+        
     def __getitem__(self, i):
         return Event(
             obs_timestamp=self.obs_timestamps[i],
@@ -108,22 +115,25 @@ class EventSet:
         self.sample_obs_timestamps.extend([sample_obs_timestamp]*len(events))
         
     def gen_survival_edges(self):
-        u = []
-        v = []
-        src_by_sample_and_timestamp = {}
-        for i, (sample_id, event_timestamp) in enumerate(zip(self.sample_ids, self.event_timestamps)):
-            if np.isnan(event_timestamp):
-                continue
-            if (sample_id, event_timestamp) not in src_by_sample_and_timestamp:
-                src_by_sample_and_timestamp[sample_id, event_timestamp] = []
-            src_by_sample_and_timestamp[sample_id, event_timestamp].append(i)
+        if self.survival_u is None or self.survival_v is None:
+            u = []
+            v = []
+            src_by_sample_and_timestamp = {}
+            for i, (sample_id, event_timestamp) in enumerate(zip(self.sample_ids, self.event_timestamps)):
+                if np.isnan(event_timestamp):
+                    continue
+                if (sample_id, event_timestamp) not in src_by_sample_and_timestamp:
+                    src_by_sample_and_timestamp[sample_id, event_timestamp] = []
+                src_by_sample_and_timestamp[sample_id, event_timestamp].append(i)
 
-        for i, (sample_id, obs_timestamp) in enumerate(zip(self.sample_ids, self.obs_timestamps)):
-            if (sample_id, obs_timestamp) in src_by_sample_and_timestamp:
-                temp = src_by_sample_and_timestamp[sample_id, obs_timestamp]
-                u.extend(temp)
-                v.extend([i]*len(temp))
-        return u, v
+            for i, (sample_id, obs_timestamp) in enumerate(zip(self.sample_ids, self.obs_timestamps)):
+                if (sample_id, obs_timestamp) in src_by_sample_and_timestamp:
+                    temp = src_by_sample_and_timestamp[sample_id, obs_timestamp]
+                    u.extend(temp)
+                    v.extend([i]*len(temp))
+            self.survival_u = u
+            self.survival_v = v
+        return self.survival_u, self.survival_v
         
     @property
     def num_nodes(self):
@@ -204,6 +214,38 @@ class EventSet:
             event_tokens.append(temp_idx)
             
         return lookup_table, event_tokens
+    
+    def gen_attribute_lookup_table(self):
+        if self.lookup_table is None or self.attr_edge_u is None or self.attr_edge_v is None:
+            # 每一行表示一个type或key-value的tokens
+            lookup_table = []
+
+            # type或key-value在lookup_table中的坐标
+            lookup_idx = {}
+
+            # 属性边
+            attr_edge_u = []
+            attr_edge_v = []
+
+            for event_i, (event_type, attributes) in enumerate(zip(self.event_types, self.attributes)):
+                if event_type not in lookup_idx:
+                    lookup_idx[event_type] = len(lookup_table)
+                    lookup_table.append([event_type, ''])
+                attr_edge_u.append(lookup_idx[event_type])
+                attr_edge_v.append(event_i)
+
+                for key, value in attributes.items():
+                    value = str(value)
+                    if (key, value) not in lookup_idx:
+                        lookup_idx[key, value] = len(lookup_table)
+                        lookup_table.append([key, value])
+                    attr_edge_u.append(lookup_idx[key, value])
+                    attr_edge_v.append(event_i)
+
+            self.lookup_table = lookup_table
+            self.attr_edge_u = attr_edge_u
+            self.attr_edge_v = attr_edge_v
+        return self.lookup_table, self.attr_edge_u, self.attr_edge_v
         
     def __repr__(self):
         return f'{self.__class__.__name__}(num_event_types={self.num_event_types}, num_nodes={self.num_nodes}, num_causal_edges={self.num_causal_edges})'

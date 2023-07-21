@@ -171,7 +171,7 @@ def split_csv(
             to_file = os.path.join(dst, '{}.{}'.format(i, 'zip'))
         else:
             to_file = os.path.join(dst, '{}.{}'.format(i, 'csv'))
-        chunk.to_csv(to_file)
+        chunk.to_csv(to_file, index=index)
         
         # 挑选需要保留在path_df中的列
         if drop_cols is not None:

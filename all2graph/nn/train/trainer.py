@@ -127,12 +127,12 @@ class Trainer(torch.nn.Module):
         """训练一个epoch"""
         self._current_epoch += 1
         with tqdm(
-                list(range(len(self.train_history.loader))),
+                self.train_history.loader,
                 desc='epoch {} train'.format(self._current_epoch)
         ) as bar:
             self.module.train()
             buffer = EpochBuffer()
-            for data, label in self.train_history.loader:
+            for data, label in bar:
                 # step fit
                 self.optimizer.zero_grad()
 
