@@ -9,6 +9,7 @@ import torch
 from torch.utils.data import Dataset as _Dataset, DataLoader, IterableDataset
 
 from .sampler import PartitionSampler
+from ..graph import EventGraphV3
 
 
 class Dataset(_Dataset):
@@ -203,3 +204,45 @@ class GzipGraphDataset(IterableDataset):
                 
     def dataloader(self, num_workers: int, **kwargs) -> DataLoader:
         return DataLoader(self, num_workers=num_workers, batch_size=None, **kwargs)
+    
+    
+def match_embedding(graph: EventGraphV3, embedding: torch.Tensor, attr_list: list=None, emb_mapper=None):
+    if emb_mapper is None:
+        emb_mapper = {tuple(x): i for i, x in enumerate(attr_list)}
+    
+    # type
+    type_idx = torch.tensor([emb_mapper[(x,)] for x in graph.event_types], dtype=torch.long)
+    
+    # attr
+    attr_idx = pd.DataFrame([emb_mapper[xx] for xx in x.items()] for x in graph.attributes)
+    attr_idx.fillna(-1, inplace=True)
+    attr_idx = torch.tensor(attr_idx.values, dtype=torch.long)
+    
+    # emb
+    emb_idx = torch.cat([type_idx.reshape(-1, 1), attr_idx], axis=1)
+    graph.events = emb_idx
+    graph.event_feats = embedding[emb_idx].contiguous()
+    
+    
+class GzipGraphDatasetV2(GzipGraphDataset):
+    def __init__(self, batch_size: int, num_samples: tuple, embedding: torch.Tensor, attr_list: list):
+        """
+        batch_size:
+        num_samples: [(path, number), ...]
+        embedding: 
+        attr_list:
+        """
+        super().__init__(batch_size=batch_size, num_samples=num_samples)
+        self.embedding = embedding
+#         self.attr_list = attr_list
+        self.emb_mapper = {tuple(x): i for i, x in enumerate(attr_list)}
+    
+    def _iter(self, start, end):
+        for graph, label in super()._iter(start, end):
+            match_embedding(
+                graph,
+                embedding=self.embedding,
+                attr_list=getattr(self, 'attr_list', None),
+                emb_mapper=getattr(self, 'emb_mapper', None)
+            )
+            yield graph, label

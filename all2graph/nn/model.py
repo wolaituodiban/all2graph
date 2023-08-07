@@ -8,8 +8,8 @@ import pandas as pd
 from .utils import Module
 from .loss import DeepHitSingleLoss
 from .block import Block
-from ..graph import EventGraph
-from ..parser import Parser
+from ..graph import EventGraph, EventGraphV3
+from ..parser import Parser, ParserV3
 
 class Model(Module):
     def __init__(
@@ -201,3 +201,54 @@ class ModelV2(Model):
             output['loss'] = self.survival_loss(survival_probs, lower[mask], upper[mask])
 
         return output
+
+    
+class ModelV3(ModelV2):
+    def __init__(
+        self,
+        parser: ParserV3,
+        d_model,
+        nhead,
+        num_tfm_layers,
+        num_survival_periods,
+        d_pretrained,
+        dim_feedforward=None,
+        dropout=0,
+        norm_first=True,
+        unit=86400,
+        epsilon=None
+    ) -> None:
+        parser.num_embeddings = 1
+        super().__init__(
+            parser=parser,
+            d_model=d_model,
+            nhead=nhead,
+            num_tfm_layers=num_tfm_layers,
+            num_survival_periods=num_survival_periods,
+            dim_feedforward=dim_feedforward,
+            dropout=dropout,
+            norm_first=norm_first,
+            unit=unit,
+            epsilon=epsilon
+        )
+        del self.attr_encoder
+        self.embedding = torch.nn.Embedding(1, d_pretrained)
+        self.attr_linear = torch.nn.Linear(d_pretrained, d_model)
+        self.attr_norm = torch.nn.LayerNorm(d_pretrained)
+        
+    def _attr_block(self, _):
+        return None
+    
+    def _event_block(self, graph: EventGraphV3, _):
+        event_feats = graph.event_feats
+        cls_idx = torch.zeros((event_feats.shape[0], 1), dtype=torch.long, device=event_feats.device)
+        cls_emb = self.embedding(cls_idx)
+        
+        event_feats = torch.cat([event_feats, cls_emb], axis=1)
+        event_feats = self.attr_linear(self.attr_norm(event_feats))
+        
+        event_type_emb = self.event_type_norm(event_feats[:, 0])        
+        event_feats = self.event_encoder(event_feats, src_key_padding_mask=torch.cat([graph.events, cls_idx], axis=1) < 0)
+        event_emb = self.event_norm(event_feats[:, -1])
+        
+        return event_type_emb, event_emb

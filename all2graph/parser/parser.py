@@ -11,7 +11,13 @@ import dgl
 import torch
 import pandas as pd
 
-from ..graph import EventGraph, EventSet, Event, EventGraphV2
+from ..graph import (
+    EventGraph,
+    EventSet,
+    Event,
+    EventGraphV2,
+    EventGraphV3
+)
 from ..utils import (
     SpecialToken,
     CLS,
@@ -23,8 +29,7 @@ from ..utils import (
     mp_run
 )
 
-
-class Parser:
+class BaseParser:
     SPECIAL_TOKENS = 'special_tokens'
     COMMON_TOKENS = 'common_tokens'
 
@@ -84,37 +89,6 @@ class Parser:
             self.ignored_keys
         )
         
-        self._dictionary = {}
-        self.add_tokens([PADDING, UNKNOWN, END, CLS, SEP, str(None), str(True), str(False)])
-        self.add_tokens(string.printable)
-        
-    def add_tokens(self, tokens):
-        for token in tokens:
-            assert isinstance(token, str) or issubclass(token, SpecialToken)
-            if token not in self._dictionary:
-                self._dictionary[token] = len(self._dictionary)
-                
-    def dump_dictionary(self, path=None):
-        output = {}
-        output[self.SPECIAL_TOKENS] = {k.__name__: v for k, v in self._dictionary.items() if isinstance(k, type) and issubclass(k, SpecialToken)}
-        output[self.COMMON_TOKENS] = {k: v for k, v in self._dictionary.items() if not isinstance(k, type) or not issubclass(k, SpecialToken)}
-        if path is None:
-            return output
-        else:
-            with open(path, 'w') as file:
-                json.dump(output, file)
-
-    def load_dictionary(self, path):
-        with open(path, 'r') as file:
-            tokens = json.load(file)
-        new_dictionary = {}
-        for k, v in tokens[self.SPECIAL_TOKENS].items():
-            new_dictionary[globals()[k]] = v
-        for k, v in tokens[self.COMMON_TOKENS].items():
-            new_dictionary[k] = v
-        assert set(new_dictionary.values()) == set(range(len(new_dictionary)))
-        self._dictionary = new_dictionary
-        
     def parse_df(self, df: pd.DataFrame) -> EventSet:
         
         def gen_event(event_type: str, event_data: dict) -> Event:
@@ -172,6 +146,130 @@ class Parser:
                 degree=self.degree,
             )
         return graph
+    
+    def __call__(self, df: pd.DataFrame) -> EventGraph:
+        event_graph = self.parse_df(df)
+        return self.gen_event_graph(event_graph)
+    
+    def get_targets(self, df: pd.DataFrame):        
+        output = {}
+        for k in self.target_cols:
+            if k in df:
+                output[k] = torch.tensor(df[k].values, dtype=torch.float32) 
+            else:
+                output[k] = torch.full((df.shape[0], ), fill_value=np.nan, dtype=torch.float32)
+        return output
+    
+    def generate(self, df, pre_func=None):
+        if pre_func is not None:
+            df = pre_func(df)
+        parsed = self(df)
+        df = df.drop(columns=list(self.event_cols))
+        for col, value in self.get_targets(df).items():
+            df[col] = value.numpy()
+        return parsed, df
+    
+    def generator(self, src, chunksize, processes=0, disable=False, unordered=False, pre_func=None, **kwargs):
+        data = iter_csv(src, chunksize=chunksize, **kwargs)
+        for output in mp_run(
+            self.generate,
+            data,
+            kwds={'pre_func': pre_func},
+            processes=processes,
+            disable=disable,
+            unordered=unordered
+        ):
+            yield output
+            
+    def _save_graph(self, inputs, dst, compresslevel=6, pre_func=None, path_col='path'):
+        i, df = inputs
+        if pre_func is not None:
+            df = pre_func(df)
+        graph = self(df)
+        df = df.drop(columns=list(self.event_cols))
+        path = os.path.join(dst, f'{i}.all2graph.{graph.__class__.__name__}.gzip')
+        df[path_col] = path
+        with GzipFile(path, 'wb', compresslevel=compresslevel) as myzip:
+            label = self.get_targets(df)
+            torch.save([graph, label], myzip)
+        return df
+        
+    def save_graph(self, src, dst, chunksize, processes=0, disable=False, unordered=False, pre_func=None, index=False, path_col='path', compresslevel=6, **kwargs):
+        # 检查文件夹是否存在，如果存在则报错，否则创建文件夹
+        if os.path.exists(dst):
+            raise ValueError('{} already exists'.format(dst))
+        os.mkdir(dst)
+        
+        meta_df = []
+        for df in mp_run(
+            self._save_graph,
+            enumerate(iter_csv(src, chunksize=chunksize, **kwargs)),
+            kwds={'dst': dst, 'compresslevel': compresslevel, 'pre_func': pre_func, 'path_col': path_col},
+            processes=processes,
+            disable=disable,
+            unordered=unordered
+        ):
+            meta_df.append(df)
+        
+        meta_df = pd.concat(meta_df)
+        meta_df.to_csv(f'{dst}_path.zip', index=index)
+
+
+class Parser(BaseParser):
+    def __init__(
+        self,
+        degree: int,
+        num_layers: int,
+        target_cols: Iterable[str],
+        event_cols: Iterable[str],
+        obs_timestamp_key=EventGraph.OBS_TIMESTAMP,
+        event_timestamp_key=EventGraph.EVENT_TIMESTAMP,
+        censor_timestamp_key=EventGraph.CENSOR_TIMESTAMP,
+        foreign_keys: Iterable[str]=None,
+        ignored_keys: Iterable[str]=None,
+    ):
+        super().__init__(
+            degree=degree,
+            num_layers=num_layers,
+            target_cols=target_cols,
+            event_cols=event_cols,
+            obs_timestamp_key=obs_timestamp_key,
+            event_timestamp_key=event_timestamp_key,
+            censor_timestamp_key=censor_timestamp_key,
+            foreign_keys=foreign_keys,
+            ignored_keys=ignored_keys,
+        )
+        
+        self._dictionary = {}
+        self.add_tokens([PADDING, UNKNOWN, END, CLS, SEP, str(None), str(True), str(False)])
+        self.add_tokens(string.printable)
+        
+    def add_tokens(self, tokens):
+        for token in tokens:
+            assert isinstance(token, str) or issubclass(token, SpecialToken)
+            if token not in self._dictionary:
+                self._dictionary[token] = len(self._dictionary)
+                
+    def dump_dictionary(self, path=None):
+        output = {}
+        output[self.SPECIAL_TOKENS] = {k.__name__: v for k, v in self._dictionary.items() if isinstance(k, type) and issubclass(k, SpecialToken)}
+        output[self.COMMON_TOKENS] = {k: v for k, v in self._dictionary.items() if not isinstance(k, type) or not issubclass(k, SpecialToken)}
+        if path is None:
+            return output
+        else:
+            with open(path, 'w') as file:
+                json.dump(output, file)
+
+    def load_dictionary(self, path):
+        with open(path, 'r') as file:
+            tokens = json.load(file)
+        new_dictionary = {}
+        for k, v in tokens[self.SPECIAL_TOKENS].items():
+            new_dictionary[globals()[k]] = v
+        for k, v in tokens[self.COMMON_TOKENS].items():
+            new_dictionary[k] = v
+        assert set(new_dictionary.values()) == set(range(len(new_dictionary)))
+        self._dictionary = new_dictionary
     
     def find_all_tokens(self, df):
         graph = self.parse_df(df)
@@ -281,42 +379,8 @@ class Parser:
         output.to_simple()
         return output
     
-    def __call__(self, df: pd.DataFrame) -> EventGraph:
-        event_graph = self.parse_df(df)
-        return self.gen_event_graph(event_graph)
     
-    def get_targets(self, df: pd.DataFrame):        
-        output = {}
-        for k in self.target_cols:
-            if k in df:
-                output[k] = torch.tensor(df[k].values, dtype=torch.float32) 
-            else:
-                output[k] = torch.full((df.shape[0], ), fill_value=np.nan, dtype=torch.float32)
-        return output
-    
-    def generate(self, df, pre_func=None):
-        if pre_func is not None:
-            df = pre_func(df)
-        parsed = self(df)
-        df = df.drop(columns=list(self.event_cols))
-        for col, value in self.get_targets(df).items():
-            df[col] = value.numpy()
-        return parsed, df
-    
-    def generator(self, src, chunksize, processes=0, disable=False, unordered=False, pre_func=None, **kwargs):
-        data = iter_csv(src, chunksize=chunksize, **kwargs)
-        for output in mp_run(
-            self.generate,
-            data,
-            kwds={'pre_func': pre_func},
-            processes=processes,
-            disable=disable,
-            unordered=unordered
-        ):
-            yield output
-    
-    
-class ParserV2(Parser):
+class ParserV2(BaseParser):
     def __init__(self, *args, transformers_tokenizer, **kwargs):
         super().__init__(*args, **kwargs)
         self.transformers_tokenizer = transformers_tokenizer
@@ -377,76 +441,31 @@ class ParserV2(Parser):
         output.to_simple()
         return output
     
-    def _save_graph(self, inputs, dst, compresslevel=6, pre_func=None, path_col='path'):
-        i, df = inputs
-        if pre_func is not None:
-            df = pre_func(df)
-        graph = self(df)
-        df = df.drop(columns=list(self.event_cols))
-        path = os.path.join(dst, f'{i}.all2graph.{graph.__class__.__name__}.gzip')
-        df[path_col] = path
-        with GzipFile(path, 'wb', compresslevel=compresslevel) as myzip:
-            label = self.get_targets(df)
-            torch.save([graph, label], myzip)
-        return df
+
+class ParserV3(BaseParser):
+    def gen_event_graph(self, event_set: EventSet) -> EventGraph:
+        # 构造图        
+        graph = dgl.heterograph(
+            {
+                (EventGraphV2.EVENT, EventGraphV2.SURVIVAL, EventGraphV2.EVENT): event_set.gen_survival_edges(),
+                (EventGraphV2.EVENT, EventGraphV2.CAUSAL, EventGraphV2.EVENT): (event_set.causal_u, event_set.causal_v),
+            },
+            num_nodes_dict={
+                EventGraphV2.EVENT: event_set.num_nodes,
+            }
+        )
         
-    def save_graph(self, src, dst, chunksize, processes=0, disable=False, unordered=False, pre_func=None, index=False, path_col='path', compresslevel=6, **kwargs):
-        # 检查文件夹是否存在，如果存在则报错，否则创建文件夹
-        if os.path.exists(dst):
-            raise ValueError('{} already exists'.format(dst))
-        os.mkdir(dst)
+        # 封装
+        output = EventGraphV3(
+            graph,
+            event_types=event_set.event_types,
+            attributes=event_set.attributes,
+        )
+        output.sample_ids = torch.tensor(event_set.sample_ids, dtype=torch.long)
+        output.sample_obs_timestamps = torch.tensor(event_set.sample_obs_timestamps, dtype=torch.float64)
+        output.obs_timestamps = torch.tensor(event_set.obs_timestamps, dtype=torch.float64)
+        output.event_timestamps = torch.tensor(event_set.event_timestamps, dtype=torch.float64)
+        output.censor_timestamps = torch.tensor(event_set.censor_timestamps, dtype=torch.float64)
         
-        meta_df = []
-        for df in mp_run(
-            self._save_graph,
-            enumerate(iter_csv(src, chunksize=chunksize, **kwargs)),
-            kwds={'dst': dst, 'compresslevel': compresslevel, 'pre_func': pre_func, 'path_col': path_col},
-            processes=processes,
-            disable=disable,
-            unordered=unordered
-        ):
-            meta_df.append(df)
-        
-        meta_df = pd.concat(meta_df)
-        meta_df.to_csv(f'{dst}_path.zip', index=index)
-        
-#     def _save_graph(self, df,  pre_func=None):
-#         if pre_func is not None:
-#             df = pre_func(df)
-#         parsed = self.parse_df(df)
-#         parsed.gen_attribute_lookup_table()
-#         parsed.gen_survival_edges()
-#         df = df.drop(columns=list(self.event_cols))
-#         return parsed, df
-
-#     def save_graph(self, src, dst, chunksize, processes=0, disable=False, unordered=False, pre_func=None, index=False, path_col='path', compresslevel=6, **kwargs):
-#         # 检查文件夹是否存在，如果存在则报错，否则创建文件夹
-#         if os.path.exists(dst):
-#             raise ValueError('{} already exists'.format(dst))
-#         os.mkdir(dst)
-
-#         meta_df = []
-#         for i, (event_set, df) in enumerate(
-#             mp_run(
-#                 self._save_graph,
-#                 iter_csv(src, chunksize=chunksize, **kwargs),
-#                 kwds={'pre_func': pre_func},
-#                 processes=processes,
-#                 disable=disable,
-#                 unordered=unordered
-#             )
-#         ):
-#             assert path_col not in df
-            
-#             graph = self.gen_event_graph(event_set)
-
-#             path = os.path.join(dst, f'{i}.all2graph.{graph.__class__.__name__}.gzip')
-#             df[path_col] = path
-#             meta_df.append(df)
-
-#             with GzipFile(path, 'wb', compresslevel=compresslevel) as myzip:
-#                 label = self.get_targets(df)
-#                 torch.save([graph, label], myzip)
-
-#         meta_df = pd.concat(meta_df)
-#         meta_df.to_csv(f'{dst}_path.zip', index=index)
+        output.to_simple()
+        return output

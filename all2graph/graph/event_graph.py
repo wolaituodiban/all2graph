@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Dict
 
 import dgl
 import torch
@@ -229,4 +229,57 @@ class EventGraphV2(EventGraph):
         # 采子图
         sub_graph = self.graph.subgraph({self.EVENT: sub_event_nodes, self.ATTR: sub_attr_nodes})
         sub_event_types = [self.event_types[i] for i in sub_event_nodes]
-        return EventGraphV2(graph=sub_graph, event_types=sub_event_types)
+        return self.__class__(graph=sub_graph, event_types=sub_event_types)
+    
+    
+class EventGraphV3(EventGraph):
+    EVENT_FEAT = 'event_feat'
+    
+    def __init__(
+        self,
+        graph: dgl.DGLGraph,
+        event_types: List[str],
+        attributes: List[Dict[str, str]],
+    ):
+        self.graph = graph.remove_self_loop(etype=self.SURVIVAL)
+        self.event_types = event_types
+        self.attributes = attributes
+        
+    @property
+    def events(self):
+        if self.EVENT in self.graph.nodes[self.EVENT].data:
+            return self.graph.nodes[self.EVENT].data[self.EVENT]
+        
+    @events.setter
+    def events(self, events):
+        self.graph.nodes[self.EVENT].data[self.EVENT] = events
+        
+    @property
+    def event_feats(self):
+        return self.graph.nodes[self.EVENT].data[self.EVENT_FEAT]
+    
+    @event_feats.setter
+    def event_feats(self, event_feats):
+        self.graph.nodes[self.EVENT].data[self.EVENT_FEAT] = event_feats
+        
+    def to(self, *args, **kwargs):
+        graph = self.graph.to(*args, **kwargs)
+        return self.__class__(
+            graph=graph,
+            event_types=self.event_types,
+            attributes=self.attributes
+        )
+    
+    def pin_memory(self):
+        self.graph = self.graph.pin_memory_()
+        return self
+    
+    def sample_subgraph(self, sample_ids):
+        # 寻找事件点
+        sub_event_nodes = np.nonzero(pd.Series(self.sample_ids.numpy()).isin(sample_ids).values)[0].tolist()
+
+        # 采子图
+        sub_graph = self.graph.subgraph({self.EVENT: sub_event_nodes})
+        sub_event_types = [self.event_types[i] for i in sub_event_nodes]
+        sub_attributes = [self.attributes[i] for i in sub_event_nodes]
+        return self.__class__(graph=sub_graph, event_types=sub_event_types, attributes=sub_attributes)
